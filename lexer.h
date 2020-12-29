@@ -126,5 +126,4 @@ char *tokenstr(Lexer *lex, Token tok, char *buf, size_t len);
 char *tokentypestr(enum TokenType t, char *buf, size_t blen);
 void token_print(Lexer *l, const Token t);
 
-
 #endif

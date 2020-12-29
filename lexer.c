@@ -243,9 +243,7 @@ static void lex_until(Lexer *l, const char *delimiter) {
 
 // Checks if the character the lexer is currently pointing at is a char.
 // Useful for grammars with meaningful whitespaces.
-int at_whitespace(const Lexer *l) {
-	return l->ch == ' ' || l->ch == '\t';
-}
+int at_whitespace(const Lexer *l) { return l->ch == ' ' || l->ch == '\t'; }
 
 // Lex the next token and place it at l->tok.
 // Return EOF if reached source EOF.
