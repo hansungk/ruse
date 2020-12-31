@@ -125,4 +125,45 @@ char *tokenstr(Lexer *lex, Token tok, char *buf, size_t len);
 char *tokentypestr(enum TokenType t, char *buf, size_t blen);
 void token_print(Lexer *l, const Token t);
 
+enum NodeKind {
+	ND_FILE,
+	ND_DATE,
+	ND_VERSION,
+	ND_TIMESCALE,
+	ND_COMMENT,
+	ND_SCOPE,
+	ND_VAR,
+	ND_VARREF,
+        ND_UPSCOPE,
+        ND_ENDDEFINITIONS,
+};
+
+enum VarKind {
+        VAR_WIRE,
+        VAR_REG,
+};
+
+struct Node {
+	enum NodeKind kind;
+        enum VarKind var_kind;
+	Token tok; // ident_code for ND_VAR
+        long size;
+        long msb;
+        long lsb;
+	struct Node **children;
+};
+
+// Source text = ['tok' 'lookahead...' ...unlexed...]
+struct Parser {
+	Lexer l;		  // lexer driven by this parser
+	Token tok;		  // current token
+	Token *lookahead;	  // lookahead tokens
+	struct Node **nodeptrbuf; // pointers to the allocated nodes
+};
+
+void parser_from_file(struct Parser *p, const char *filename);
+void parser_from_buf(struct Parser *p, const char *buf, size_t len);
+void parser_cleanup(struct Parser *p);
+struct Node *parse_file(struct Parser *p);
+
 #endif

@@ -1,7 +1,7 @@
 CFLAGS += -g -std=c11 -Wall -Wextra -Wno-unused-function
 # CFLAGS += -fsanitize=address,leak,undefined
 PROG := ruse
-SRCS := main.c lexer.c
+SRCS := main.c parser.c lexer.c
 OBJS := $(SRCS:.c=.o)
 DEPS := $(SRCS:.c=.d)
 
