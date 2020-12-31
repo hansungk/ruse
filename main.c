@@ -1,3 +1,4 @@
+#include "ruse.h"
 #include <stdio.h>
 
 int main(void) {

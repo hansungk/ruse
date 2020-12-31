@@ -1,8 +1,7 @@
-/* vim: set ft=c: */
-#ifndef LEX_H
-#define LEX_H
+#ifndef RUSE_H
+#define RUSE_H
 
-#include <stdlib.h>
+#include <stddef.h>
 
 #define MAXTOKLEN 64
 

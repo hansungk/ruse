@@ -1,4 +1,4 @@
-#include "lexer.h"
+#include "ruse.h"
 #include "stretchy_buffer.h"
 #include <assert.h>
 #include <ctype.h>
@@ -204,7 +204,7 @@ static void lex_symbol(Lexer *l) {
 		}
 	}
 
-	// assume anything is a single-char symbol
+	// assume anything else is a single-char symbol
 	char c = lookn(l, 0);
 	step(l);
 	maketoken(l, (TokenType)c);
@@ -325,11 +325,11 @@ int lex_next_manual(Lexer *l, enum TokenType t) {
 			break;
 		}
 		default:
-			goto manual;
+			goto exit;
 		}
 	}
 
-manual:
+exit:
 	l->start = l->off;
 
 	switch (t) {
