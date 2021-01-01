@@ -111,24 +111,28 @@ static void tokentypeprint(enum TokenType t) {
 	printf("i saw %s\n", buf);
 }
 
-// Left paren is already consumed.
+// Opening paren is already consumed.
 static struct Node *parse_sexp(struct Parser *p) {
 	struct Node **children = NULL;
 
 	assert(p->tok.type == '(');
 	next(p);
 
-	for (; p->tok.type != TOK_EOF && p->tok.type != ')'; next(p)) {
-		assert(p->tok.type == TOK_ATOM);
-		sb_push(children, makeatom(p, p->tok));
+	while (p->tok.type != TOK_EOF && p->tok.type != ')') {
+		if (p->tok.type == '(') {
+			sb_push(children, parse_sexp(p));
+		} else {
+			expect(p, TOK_ATOM);
+			sb_push(children, makeatom(p, p->tok));
+		}
 	}
 
-	next(p);
+	expect(p, ')');
 	return makelist(p, children);
 }
 
 struct Node *parse_file(struct Parser *p) {
-	struct Node **nodes = NULL;
+	struct Node **toplevel = NULL;
 
 	skip_newlines(p);
 
@@ -137,19 +141,20 @@ struct Node *parse_file(struct Parser *p) {
 
 		switch (p->tok.type) {
 		case TOK_EOF:
-			return makefile(p, nodes);
+			return makefile(p, toplevel);
 		case '(':
 			n = parse_sexp(p);
 			if (!n) {
 				goto fail;
 			}
-			sb_push(nodes, n);
+			sb_push(toplevel, n);
 			break;
 		case ';':
 			fprintf(stderr, "todo: comment\n");
 			goto fail;
 		default:
-			fprintf(stderr, "unknown token\n");
+			fprintf(stderr, "unknown token: ");
+			tokentypeprint(p->tok.type);
 			goto fail;
 		}
 
@@ -159,5 +164,5 @@ struct Node *parse_file(struct Parser *p) {
 fail:
 	printf("broke before EOF, p->tok.range.start=%ld\n",
 	       p->tok.range.start);
-	return makefile(p, nodes);
+	return makefile(p, toplevel);
 }
