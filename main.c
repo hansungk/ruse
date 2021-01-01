@@ -6,9 +6,10 @@ int main(void) {
 	struct Parser p;
 	struct Context ctx;
 	parser_from_file(&p, "test.ruse");
+	context_init(&ctx);
 
 	for (;;) {
-		struct Node *n = ruse_read(&p);
+		struct Val *n = ruse_read(&p);
 		if (!n) {
 			break;
 		}

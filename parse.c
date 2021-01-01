@@ -5,30 +5,30 @@
 #include <stdlib.h>
 #include <string.h>
 
-static struct Node *makenode(struct Parser *p, enum NodeKind k, struct Token tok) {
+static struct Val *makenode(struct Parser *p, enum ValKind k, struct Token tok) {
 	// TODO: store all nodes in a contiguous buffer for better locality?
 	// should be careful about node pointers going stale though
-	struct Node *node = calloc(1, sizeof(struct Node));
-	if (!node) {
+	struct Val *v = calloc(1, sizeof(struct Val));
+	if (!v) {
 		fprintf(stderr, "alloc error\n");
 		exit(1);
 	}
-	node->kind = k;
-	node->tok = tok;
-	sb_push(p->nodeptrbuf, node);
-	return node;
+	v->kind = k;
+	v->tok = tok;
+	sb_push(p->valptrbuf, v);
+	return v;
 }
 
-static struct Node *makeatom(struct Parser *p, struct Token tok) {
-	struct Node *n = makenode(p, ND_ATOM, tok);
-	n->tok = tok;
-	return n;
+static struct Val *makeatom(struct Parser *p, struct Token tok) {
+	struct Val *v = makenode(p, ND_ATOM, tok);
+	v->tok = tok;
+	return v;
 }
 
-static struct Node *makelist(struct Parser *p, struct Node **children) {
-	struct Node *n = makenode(p, ND_LIST, p->tok); // TODO: tok is unused
-	n->children = children;
-	return n;
+static struct Val *makelist(struct Parser *p, struct Val **children) {
+	struct Val *v = makenode(p, ND_LIST, p->tok); // TODO: tok is unused
+	v->children = children;
+	return v;
 }
 
 // Initialize a Parser that parses the given filename.
@@ -49,17 +49,17 @@ void parser_from_buf(struct Parser *p, const char *buf, size_t len) {
 }
 
 void parser_cleanup(struct Parser *p) {
-	for (int i = 0; i < sb_count(p->nodeptrbuf); i++) {
-		struct Node *n = p->nodeptrbuf[i];
-		if (n) {
-			if (n->children)
-				sb_free(n->children);
-			free(n);
+	for (int i = 0; i < sb_count(p->valptrbuf); i++) {
+		struct Val *v = p->valptrbuf[i];
+		if (v) {
+			if (v->children)
+				sb_free(v->children);
+			free(v);
 		}
 	}
 
 	lexer_cleanup(&p->l);
-	sb_free(p->nodeptrbuf);
+	sb_free(p->valptrbuf);
 }
 
 static void next(struct Parser *p) {
@@ -100,8 +100,8 @@ static void tokentypeprint(enum TokenType t) {
 }
 
 // Opening paren is already consumed.
-static struct Node *parse_sexp(struct Parser *p) {
-	struct Node **children = NULL;
+static struct Val *parse_sexp(struct Parser *p) {
+	struct Val **children = NULL;
 
 	assert(p->tok.type == '(');
 	next(p);
@@ -119,7 +119,7 @@ static struct Node *parse_sexp(struct Parser *p) {
 	return makelist(p, children);
 }
 
-struct Node *ruse_read(struct Parser *p) {
+struct Val *ruse_read(struct Parser *p) {
 	skip_newlines(p);
 
 	switch (p->tok.type) {
