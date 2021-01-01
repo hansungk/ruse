@@ -9,9 +9,14 @@ int main(void) {
 	for (;;) {
 		struct Node *n = ruse_read(&p);
 		if (!n) {
-			exit(1);
+			break;
 		}
 	}
+	if (p.tok.type != TOK_EOF) {
+		fprintf(stderr, "terminated abnormally\n");
+		return 1;
+	}
+
 	parser_cleanup(&p);
 	return 0;
 }

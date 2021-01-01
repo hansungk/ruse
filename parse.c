@@ -125,13 +125,16 @@ struct Node *ruse_read(struct Parser *p) {
 	switch (p->tok.type) {
 	case TOK_EOF:
 		return NULL;
-	case '(':
-		return parse_sexp(p);
 	case ';':
 		while (p->tok.type != TOK_EOF && p->tok.type != TOK_NEWLINE) {
 			next(p);
 		}
 		return ruse_read(p);
+	case '(':
+		return parse_sexp(p);
+	case TOK_ATOM:
+		next(p);
+		return makeatom(p, p->tok);
 	default:
 		fprintf(stderr, "unknown token: ");
 		tokentypeprint(p->tok.type);
