@@ -1,5 +1,6 @@
 #include "ruse.h"
 #include "stretchy_buffer.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -91,15 +92,16 @@ static void skip_while(struct Parser *p, enum TokenType type) {
 
 static void skip_newlines(struct Parser *p) { skip_while(p, '\n'); }
 
+// Left paren is already consumed.
 static struct Node *parse_sexp(struct Parser *p) {
 	struct Node *n = NULL;
+	char buf[MAXTOKLEN];
 
-	skip_newlines(p);
+	assert(p->tok.type == '(');
 
-	if (p->tok.type == '(') {
-		next(p);
-		expect(p, ')');
-	}
+	next(p);
+	tokentypestr(p->tok.type, buf, sizeof(buf));
+	printf("I got %s\n", buf);
 
 	return n;
 }
