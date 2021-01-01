@@ -4,6 +4,7 @@
 
 int main(void) {
 	struct Parser p;
+	struct Context ctx;
 	parser_from_file(&p, "test.ruse");
 
 	for (;;) {
@@ -11,7 +12,9 @@ int main(void) {
 		if (!n) {
 			break;
 		}
+		ruse_eval(&ctx, n);
 	}
+
 	if (p.tok.type != TOK_EOF) {
 		fprintf(stderr, "terminated abnormally\n");
 		return 1;

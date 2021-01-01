@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static struct Node *makenode(struct Parser *p, enum NodeKind k, Token tok) {
+static struct Node *makenode(struct Parser *p, enum NodeKind k, struct Token tok) {
 	// TODO: store all nodes in a contiguous buffer for better locality?
 	// should be careful about node pointers going stale though
 	struct Node *node = calloc(1, sizeof(struct Node));
@@ -19,7 +19,7 @@ static struct Node *makenode(struct Parser *p, enum NodeKind k, Token tok) {
 	return node;
 }
 
-static struct Node *makeatom(struct Parser *p, Token tok) {
+static struct Node *makeatom(struct Parser *p, struct Token tok) {
 	struct Node *n = makenode(p, ND_ATOM, tok);
 	n->tok = tok;
 	return n;

@@ -38,7 +38,7 @@ static char *readfile(const char *filename, long *filesize) {
 	return s;
 }
 
-static void step(Lexer *l) {
+static void step(struct Lexer *l) {
 	if (l->rd_off < l->srclen) {
 		l->off = l->rd_off;
 		l->ch = l->src[l->off];
@@ -52,16 +52,16 @@ static void step(Lexer *l) {
 	}
 }
 
-int lexer_from_file(Lexer *l, const char *filename) {
-	memset(l, 0, sizeof(Lexer));
+int lexer_from_file(struct Lexer *l, const char *filename) {
+	memset(l, 0, sizeof(struct Lexer));
 	memcpy(l->filename, filename, 255);
 	l->src = readfile(filename, &l->srclen);
 	step(l);
 	return 1;
 }
 
-int lexer_from_buf(Lexer *l, const char *buf, size_t len) {
-	memset(l, 0, sizeof(Lexer));
+int lexer_from_buf(struct Lexer *l, const char *buf, size_t len) {
+	memset(l, 0, sizeof(struct Lexer));
 	strncpy(l->filename, "(null)", 255);
 	l->srclen = len;
 	l->src = calloc(len + 1, 1);
@@ -70,38 +70,38 @@ int lexer_from_buf(Lexer *l, const char *buf, size_t len) {
 	return 1;
 }
 
-void lexer_cleanup(Lexer *l) {
+void lexer_cleanup(struct Lexer *l) {
 	sb_free(l->line_offs);
 	free(l->src);
 }
 
 // step() n times.
 // NOTE: more strict?
-static void consume(Lexer *l, long n) {
+static void consume(struct Lexer *l, long n) {
 	for (long i = 0; i < n; i++)
 		step(l);
 }
 
-static char lookn(Lexer *l, long n) {
+static char lookn(struct Lexer *l, long n) {
 	if (l->off + n < l->srclen)
 		return l->src[l->off + n];
 	return '\0';
 }
 
-static void maketoken(Lexer *l, TokenType type) {
-	memset(&l->tok, 0, sizeof(Token));
+static void maketoken(struct Lexer *l, enum TokenType type) {
+	memset(&l->tok, 0, sizeof(struct Token));
 	l->tok.type = type;
-	l->tok.range = (SrcRange){l->start, l->off};
+	l->tok.range = (struct SrcRange){l->start, l->off};
 }
 
 // maketoken, but specify its end position.
-static void maketoken_end(Lexer *l, TokenType type, long end) {
-	memset(&l->tok, 0, sizeof(Token));
+static void maketoken_end(struct Lexer *l, enum TokenType type, long end) {
+	memset(&l->tok, 0, sizeof(struct Token));
 	l->tok.type = type;
-	l->tok.range = (SrcRange){l->start, end};
+	l->tok.range = (struct SrcRange){l->start, end};
 }
 
-static void lex_ident_or_keyword(Lexer *l) {
+static void lex_ident_or_keyword(struct Lexer *l) {
 	while (isalnum(l->ch) || l->ch == '_')
 		step(l);
 
@@ -123,12 +123,12 @@ static void lex_ident_or_keyword(Lexer *l) {
 	maketoken(l, TOK_ATOM);
 }
 
-static void skip_numbers(Lexer *l) {
+static void skip_numbers(struct Lexer *l) {
 	while (isdigit(l->ch))
 		step(l);
 }
 
-static void lex_number(Lexer *l) {
+static void lex_number(struct Lexer *l) {
 	skip_numbers(l);
 	if (l->ch == '.') {
 		step(l);
@@ -137,7 +137,7 @@ static void lex_number(Lexer *l) {
 	maketoken(l, TOK_NUM);
 }
 
-static void lex_string(Lexer *l) {
+static void lex_string(struct Lexer *l) {
 	step(l); // opening "
 	while (l->ch != '\0') {
 		switch (l->ch) {
@@ -159,7 +159,7 @@ strclose:
 
 // Lex the next token and place it at l->tok.
 // Return EOF if reached source EOF.
-int lex_next(Lexer *l) {
+int lex_next(struct Lexer *l) {
 	char c;
 
 	for (;;) {
@@ -218,13 +218,13 @@ int lex_next(Lexer *l) {
 }
 
 // FIXME: lifetime of 'filename'?
-SrcLoc lexer_locate(Lexer *l, size_t pos) {
+struct SrcLoc lexer_locate(struct Lexer *l, size_t pos) {
 	// search linearly for line that contains this position
 	// TODO: performance
 
 	if (sb_count(l->line_offs) == 0)
 		// First line
-		return (SrcLoc){l->filename, 1, pos + 1};
+		return (struct SrcLoc){l->filename, 1, pos + 1};
 
 	int line;
 	for (line = 0; line < sb_count(l->line_offs); line++)
@@ -232,12 +232,12 @@ SrcLoc lexer_locate(Lexer *l, size_t pos) {
 			break;
 
 	int col = pos - l->line_offs[line - 1];
-	return (SrcLoc){l->filename, line + 1, col};
+	return (struct SrcLoc){l->filename, line + 1, col};
 }
 
 // Print 'tok' as string into buf.
 // Needs lexer because it needs the source text.
-char *tokenstr(Lexer *lex, Token tok, char *buf, size_t blen) {
+char *tokenstr(struct Lexer *lex, struct Token tok, char *buf, size_t blen) {
 	size_t tlen = tok.range.end - tok.range.start;
 	size_t strlen = (blen - 1) < tlen ? (blen - 1) : tlen;
 	strncpy(buf, lex->src + tok.range.start, strlen);
@@ -261,7 +261,7 @@ char *tokentypestr(enum TokenType t, char *buf, size_t blen) {
 	return buf;
 }
 
-void token_print(Lexer *l, const Token tok) {
+void token_print(struct Lexer *l, const struct Token tok) {
 	char buf[MAXTOKLEN];
 
 	switch (tok.type) {
