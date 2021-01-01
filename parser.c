@@ -106,17 +106,34 @@ static struct Node *parse_sexp(struct Parser *p) {
 
 struct Node *parse_file(struct Parser *p) {
 	struct Node **nodes = NULL;
+	struct Node *n = NULL;
 
-	while (p->tok.type != TOK_EOF) {
-		struct Node *n = parse_sexp(p);
-		if (!n) {
-			printf("broke before EOF, p->tok.range.start=%ld\n",
-			       p->tok.range.start);
+	skip_newlines(p);
+
+	for (;;) {
+		switch (p->tok.type) {
+		case TOK_EOF:
+			return makefile(p, nodes);
+		case '(':
+			n = parse_sexp(p);
+			if (!n) {
+				goto fail;
+			}
+			sb_push(nodes, n);
 			break;
+		case ';':
+			fprintf(stderr, "todo: comment\n");
+			goto fail;
+		default:
+			fprintf(stderr, "unknown token\n");
+			goto fail;
 		}
-		sb_push(nodes, n);
+
 		skip_newlines(p);
 	}
 
+fail:
+	printf("broke before EOF, p->tok.range.start=%ld\n",
+	       p->tok.range.start);
 	return makefile(p, nodes);
 }

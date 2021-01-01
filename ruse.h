@@ -116,7 +116,6 @@ typedef struct Lexer {
 int lexer_from_file(Lexer *l, const char *filename);
 int lexer_from_buf(Lexer *l, const char *buf, size_t len);
 void lexer_cleanup(Lexer *l);
-int at_whitespace(const Lexer *l);
 int lex_next(Lexer *l);
 int lex_next_manual(Lexer *l, enum TokenType t);
 char *srclocstr(SrcLoc loc, char *buf, size_t len);

@@ -241,10 +241,6 @@ static void lex_until(Lexer *l, const char *delimiter) {
 	maketoken(l, TOK_EOF);
 }
 
-// Checks if the character the lexer is currently pointing at is a char.
-// Useful for grammars with meaningful whitespaces.
-int at_whitespace(const Lexer *l) { return l->ch == ' ' || l->ch == '\t'; }
-
 // Lex the next token and place it at l->tok.
 // Return EOF if reached source EOF.
 int lex_next(Lexer *l) {
@@ -257,7 +253,8 @@ int lex_next(Lexer *l) {
 			return EOF;
 		}
 		case ' ':
-		case '\t': {
+		case '\t':
+		case '\r': {
 			// whitespaces
 			step(l);
 			break;
