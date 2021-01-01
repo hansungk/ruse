@@ -131,7 +131,7 @@ static struct Node *parse_sexp(struct Parser *p) {
 	return makelist(p, children);
 }
 
-struct Node *read(struct Parser *p) {
+struct Node *ruse_read(struct Parser *p) {
 	skip_newlines(p);
 
 	switch (p->tok.type) {
@@ -140,8 +140,10 @@ struct Node *read(struct Parser *p) {
 	case '(':
 		return parse_sexp(p);
 	case ';':
-		fprintf(stderr, "todo: comment\n");
-		return NULL;
+		while (p->tok.type != TOK_EOF && p->tok.type != TOK_NEWLINE) {
+			next(p);
+		}
+		return ruse_read(p);
 	default:
 		fprintf(stderr, "unknown token: ");
 		tokentypeprint(p->tok.type);

@@ -7,7 +7,7 @@ int main(void) {
 	parser_from_file(&p, "test.ruse");
 
 	for (;;) {
-		struct Node *n = read(&p);
+		struct Node *n = ruse_read(&p);
 		if (!n) {
 			exit(1);
 		}
