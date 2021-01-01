@@ -19,12 +19,6 @@ static struct Node *makenode(struct Parser *p, enum NodeKind k, Token tok) {
 	return node;
 }
 
-static struct Node *makefile(struct Parser *p, struct Node **children) {
-	struct Node *n = makenode(p, ND_FILE, p->tok);
-	n->children = children;
-	return n;
-}
-
 static struct Node *makeatom(struct Parser *p, Token tok) {
 	struct Node *n = makenode(p, ND_ATOM, tok);
 	n->tok = tok;
@@ -76,8 +70,7 @@ static void next(struct Parser *p) {
 	p->tok = p->l.tok;
 }
 
-// Like expect, but do not make progress.
-static int expect_peek(struct Parser *p, enum TokenType t) {
+static int expect(struct Parser *p, enum TokenType t) {
 	if (p->tok.type != t) {
 		char ebuf[MAXTOKLEN], gbuf[MAXTOKLEN];
 		tokentypestr(t, ebuf, sizeof(ebuf));
@@ -86,14 +79,9 @@ static int expect_peek(struct Parser *p, enum TokenType t) {
 			p->tok.range.start, ebuf, gbuf);
 		exit(1);
 	}
-	return 1;
-}
-
-static int expect(struct Parser *p, enum TokenType t) {
-	int r = expect_peek(p, t);
 	// make progress
 	next(p);
-	return r;
+	return 1;
 }
 
 static void skip_while(struct Parser *p, enum TokenType type) {
