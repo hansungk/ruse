@@ -20,9 +20,21 @@ static struct Node *makenode(struct Parser *p, enum NodeKind k, Token tok) {
 }
 
 static struct Node *makefile(struct Parser *p, struct Node **children) {
-	struct Node *node = makenode(p, ND_FILE, p->tok);
-	node->children = children;
-	return node;
+	struct Node *n = makenode(p, ND_FILE, p->tok);
+	n->children = children;
+	return n;
+}
+
+static struct Node *makeatom(struct Parser *p, Token tok) {
+	struct Node *n = makenode(p, ND_ATOM, tok);
+	n->tok = tok;
+	return n;
+}
+
+static struct Node *makelist(struct Parser *p, struct Node **children) {
+	struct Node *n = makenode(p, ND_LIST, p->tok); // TODO: tok is unused
+	n->children = children;
+	return n;
 }
 
 // Initialize a Parser that parses the given filename.
@@ -92,22 +104,27 @@ static void skip_while(struct Parser *p, enum TokenType type) {
 
 static void skip_newlines(struct Parser *p) { skip_while(p, '\n'); }
 
+// TODO: remove
+static void tokentypeprint(enum TokenType t) {
+	char buf[MAXTOKLEN];
+	tokentypestr(t, buf, sizeof(buf));
+	printf("i saw %s\n", buf);
+}
+
 // Left paren is already consumed.
 static struct Node *parse_sexp(struct Parser *p) {
-	struct Node *n = NULL;
+	struct Node **children = NULL;
 
 	assert(p->tok.type == '(');
 	next(p);
 
 	for (; p->tok.type != TOK_EOF && p->tok.type != ')'; next(p)) {
-		char buf[MAXTOKLEN];
-		tokentypestr(p->tok.type, buf, sizeof(buf));
-		printf("i saw %s\n", buf);
 		assert(p->tok.type == TOK_ATOM);
+		sb_push(children, makeatom(p, p->tok));
 	}
 
 	next(p);
-	return n;
+	return makelist(p, children);
 }
 
 struct Node *parse_file(struct Parser *p) {

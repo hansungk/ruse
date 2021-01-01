@@ -79,30 +79,15 @@ char *tokentypestr(enum TokenType t, char *buf, size_t blen);
 void token_print(Lexer *l, const Token t);
 
 enum NodeKind {
-	ND_FILE,
-	ND_DATE,
-	ND_VERSION,
-	ND_TIMESCALE,
+	ND_ATOM,
+	ND_LIST,
 	ND_COMMENT,
-	ND_SCOPE,
-	ND_VAR,
-	ND_VARREF,
-        ND_UPSCOPE,
-        ND_ENDDEFINITIONS,
-};
-
-enum VarKind {
-        VAR_WIRE,
-        VAR_REG,
+	ND_FILE,
 };
 
 struct Node {
 	enum NodeKind kind;
-        enum VarKind var_kind;
-	Token tok; // ident_code for ND_VAR
-        long size;
-        long msb;
-        long lsb;
+	Token tok;
 	struct Node **children;
 };
 
