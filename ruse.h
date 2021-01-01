@@ -1,3 +1,4 @@
+/* vim: set ft=c: */
 #ifndef RUSE_H
 #define RUSE_H
 
@@ -10,13 +11,14 @@ typedef enum TokenType {
 	TOK_NEWLINE = '\n',
 	TOK_LPAREN = '(',
 	TOK_RPAREN = ')',
+	TOK_SEMICOLON = ';',
 	TOK_QUOTE = '\'',
 	TOK_ASCII = 256,
 
 	TOK_NUM,
-	TOK_IDENT,
+	TOK_ATOM,
 	TOK_STRING,
-        TOK_COMMENT,
+	TOK_COMMENT,
 
 	TOK_KEYWORDS,
 

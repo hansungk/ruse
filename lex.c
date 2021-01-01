@@ -8,18 +8,14 @@
 #include <string.h>
 
 char *token_names[NUM_TOKENTYPES] = {
-    [TOK_IDENT] = "identifier", [TOK_NUM] = "number", [TOK_NEWLINE] = "\\n",
-    [TOK_LPAREN] = "(",		[TOK_RPAREN] = ")", [TOK_COMMENT] = "comment",
+    [TOK_ATOM] = "atom", [TOK_NUM] = "number", [TOK_NEWLINE] = "\\n",
+    [TOK_LPAREN] = "(",	 [TOK_RPAREN] = ")",   [TOK_COMMENT] = "comment",
 };
 
 struct token_map keywords[] = {
     {"comment", TOK_COMMENT},
     {NULL, 0},
 };
-
-int is_keyword(Token tok) {
-	return TOK_KEYWORDS < tok.type && tok.type < TOK_ERR;
-}
 
 static char *readfile(const char *filename, long *filesize) {
 	FILE *f = fopen(filename, "r");
@@ -124,7 +120,7 @@ static void lex_ident_or_keyword(Lexer *l) {
 		}
 	}
 
-	maketoken(l, TOK_IDENT);
+	maketoken(l, TOK_ATOM);
 }
 
 static void skip_numbers(Lexer *l) {
@@ -164,6 +160,8 @@ strclose:
 // Lex the next token and place it at l->tok.
 // Return EOF if reached source EOF.
 int lex_next(Lexer *l) {
+	char c;
+
 	for (;;) {
 		l->start = l->off;
 
@@ -208,8 +206,9 @@ int lex_next(Lexer *l) {
 			if (isalpha(l->ch) || l->ch == '-') {
 				lex_ident_or_keyword(l);
 			} else {
+				c = l->ch;
 				step(l);
-				maketoken(l, l->ch);
+				maketoken(l, c);
 			}
 			return 0;
 		}
@@ -266,7 +265,7 @@ void token_print(Lexer *l, const Token tok) {
 	char buf[MAXTOKLEN];
 
 	switch (tok.type) {
-	case TOK_IDENT:
+	case TOK_ATOM:
 	case TOK_COMMENT:
 	case TOK_NUM:
 	case TOK_STRING:

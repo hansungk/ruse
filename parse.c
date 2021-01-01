@@ -95,24 +95,29 @@ static void skip_newlines(struct Parser *p) { skip_while(p, '\n'); }
 // Left paren is already consumed.
 static struct Node *parse_sexp(struct Parser *p) {
 	struct Node *n = NULL;
-	char buf[MAXTOKLEN];
 
 	assert(p->tok.type == '(');
+	next(p);
+
+	for (; p->tok.type != TOK_EOF && p->tok.type != ')'; next(p)) {
+		char buf[MAXTOKLEN];
+		tokentypestr(p->tok.type, buf, sizeof(buf));
+		printf("i saw %s\n", buf);
+		assert(p->tok.type == TOK_ATOM);
+	}
 
 	next(p);
-	tokentypestr(p->tok.type, buf, sizeof(buf));
-	printf("I got %s\n", buf);
-
 	return n;
 }
 
 struct Node *parse_file(struct Parser *p) {
 	struct Node **nodes = NULL;
-	struct Node *n = NULL;
 
 	skip_newlines(p);
 
 	for (;;) {
+		struct Node *n = NULL;
+
 		switch (p->tok.type) {
 		case TOK_EOF:
 			return makefile(p, nodes);
