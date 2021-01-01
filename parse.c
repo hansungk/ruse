@@ -164,5 +164,5 @@ struct Node *parse_file(struct Parser *p) {
 fail:
 	printf("broke before EOF, p->tok.range.start=%ld\n",
 	       p->tok.range.start);
-	return makefile(p, toplevel);
+	exit(1);
 }
