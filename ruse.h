@@ -102,6 +102,6 @@ struct Parser {
 void parser_from_file(struct Parser *p, const char *filename);
 void parser_from_buf(struct Parser *p, const char *buf, size_t len);
 void parser_cleanup(struct Parser *p);
-struct Node *parse_file(struct Parser *p);
+struct Node *read(struct Parser *p);
 
 #endif

@@ -131,38 +131,20 @@ static struct Node *parse_sexp(struct Parser *p) {
 	return makelist(p, children);
 }
 
-struct Node *parse_file(struct Parser *p) {
-	struct Node **toplevel = NULL;
-
+struct Node *read(struct Parser *p) {
 	skip_newlines(p);
 
-	for (;;) {
-		struct Node *n = NULL;
-
-		switch (p->tok.type) {
-		case TOK_EOF:
-			return makefile(p, toplevel);
-		case '(':
-			n = parse_sexp(p);
-			if (!n) {
-				goto fail;
-			}
-			sb_push(toplevel, n);
-			break;
-		case ';':
-			fprintf(stderr, "todo: comment\n");
-			goto fail;
-		default:
-			fprintf(stderr, "unknown token: ");
-			tokentypeprint(p->tok.type);
-			goto fail;
-		}
-
-		skip_newlines(p);
+	switch (p->tok.type) {
+	case TOK_EOF:
+		return NULL;
+	case '(':
+		return parse_sexp(p);
+	case ';':
+		fprintf(stderr, "todo: comment\n");
+		return NULL;
+	default:
+		fprintf(stderr, "unknown token: ");
+		tokentypeprint(p->tok.type);
+		return NULL;
 	}
-
-fail:
-	printf("broke before EOF, p->tok.range.start=%ld\n",
-	       p->tok.range.start);
-	exit(1);
 }
