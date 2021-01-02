@@ -2,6 +2,11 @@
 
 A toy lisp.
 
+## todo
+
+* repl
+* list eval
+
 ## tiny lisps
 
 * [rui314/minilisp](https://github.com/rui314/minilisp)

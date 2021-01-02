@@ -75,30 +75,10 @@ void lexer_cleanup(struct Lexer *l) {
 	free(l->src);
 }
 
-// step() n times.
-// NOTE: more strict?
-static void consume(struct Lexer *l, long n) {
-	for (long i = 0; i < n; i++)
-		step(l);
-}
-
-static char lookn(struct Lexer *l, long n) {
-	if (l->off + n < l->srclen)
-		return l->src[l->off + n];
-	return '\0';
-}
-
 static void maketoken(struct Lexer *l, enum TokenType type) {
 	memset(&l->tok, 0, sizeof(struct Token));
 	l->tok.type = type;
 	l->tok.range = (struct SrcRange){l->start, l->off};
-}
-
-// maketoken, but specify its end position.
-static void maketoken_end(struct Lexer *l, enum TokenType type, long end) {
-	memset(&l->tok, 0, sizeof(struct Token));
-	l->tok.type = type;
-	l->tok.range = (struct SrcRange){l->start, end};
 }
 
 static void lex_ident_or_keyword(struct Lexer *l) {

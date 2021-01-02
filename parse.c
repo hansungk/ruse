@@ -5,9 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-static struct Val *makenode(struct Parser *p, enum ValKind k, struct Token tok) {
-	// TODO: store all nodes in a contiguous buffer for better locality?
-	// should be careful about node pointers going stale though
+static struct Val *makeval(struct Parser *p, enum ValKind k, struct Token tok) {
+	// TODO: store all vals in a contiguous buffer for better locality?
+	// should be careful about val pointers going stale though
 	struct Val *v = calloc(1, sizeof(struct Val));
 	if (!v) {
 		fprintf(stderr, "alloc error\n");
@@ -20,13 +20,13 @@ static struct Val *makenode(struct Parser *p, enum ValKind k, struct Token tok) 
 }
 
 static struct Val *makeatom(struct Parser *p, struct Token tok) {
-	struct Val *v = makenode(p, VAL_ATOM, tok);
+	struct Val *v = makeval(p, VAL_ATOM, tok);
 	v->tok = tok;
 	return v;
 }
 
 static struct Val *makelist(struct Parser *p, struct Val **children) {
-	struct Val *v = makenode(p, VAL_LIST, p->tok); // TODO: tok is unused
+	struct Val *v = makeval(p, VAL_LIST, p->tok); // TODO: tok is unused
 	v->children = children;
 	return v;
 }

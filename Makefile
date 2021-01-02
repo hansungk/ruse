@@ -1,4 +1,4 @@
-CFLAGS += -g -std=c11 -Wall -Wextra -Wno-unused-function
+CFLAGS += -g -std=c11 -Wall -Wextra
 # CFLAGS += -fsanitize=address,leak,undefined
 PROG := ruse
 SRCS := main.c eval.c parse.c lex.c
