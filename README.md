@@ -1,3 +1,7 @@
+# Ruse
+
+A toy lisp.
+
 ## tiny lisps
 
 * [rui314/minilisp](https://github.com/rui314/minilisp)
