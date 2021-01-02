@@ -8,13 +8,14 @@ int main(void) {
 	parser_from_file(&p, "test.ruse");
 	context_init(&ctx, p.l.src);
 
+
 	for (;;) {
-		struct Val *v = ruse_read(&p);
-		if (!v) {
+		struct Node *n = ruse_read(&p);
+		if (!n) {
 			break;
 		}
-		ruse_eval(&ctx, v);
-		ruse_print(v);
+		ruse_eval(&ctx, n);
+		ruse_print(n);
 	}
 
 	if (p.tok.type != TOK_EOF) {

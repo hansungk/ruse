@@ -8,11 +8,11 @@ void context_init(struct Context *ctx, const char *src) {
 	ctx->src = src;
 }
 
-void ruse_eval(struct Context *ctx, struct Val *v) {
+void ruse_eval(struct Context *ctx, struct Node *v) {
 	switch (v->kind) {
-	case VAL_ATOM:
+	case ND_ATOM:
 		if (v->tok.type == TOK_NUM) {
-			v->kind = VAL_NUM;
+			v->kind = ND_NUM;
 			// TODO: floats
 			char *endptr;
 			v->num = strtol(ctx->src + v->tok.range.start, &endptr, 10);
@@ -29,15 +29,15 @@ void ruse_eval(struct Context *ctx, struct Val *v) {
 	}
 }
 
-void ruse_print(struct Val *v) {
+void ruse_print(struct Node *v) {
 	switch (v->kind) {
-	case VAL_NUM:
+	case ND_NUM:
 		printf("%ld\n", v->num);
 		break;
-	case VAL_ATOM:
+	case ND_ATOM:
 		printf("atom (todo)\n");
 		break;
-	case VAL_LIST:
+	case ND_LIST:
 		printf("list (todo)\n");
 		break;
 	default:

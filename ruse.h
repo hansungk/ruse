@@ -26,6 +26,7 @@ enum TokenType {
 	NUM_TOKENTYPES
 };
 
+#define TOKLEN 100
 extern char *token_names[NUM_TOKENTYPES];
 
 struct token_map {
@@ -34,8 +35,8 @@ struct token_map {
 };
 
 struct SrcRange {
-	size_t start;
-	size_t end;
+	size_t start; // start position in the source
+	size_t end;   // end position in the source
 };
 
 // Making Tokens store source ranges instead of string memory blocks makes
@@ -77,39 +78,40 @@ char *tokenstr(struct Lexer *lex, struct Token tok, char *buf, size_t len);
 char *tokentypestr(enum TokenType t, char *buf, size_t blen);
 void tokenprint(const char *src, const struct Token tok);
 
-enum ValKind {
-	VAL_ATOM, // unevaluated
-	VAL_NUM,
-	VAL_LIST,
+enum NodeKind {
+	ND_ATOM,
+	ND_NUM,
+	ND_LIST,
+	ND_COMMENT,
+	ND_FILE,
 };
 
-struct Val {
-	enum ValKind kind;
-	struct Token tok; // unevaluated read string
+struct Node {
+	enum NodeKind kind;
+	struct Token tok;
 	long num;
-	// TODO: car/cdr
-	struct Val **children;
+	struct Node **children;
 };
 
 // Source text = ['tok' 'lookahead...' ...unlexed...]
 struct Parser {
-	struct Lexer l;		 // lexer driven by this parser
-	struct Token tok;	 // current token
-	struct Token *lookahead; // lookahead tokens
-	struct Val **valptrbuf;	 // pointers to the allocated nodes
+	struct Lexer l;		  // lexer driven by this parser
+	struct Token tok;	  // current token
+	struct Token *lookahead;  // lookahead tokens
+	struct Node **nodeptrbuf; // pointers to the allocated nodes
 };
 
 void parser_from_file(struct Parser *p, const char *filename);
 void parser_from_buf(struct Parser *p, const char *buf, size_t len);
 void parser_cleanup(struct Parser *p);
-struct Val *ruse_read(struct Parser *p);
+struct Node *ruse_read(struct Parser *p);
 
 struct Context {
 	const char *src;
 };
 
 void context_init(struct Context *ctx, const char *src);
-void ruse_eval(struct Context *ctx, struct Val *n);
-void ruse_print(struct Val *v);
+void ruse_eval(struct Context *ctx, struct Node *n);
+void ruse_print(struct Node *v);
 
 #endif
