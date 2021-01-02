@@ -9,11 +9,12 @@ int main(void) {
 	context_init(&ctx, p.l.src);
 
 	for (;;) {
-		struct Val *n = ruse_read(&p);
-		if (!n) {
+		struct Val *v = ruse_read(&p);
+		if (!v) {
 			break;
 		}
-		ruse_eval(&ctx, n);
+		ruse_eval(&ctx, v);
+		ruse_print(v);
 	}
 
 	if (p.tok.type != TOK_EOF) {

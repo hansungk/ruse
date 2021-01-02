@@ -110,5 +110,6 @@ struct Context {
 
 void context_init(struct Context *ctx, const char *src);
 void ruse_eval(struct Context *ctx, struct Val *n);
+void ruse_print(struct Val *v);
 
 #endif
