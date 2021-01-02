@@ -1,0 +1,5 @@
+proc fibo(a int, b int) int
+    a := 4
+    b := 4
+    fibo(a - 1) + fibo(a - 2)
+end

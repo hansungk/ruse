@@ -19,6 +19,12 @@ static struct Node *makenode(struct Parser *p, enum NodeKind k, struct Token tok
 	return node;
 }
 
+static struct Node *makefile(struct Parser *p, struct Node **toplevel) {
+	struct Node *n = makenode(p, ND_FILE, p->tok);
+	n->children = toplevel;
+	return n;
+}
+
 static struct Node *makeatom(struct Parser *p, struct Token tok) {
 	struct Node *n = makenode(p, ND_ATOM, tok);
 	n->tok = tok;
@@ -99,50 +105,27 @@ static void tokentypeprint(enum TokenType t) {
 	printf("i saw %s\n", buf);
 }
 
-// Opening paren is already consumed.
-static struct Node *parse_sexp(struct Parser *p) {
-	struct Node **children = NULL;
-
-	assert(p->tok.type == '(');
-	next(p);
-
-	while (p->tok.type != TOK_EOF && p->tok.type != ')') {
-		if (p->tok.type == '(') {
-			sb_push(children, parse_sexp(p));
-		} else {
-			struct Token t = p->tok;
-			next(p);
-			sb_push(children, makeatom(p, t));
-		}
-	}
-
-	expect(p, ')');
-	return makelist(p, children);
-}
-
-struct Node *ruse_read(struct Parser *p) {
-	struct Token t;
-
+static struct Node *parse_toplevel(struct Parser *p) {
 	skip_newlines(p);
 
 	switch (p->tok.type) {
-	case TOK_EOF:
+	case TOK_PROC:
+		printf("saw proc\n");
 		return NULL;
-	case ';':
-		while (p->tok.type != TOK_EOF && p->tok.type != TOK_NEWLINE) {
-			next(p);
-		}
-		return ruse_read(p);
-	case '(':
-		return parse_sexp(p);
-	case TOK_IDENT:
-	case TOK_NUM:
-		t = p->tok;
-		next(p);
-		return makeatom(p, t);
 	default:
-		fprintf(stderr, "unknown token: ");
-		tokentypeprint(p->tok.type);
+		assert(0 && "unreachable");
 		return NULL;
 	}
+}
+
+struct Node *parse(struct Parser *p) {
+	struct Node **nodes = NULL;
+
+	while (p->tok.type != TOK_EOF) {
+		struct Node *func = parse_toplevel(p);
+		sb_push(nodes, func);
+		skip_newlines(p);
+	}
+
+	return makefile(p, nodes);
 }

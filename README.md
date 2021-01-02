@@ -1,6 +1,6 @@
 # Ruse
 
-A toy lisp.
+what am i?
 
 ## todo
 

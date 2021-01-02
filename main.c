@@ -10,7 +10,7 @@ int main(void) {
 
 
 	for (;;) {
-		struct Node *n = ruse_read(&p);
+		struct Node *n = parse(&p);
 		if (!n) {
 			break;
 		}

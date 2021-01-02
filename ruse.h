@@ -21,6 +21,7 @@ enum TokenType {
 	TOK_COMMENT,
 
 	TOK_KEYWORDS,
+	TOK_PROC,
 
 	TOK_ERR,
 	NUM_TOKENTYPES
@@ -104,7 +105,7 @@ struct Parser {
 void parser_from_file(struct Parser *p, const char *filename);
 void parser_from_buf(struct Parser *p, const char *buf, size_t len);
 void parser_cleanup(struct Parser *p);
-struct Node *ruse_read(struct Parser *p);
+struct Node *parse(struct Parser *p);
 
 struct Context {
 	const char *src;
