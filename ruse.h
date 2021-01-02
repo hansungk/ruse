@@ -16,7 +16,7 @@ enum TokenType {
 	TOK_ASCII = 256,
 
 	TOK_NUM,
-	TOK_ATOM,
+	TOK_IDENT,
 	TOK_STRING,
 	TOK_COMMENT,
 
@@ -75,16 +75,18 @@ char *srclocstr(struct SrcLoc loc, char *buf, size_t len);
 struct SrcLoc lexer_locate(struct Lexer *l, size_t pos);
 char *tokenstr(struct Lexer *lex, struct Token tok, char *buf, size_t len);
 char *tokentypestr(enum TokenType t, char *buf, size_t blen);
-void token_print(struct Lexer *l, const struct Token t);
+void tokenprint(const char *src, const struct Token tok);
 
 enum ValKind {
-	ND_ATOM,
-	ND_LIST,
+	VAL_ATOM, // unevaluated
+	VAL_NUM,
+	VAL_LIST,
 };
 
 struct Val {
 	enum ValKind kind;
 	struct Token tok; // unevaluated read string
+	long num;
 	// TODO: car/cdr
 	struct Val **children;
 };
@@ -102,9 +104,11 @@ void parser_from_buf(struct Parser *p, const char *buf, size_t len);
 void parser_cleanup(struct Parser *p);
 struct Val *ruse_read(struct Parser *p);
 
-struct Context {};
+struct Context {
+	const char *src;
+};
 
-void context_init(struct Context *ctx);
+void context_init(struct Context *ctx, const char *src);
 void ruse_eval(struct Context *ctx, struct Val *n);
 
 #endif

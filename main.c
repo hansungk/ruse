@@ -6,7 +6,7 @@ int main(void) {
 	struct Parser p;
 	struct Context ctx;
 	parser_from_file(&p, "test.ruse");
-	context_init(&ctx);
+	context_init(&ctx, p.l.src);
 
 	for (;;) {
 		struct Val *n = ruse_read(&p);

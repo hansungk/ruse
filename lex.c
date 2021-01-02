@@ -8,8 +8,8 @@
 #include <string.h>
 
 char *token_names[NUM_TOKENTYPES] = {
-    [TOK_ATOM] = "atom", [TOK_NUM] = "number", [TOK_NEWLINE] = "\\n",
-    [TOK_LPAREN] = "(",	 [TOK_RPAREN] = ")",   [TOK_COMMENT] = "comment",
+    [TOK_IDENT] = "identifier", [TOK_NUM] = "number", [TOK_NEWLINE] = "\\n",
+    [TOK_LPAREN] = "(",		[TOK_RPAREN] = ")",   [TOK_COMMENT] = "comment",
 };
 
 struct token_map keywords[] = {
@@ -120,7 +120,7 @@ static void lex_ident_or_keyword(struct Lexer *l) {
 		}
 	}
 
-	maketoken(l, TOK_ATOM);
+	maketoken(l, TOK_IDENT);
 }
 
 static void skip_numbers(struct Lexer *l) {
@@ -261,16 +261,16 @@ char *tokentypestr(enum TokenType t, char *buf, size_t blen) {
 	return buf;
 }
 
-void token_print(struct Lexer *l, const struct Token tok) {
+void tokenprint(const char *src, const struct Token tok) {
 	char buf[MAXTOKLEN];
 
 	switch (tok.type) {
-	case TOK_ATOM:
+	case TOK_IDENT:
 	case TOK_COMMENT:
 	case TOK_NUM:
 	case TOK_STRING:
-		printf("'%.*s'", (int)(tok.range.end - tok.range.start),
-		       l->src + tok.range.start);
+		printf("%.*s", (int)(tok.range.end - tok.range.start),
+		       src + tok.range.start);
 		break;
 	case TOK_ERR:
 		printf("error");

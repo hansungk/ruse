@@ -20,13 +20,13 @@ static struct Val *makenode(struct Parser *p, enum ValKind k, struct Token tok) 
 }
 
 static struct Val *makeatom(struct Parser *p, struct Token tok) {
-	struct Val *v = makenode(p, ND_ATOM, tok);
+	struct Val *v = makenode(p, VAL_ATOM, tok);
 	v->tok = tok;
 	return v;
 }
 
 static struct Val *makelist(struct Parser *p, struct Val **children) {
-	struct Val *v = makenode(p, ND_LIST, p->tok); // TODO: tok is unused
+	struct Val *v = makenode(p, VAL_LIST, p->tok); // TODO: tok is unused
 	v->children = children;
 	return v;
 }
@@ -110,8 +110,9 @@ static struct Val *parse_sexp(struct Parser *p) {
 		if (p->tok.type == '(') {
 			sb_push(children, parse_sexp(p));
 		} else {
-			expect(p, TOK_ATOM);
-			sb_push(children, makeatom(p, p->tok));
+			struct Token t = p->tok;
+			next(p);
+			sb_push(children, makeatom(p, t));
 		}
 	}
 
@@ -120,6 +121,8 @@ static struct Val *parse_sexp(struct Parser *p) {
 }
 
 struct Val *ruse_read(struct Parser *p) {
+	struct Token t;
+
 	skip_newlines(p);
 
 	switch (p->tok.type) {
@@ -132,9 +135,11 @@ struct Val *ruse_read(struct Parser *p) {
 		return ruse_read(p);
 	case '(':
 		return parse_sexp(p);
-	case TOK_ATOM:
+	case TOK_IDENT:
+	case TOK_NUM:
+		t = p->tok;
 		next(p);
-		return makeatom(p, p->tok);
+		return makeatom(p, t);
 	default:
 		fprintf(stderr, "unknown token: ");
 		tokentypeprint(p->tok.type);
