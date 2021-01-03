@@ -120,23 +120,20 @@ static void tokentypeprint(enum TokenType t) {
 	printf("i saw %s\n", buf);
 }
 
-static struct Node *parse_litexpr(struct Parser *p) {
-	struct Node *e = makenode(p, ND_LITERAL, p->tok);
-	next(p);
-	return e;
-}
-
 static struct Node *parse_unaryexpr(struct Parser *p) {
 	struct Node *e = NULL;
+	struct Token tok;
 
 	switch (p->tok.type) {
-	// case TOK_IDENT:
-	// 	e = parse_idexpr(p);
-	// 	// expr = parse_funccall_maybe(p, expr);
-	// 	break;
+	case TOK_IDENT:
+		tok = p->tok;
+		next(p);
+		return makenode(p, ND_IDEXPR, tok);
+		// TODO: funccall
 	case TOK_NUM:
-		e = parse_litexpr(p);
-		break;
+		tok = p->tok;
+		next(p);
+		return makenode(p, ND_LITERAL, tok);
 	case TOK_LPAREN:
 		expect(p, TOK_LPAREN);
 		e = parse_expr(p);

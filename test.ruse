@@ -1,6 +1,6 @@
 def fibo()
     4
-    a := 4
+    a
     b := 4
     fibo(a - 1) + fibo(a - 2)
 end

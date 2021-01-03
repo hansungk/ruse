@@ -83,8 +83,9 @@ void tokenprint(const char *src, const struct Token tok);
 
 enum NodeKind {
 	ND_FILE,
-	ND_FUNC,
 	ND_LITERAL,
+	ND_IDEXPR,
+	ND_FUNC,
 };
 
 struct Node {
