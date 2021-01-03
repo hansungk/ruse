@@ -8,6 +8,7 @@ void context_init(struct Context *ctx, const char *src) {
 	ctx->src = src;
 }
 
+#if 0
 void ruse_eval(struct Context *ctx, struct Node *v) {
 	switch (v->kind) {
 	case ND_ATOM:
@@ -45,3 +46,4 @@ void ruse_print(struct Node *v) {
 		exit(1);
 	}
 }
+#endif

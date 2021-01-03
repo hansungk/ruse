@@ -1,8 +1,5 @@
-; Hi
-; there
-(one)
-(one two three)
-(one (two three))
-((one two three))
-one
-3
+def fibo() int
+    a := 4
+    b := 4
+    fibo(a - 1) + fibo(a - 2)
+end

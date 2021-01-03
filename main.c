@@ -8,15 +8,7 @@ int main(void) {
 	parser_from_file(&p, "test.ruse");
 	context_init(&ctx, p.l.src);
 
-
-	for (;;) {
-		struct Node *n = parse(&p);
-		if (!n) {
-			break;
-		}
-		ruse_eval(&ctx, n);
-		ruse_print(n);
-	}
+	struct Node *n = parse(&p);
 
 	if (p.tok.type != TOK_EOF) {
 		fprintf(stderr, "terminated abnormally\n");

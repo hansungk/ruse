@@ -21,7 +21,8 @@ enum TokenType {
 	TOK_COMMENT,
 
 	TOK_KEYWORDS,
-	TOK_PROC,
+	TOK_DEF,
+	TOK_END,
 
 	TOK_ERR,
 	NUM_TOKENTYPES
@@ -80,11 +81,8 @@ char *tokentypestr(enum TokenType t, char *buf, size_t blen);
 void tokenprint(const char *src, const struct Token tok);
 
 enum NodeKind {
-	ND_ATOM,
-	ND_NUM,
-	ND_LIST,
-	ND_COMMENT,
 	ND_FILE,
+	ND_FUNC,
 };
 
 struct Node {
@@ -92,6 +90,10 @@ struct Node {
 	struct Token tok;
 	long num;
 	struct Node **children;
+
+	// functions
+	struct Node *rettypeexpr;
+	// children for body stmts
 };
 
 // Source text = ['tok' 'lookahead...' ...unlexed...]

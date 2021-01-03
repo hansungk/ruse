@@ -25,15 +25,8 @@ static struct Node *makefile(struct Parser *p, struct Node **toplevel) {
 	return n;
 }
 
-static struct Node *makeatom(struct Parser *p, struct Token tok) {
-	struct Node *n = makenode(p, ND_ATOM, tok);
-	n->tok = tok;
-	return n;
-}
-
-static struct Node *makelist(struct Parser *p, struct Node **children) {
-	struct Node *n = makenode(p, ND_LIST, p->tok); // TODO: tok is unused
-	n->children = children;
+static struct Node *makefunc(struct Parser *p, struct Token name) {
+	struct Node *n = makenode(p, ND_FUNC, name);
 	return n;
 }
 
@@ -98,6 +91,12 @@ static void skip_while(struct Parser *p, enum TokenType type) {
 
 static void skip_newlines(struct Parser *p) { skip_while(p, '\n'); }
 
+static void skip_to_end_of_line(struct Parser *p) {
+	while (p->tok.type != TOK_EOF && p->tok.type != TOK_NEWLINE) {
+		next(p);
+	}
+}
+
 // TODO: remove
 static void tokentypeprint(enum TokenType t) {
 	char buf[MAXTOKLEN];
@@ -105,13 +104,79 @@ static void tokentypeprint(enum TokenType t) {
 	printf("i saw %s\n", buf);
 }
 
+static struct Node *parse_stmt(struct Parser *p) {
+	struct Node *stmt;
+
+	skip_newlines(p);
+
+	// switch (p->tok.type) {
+	// case TOK_EOF:
+	// 	return NULL;
+	// // case TOK_RETURN:
+	// // 	stmt = parseReturnStmt(p);
+	// // 	return stmt;
+	// default:
+	// 	break;
+	// }
+
+	skip_to_end_of_line(p);
+	expect(p, TOK_NEWLINE);
+
+	// if (is_decl_start(p)) {
+	// 	Node *decl = parse_decl(p);
+	// 	stmt = makeDecl_stmt(p, decl);
+	// 	expectEndOfLine(p);
+	// 	return stmt;
+	// }
+
+	// all productions from now on start with an expression
+	// Node *expr = parse_expr(p);
+	// if (expr)
+	// 	return parseAssignOrExprStmt(p, expr);
+
+	// no production has succeeded
+	// TODO: unreachable?
+	return NULL;
+}
+
+static struct Node *parse_func(struct Parser *p) {
+	expect(p, TOK_DEF);
+
+	struct Node *func = makefunc(p, p->tok);
+	next(p);
+
+	// argument list
+	expect(p, TOK_LPAREN);
+	// func->paramdecls = parse_paramdecllist(p);
+	expect(p, TOK_RPAREN);
+
+	// return type
+	func->rettypeexpr = NULL;
+	/* if (p->tok.type == TOK_ARROW) { */
+	/*     expect(p, TOK_ARROW); */
+	/*     func->rettypeexpr = parse_typeexpr(p); */
+	/* } */
+
+	/* if (p->tok.type != TOK_LBRACE) { */
+	/*     error_expected(p, "'->' or '{'"); */
+	/*     skip_until(p, TOK_LBRACE); */
+	/* } */
+
+	while (p->tok.type != TOK_END) {
+		struct Node *stmt = parse_stmt(p);
+		sb_push(func->children, stmt);
+	}
+	expect(p, TOK_END);
+
+	return func;
+}
+
 static struct Node *parse_toplevel(struct Parser *p) {
 	skip_newlines(p);
 
 	switch (p->tok.type) {
-	case TOK_PROC:
-		printf("saw proc\n");
-		return NULL;
+	case TOK_DEF:
+		return parse_func(p);
 	default:
 		assert(0 && "unreachable");
 		return NULL;

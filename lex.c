@@ -10,10 +10,12 @@
 char *token_names[NUM_TOKENTYPES] = {
     [TOK_IDENT] = "identifier", [TOK_NUM] = "number", [TOK_NEWLINE] = "\\n",
     [TOK_LPAREN] = "(",		[TOK_RPAREN] = ")",   [TOK_COMMENT] = "comment",
+    [TOK_END] = "end",
 };
 
 struct token_map keywords[] = {
-    {"proc", TOK_PROC},
+    {"def", TOK_DEF},
+    {"end", TOK_END},
     {NULL, 0},
 };
 
@@ -82,8 +84,9 @@ static void maketoken(struct Lexer *l, enum TokenType type) {
 }
 
 static void lex_ident_or_keyword(struct Lexer *l) {
-	while (isalnum(l->ch) || l->ch == '_')
+	while (isalnum(l->ch) || l->ch == '_') {
 		step(l);
+	}
 
 	for (struct token_map *m = &keywords[0]; m->text != NULL; m++) {
 		const char *c = m->text;
@@ -183,9 +186,10 @@ int lex_next(struct Lexer *l) {
 			lex_number(l);
 			return 0;
 		default:
-			if (isalpha(l->ch) || l->ch == '-') {
+			if (isalpha(l->ch) || l->ch == '_') {
 				lex_ident_or_keyword(l);
 			} else {
+				// one-char symbol
 				c = l->ch;
 				step(l);
 				maketoken(l, c);
