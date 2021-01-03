@@ -72,6 +72,7 @@ struct Lexer {
 int lexer_from_file(struct Lexer *l, const char *filename);
 int lexer_from_buf(struct Lexer *l, const char *buf, size_t len);
 void lexer_cleanup(struct Lexer *l);
+struct SrcLoc lexer_locate(struct Lexer *l, size_t pos);
 int lex_next(struct Lexer *l);
 int lex_next_manual(struct Lexer *l, enum TokenType t);
 char *srclocstr(struct SrcLoc loc, char *buf, size_t len);
@@ -83,6 +84,7 @@ void tokenprint(const char *src, const struct Token tok);
 enum NodeKind {
 	ND_FILE,
 	ND_FUNC,
+	ND_LITERAL,
 };
 
 struct Node {

@@ -3,7 +3,10 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
+
+static struct Node *parse_expr(struct Parser *p);
 
 static struct Node *makenode(struct Parser *p, enum NodeKind k, struct Token tok) {
 	// TODO: store all nodes in a contiguous buffer for better locality?
@@ -69,14 +72,27 @@ static void next(struct Parser *p) {
 	p->tok = p->l.tok;
 }
 
+static void error(struct Parser *p, const char *fmt, ...) {
+	static char msg[1024];
+	va_list args;
+
+	va_start(args, fmt);
+	vsnprintf(msg, sizeof(msg), fmt, args);
+	va_end(args);
+
+	struct SrcLoc loc = lexer_locate(&p->l, p->tok.range.start);
+	fprintf(stderr, "parse error in %s:%d:%d:(%ld): %s\n",
+			loc.filename, loc.line, loc.col, p->tok.range.start, msg);
+	exit(EXIT_FAILURE);
+}
+
 static int expect(struct Parser *p, enum TokenType t) {
 	if (p->tok.type != t) {
 		char ebuf[MAXTOKLEN], gbuf[MAXTOKLEN];
 		tokentypestr(t, ebuf, sizeof(ebuf));
 		tokenstr(&p->l, p->tok, gbuf, sizeof(gbuf));
-		fprintf(stderr, "parse error at %ld: expected '%s', got '%s'\n",
-			p->tok.range.start, ebuf, gbuf);
-		exit(1);
+		error(p, "parse error at %ld: expected '%s', got '%s'",
+		      p->tok.range.start, ebuf, gbuf);
 	}
 	// make progress
 	next(p);
@@ -104,23 +120,56 @@ static void tokentypeprint(enum TokenType t) {
 	printf("i saw %s\n", buf);
 }
 
+static struct Node *parse_litexpr(struct Parser *p) {
+	struct Node *e = makenode(p, ND_LITERAL, p->tok);
+	next(p);
+	return e;
+}
+
+static struct Node *parse_unaryexpr(struct Parser *p) {
+	struct Node *e = NULL;
+
+	switch (p->tok.type) {
+	// case TOK_IDENT:
+	// 	e = parse_idexpr(p);
+	// 	// expr = parse_funccall_maybe(p, expr);
+	// 	break;
+	case TOK_NUM:
+		e = parse_litexpr(p);
+		break;
+	case TOK_LPAREN:
+		expect(p, TOK_LPAREN);
+		e = parse_expr(p);
+		expect(p, TOK_RPAREN);
+		break;
+	default:
+		error(p, "expected an expression");
+		break;
+	}
+	return e;
+}
+
+static struct Node *parse_expr(struct Parser *p) {
+	struct Node *e = parse_unaryexpr(p);
+	// expr = parse_binexpr_rhs(p, expr, 0);
+	return e;
+}
+
 static struct Node *parse_stmt(struct Parser *p) {
 	struct Node *stmt;
 
 	skip_newlines(p);
 
-	// switch (p->tok.type) {
-	// case TOK_EOF:
-	// 	return NULL;
-	// // case TOK_RETURN:
-	// // 	stmt = parseReturnStmt(p);
-	// // 	return stmt;
-	// default:
-	// 	break;
-	// }
-
-	skip_to_end_of_line(p);
-	expect(p, TOK_NEWLINE);
+	switch (p->tok.type) {
+	case TOK_EOF:
+		// TODO: error?
+		return NULL;
+	// case TOK_RETURN:
+	// 	stmt = parseReturnStmt(p);
+	// 	return stmt;
+	default:
+		break;
+	}
 
 	// if (is_decl_start(p)) {
 	// 	Node *decl = parse_decl(p);
@@ -129,8 +178,13 @@ static struct Node *parse_stmt(struct Parser *p) {
 	// 	return stmt;
 	// }
 
+	// skip_to_end_of_line(p);
+	// expect(p, TOK_NEWLINE);
+
 	// all productions from now on start with an expression
-	// Node *expr = parse_expr(p);
+	struct Node *expr = parse_expr(p);
+	expect(p, TOK_NEWLINE);
+
 	// if (expr)
 	// 	return parseAssignOrExprStmt(p, expr);
 
@@ -152,15 +206,7 @@ static struct Node *parse_func(struct Parser *p) {
 
 	// return type
 	func->rettypeexpr = NULL;
-	/* if (p->tok.type == TOK_ARROW) { */
-	/*     expect(p, TOK_ARROW); */
-	/*     func->rettypeexpr = parse_typeexpr(p); */
-	/* } */
-
-	/* if (p->tok.type != TOK_LBRACE) { */
-	/*     error_expected(p, "'->' or '{'"); */
-	/*     skip_until(p, TOK_LBRACE); */
-	/* } */
+	expect(p, TOK_NEWLINE);
 
 	while (p->tok.type != TOK_END) {
 		struct Node *stmt = parse_stmt(p);
