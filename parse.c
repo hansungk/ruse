@@ -33,6 +33,14 @@ static struct Node *makefunc(struct Parser *p, struct Token name) {
 	return n;
 }
 
+static struct Node *makebinexpr(struct Parser *p, struct Node *lhs,
+				struct Token op, struct Node *rhs) {
+	struct Node *n = makenode(p, ND_BINEXPR, op);
+	n->lhs = lhs;
+	n->rhs = rhs;
+	return n;
+}
+
 // Initialize a Parser that parses the given filename.
 void parser_from_file(struct Parser *p, const char *filename) {
 	memset(p, 0, sizeof(struct Parser));
@@ -91,8 +99,7 @@ static int expect(struct Parser *p, enum TokenType t) {
 		char ebuf[MAXTOKLEN], gbuf[MAXTOKLEN];
 		tokentypestr(t, ebuf, sizeof(ebuf));
 		tokenstr(&p->l, p->tok, gbuf, sizeof(gbuf));
-		error(p, "parse error at %ld: expected '%s', got '%s'",
-		      p->tok.range.start, ebuf, gbuf);
+		error(p, "expected '%s', got '%s'", ebuf, gbuf);
 	}
 	// make progress
 	next(p);
@@ -143,12 +150,74 @@ static struct Node *parse_unaryexpr(struct Parser *p) {
 		error(p, "expected an expression");
 		break;
 	}
+
 	return e;
+}
+
+static int get_precedence(const struct Token op) {
+	switch (op.type) {
+	case TOK_STAR:
+	case TOK_SLASH:
+		return 1;
+	case TOK_PLUS:
+	case TOK_MINUS:
+		return 0;
+	default:
+		return -1; // not an operator
+	}
+}
+
+// Parse (op binary)* part of the production.
+//
+// BinaryExpr:
+//	 UnaryExpr (op BinaryExpr)*
+//
+// Return the pointer to the node respresenting the reduced binary expression.
+static struct Node *parse_binexpr_rhs(struct Parser *p, struct Node *lhs,
+				      int precedence) {
+	while (1) {
+		int this_prec = get_precedence(p->tok);
+
+		// If the upcoming op has lower precedence, the subexpression of
+		// the precedence level that we are currently parsing in is
+		// finished. This is equivalent to reducing on a shift/reduce
+		// conflict in bottom-up parsing.
+		if (this_prec < precedence) {
+			break;
+		}
+
+		struct Token op = p->tok;
+		next(p);
+
+		// Parse the next term.  We do not know yet if this term should
+		// bind to LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know
+		// this, we should look ahead for the operator that follows this
+		// term.
+		struct Node *rhs = parse_unaryexpr(p);
+		if (!rhs) {
+			error(p, "expected expression");
+		}
+		int next_prec = get_precedence(p->tok);
+
+		// If the next operator is indeed higher-level, evaluate the RHS
+		// as a whole subexpression with elevated minimum precedence.
+		// Else, just treat it as a unary expression.  This is
+		// equivalent to shifting on a shift/reduce conflict in
+		// bottom-up parsing.
+		//
+		// If this_prec == next_prec, don't shift, but reduce it with
+		// lhs. This implies left associativity.
+		if (this_prec < next_prec) {
+			rhs = parse_binexpr_rhs(p, rhs, precedence + 1);
+		}
+		lhs = makebinexpr(p, lhs, op, rhs);
+	}
+	return lhs;
 }
 
 static struct Node *parse_expr(struct Parser *p) {
 	struct Node *e = parse_unaryexpr(p);
-	// expr = parse_binexpr_rhs(p, expr, 0);
+	e = parse_binexpr_rhs(p, e, 0);
 	return e;
 }
 
@@ -179,15 +248,13 @@ static struct Node *parse_stmt(struct Parser *p) {
 	// expect(p, TOK_NEWLINE);
 
 	// all productions from now on start with an expression
+	// TODO: exprstmt?
 	struct Node *expr = parse_expr(p);
 	expect(p, TOK_NEWLINE);
+	return expr;
 
 	// if (expr)
 	// 	return parseAssignOrExprStmt(p, expr);
-
-	// no production has succeeded
-	// TODO: unreachable?
-	return NULL;
 }
 
 static struct Node *parse_func(struct Parser *p) {

@@ -11,6 +11,10 @@ enum TokenType {
 	TOK_NEWLINE = '\n',
 	TOK_LPAREN = '(',
 	TOK_RPAREN = ')',
+	TOK_PLUS = '+',
+	TOK_MINUS = '-',
+	TOK_STAR = '*',
+	TOK_SLASH = '/',
 	TOK_SEMICOLON = ';',
 	TOK_QUOTE = '\'',
 	TOK_ASCII = 256,
@@ -85,6 +89,7 @@ enum NodeKind {
 	ND_FILE,
 	ND_LITERAL,
 	ND_IDEXPR,
+	ND_BINEXPR,
 	ND_FUNC,
 };
 
@@ -93,7 +98,8 @@ struct Node {
 	struct Token tok;
 	long num;
 	struct Node **children;
-
+	struct Node *lhs;
+	struct Node *rhs;
 	// functions
 	struct Node *rettypeexpr;
 	// children for body stmts
