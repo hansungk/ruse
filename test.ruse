@@ -4,5 +4,5 @@ def fibo()
     a + b * c
     (a + b * c)
     a. = 4 + 3 -- constant
-    fibo(a - 1) + fibo(a - 2)
+    -- fibo(a - 1) + fibo(a - 2)
 end

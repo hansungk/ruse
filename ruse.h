@@ -79,10 +79,9 @@ struct Lexer {
 int lexer_from_file(struct Lexer *l, const char *filename);
 int lexer_from_buf(struct Lexer *l, const char *buf, size_t len);
 void lexer_cleanup(struct Lexer *l);
-struct SrcLoc lexer_locate(struct Lexer *l, size_t pos);
+struct SrcLoc locate(struct Lexer *l, size_t pos);
 int lex(struct Lexer *l);
 char *srclocstr(struct SrcLoc loc, char *buf, size_t len);
-struct SrcLoc lexer_locate(struct Lexer *l, size_t pos);
 char *tokenstr(struct Lexer *lex, struct Token tok, char *buf, size_t len);
 char *tokentypestr(enum TokenType t, char *buf, size_t blen);
 void tokenprint(const char *src, const struct Token tok);
@@ -96,6 +95,7 @@ enum NodeKind {
 	ND_FUNC,
 };
 
+// AST node.
 struct Node {
 	enum NodeKind kind;
 	struct Token tok;

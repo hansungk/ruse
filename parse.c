@@ -49,7 +49,7 @@ static struct Node *makeassign(struct Parser *p, struct Node *lhs,
 	return n;
 }
 
-// Initialize a Parser that parses the given filename.
+// Initialize a parser that parses the given filename.
 void parser_from_file(struct Parser *p, const char *filename) {
 	memset(p, 0, sizeof(struct Parser));
 	lexer_from_file(&p->l, filename);
@@ -96,7 +96,7 @@ static void error(struct Parser *p, const char *fmt, ...) {
 	vsnprintf(msg, sizeof(msg), fmt, args);
 	va_end(args);
 
-	struct SrcLoc loc = lexer_locate(&p->l, p->tok.range.start);
+	struct SrcLoc loc = locate(&p->l, p->tok.range.start);
 	fprintf(stderr, "parse error in %s:%d:%d:(%ld): %s\n",
 			loc.filename, loc.line, loc.col, p->tok.range.start, msg);
 	exit(EXIT_FAILURE);
@@ -258,8 +258,11 @@ static struct Node *parse_stmt(struct Parser *p) {
 
 	switch (p->tok.type) {
 	case TOK_EOF:
-		// TODO: error?
+	case TOK_END:
 		return NULL;
+	case TOK_COMMENT:
+		expect_end_of_line(p);
+		return parse_stmt(p);
 	// case TOK_RETURN:
 	// 	stmt = parseReturnStmt(p);
 	// 	return stmt;
@@ -301,8 +304,10 @@ static struct Node *parse_func(struct Parser *p) {
 	expect_end_of_line(p);
 
 	while (p->tok.type != TOK_END) {
-		struct Node *stmt = parse_stmt(p);
-		sb_push(func->children, stmt);
+		struct Node *s = parse_stmt(p);
+		if (s) {
+			sb_push(func->children, s);
+		}
 	}
 	expect(p, TOK_END);
 
