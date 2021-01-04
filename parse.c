@@ -113,6 +113,9 @@ static int expect(struct Parser *p, enum TokenType t) {
 		char ebuf[MAXTOKLEN], gbuf[MAXTOKLEN];
 		tokentypestr(t, ebuf, sizeof(ebuf));
 		tokenstr(&p->l, p->tok, gbuf, sizeof(gbuf));
+		if (strcmp(gbuf, "\n") == 0) {
+			strcpy(gbuf, "\\n");
+		}
 		error(p, "expected '%s', got '%s'", ebuf, gbuf);
 	}
 	// make progress
