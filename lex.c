@@ -14,6 +14,7 @@ char *token_names[NUM_TOKENTYPES] = {
 };
 
 struct token_map keywords[] = {
+    {"--", TOK_COMMENT},
     {"def", TOK_DEF},
     {"end", TOK_END},
     {NULL, 0},
@@ -54,6 +55,19 @@ static void step(struct Lexer *l) {
 	}
 }
 
+static void consume(struct Lexer *l, long n) {
+	for (long i = 0; i < n; i++) {
+		step(l);
+	}
+}
+
+static char lookn(struct Lexer *l, long n) {
+	if (l->off + n < l->srclen) {
+		return l->src[l->off + n];
+	}
+	return '\0';
+}
+
 int lexer_from_file(struct Lexer *l, const char *filename) {
 	memset(l, 0, sizeof(struct Lexer));
 	memcpy(l->filename, filename, 255);
@@ -84,26 +98,42 @@ static void maketoken(struct Lexer *l, enum TokenType type) {
 }
 
 static void lex_ident_or_keyword(struct Lexer *l) {
-	while (isalnum(l->ch) || l->ch == '_') {
-		step(l);
-	}
-
-	for (struct token_map *m = &keywords[0]; m->text != NULL; m++) {
-		const char *c = m->text;
-		const char *s = l->src + l->start;
-
-		// skip over characters common for the source text and the
-		// candidate
-		for (; *c != '\0' && s < l->src + l->off && *c == *s; c++, s++)
-			;
-
-		if (*c == '\0' && s == l->src + l->off) {
-			maketoken(l, m->type);
-			return;
+	// multi-char keywords
+	for (const struct token_map *m = &keywords[0]; m->text != NULL; m++) {
+		for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i);
+		     i++) {
+			if (m->text[i] == '\0') {
+				consume(l, i);
+				maketoken(l, m->type);
+				return;
+			}
 		}
 	}
 
+	// no keyword match, parse as an identifier
+	while (isalnum(l->ch) || l->ch == '_') {
+		step(l);
+	}
 	maketoken(l, TOK_IDENT);
+}
+
+static void lex_symbol(struct Lexer *l) {
+	// multi-char symbol
+	for (const struct token_map *m = &keywords[0]; m->text != NULL; m++) {
+		for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i);
+		     i++) {
+			if (m->text[i] == '\0') {
+				consume(l, i);
+				maketoken(l, m->type);
+				return;
+			}
+		}
+	}
+
+	// single-char symbol
+	char ch = l->ch;
+	step(l);
+	maketoken(l, ch);
 }
 
 static void skip_numbers(struct Lexer *l) {
@@ -143,8 +173,6 @@ strclose:
 // Lex the next token and place it at l->tok.
 // Return EOF if reached source EOF.
 int lex_next(struct Lexer *l) {
-	char c;
-
 	for (;;) {
 		l->start = l->off;
 
@@ -189,10 +217,7 @@ int lex_next(struct Lexer *l) {
 			if (isalpha(l->ch) || l->ch == '_') {
 				lex_ident_or_keyword(l);
 			} else {
-				// one-char symbol
-				c = l->ch;
-				step(l);
-				maketoken(l, c);
+				lex_symbol(l);
 			}
 			return 0;
 		}

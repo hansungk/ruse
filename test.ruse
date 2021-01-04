@@ -1,5 +1,5 @@
 def fibo()
-    4
+    4 -- comment
     a
     a + b * c
     fibo(a - 1) + fibo(a - 2)
