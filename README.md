@@ -2,6 +2,13 @@
 
 what am i?
 
+## build
+
+```
+$ make
+$ ./ruse
+```
+
 ## todo
 
 * repl
