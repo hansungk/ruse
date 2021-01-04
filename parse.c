@@ -47,14 +47,14 @@ void parser_from_file(struct Parser *p, const char *filename) {
 	lexer_from_file(&p->l, filename);
 	// start by putting something on p->tok
 	// can't use next() because p->lexer.tok is initialized to TOK_EOF
-	lex_next(&p->l);
+	lex(&p->l);
 	p->tok = p->l.tok;
 }
 
 void parser_from_buf(struct Parser *p, const char *buf, size_t len) {
 	memset(p, 0, sizeof(struct Parser));
 	lexer_from_buf(&p->l, buf, len);
-	lex_next(&p->l);
+	lex(&p->l);
 	p->tok = p->l.tok;
 }
 
@@ -76,7 +76,7 @@ static void next(struct Parser *p) {
 	if (p->l.tok.type == TOK_EOF)
 		return;
 
-	lex_next(&p->l);
+	lex(&p->l);
 	p->tok = p->l.tok;
 }
 
@@ -94,18 +94,6 @@ static void error(struct Parser *p, const char *fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
-static int expect(struct Parser *p, enum TokenType t) {
-	if (p->tok.type != t) {
-		char ebuf[MAXTOKLEN], gbuf[MAXTOKLEN];
-		tokentypestr(t, ebuf, sizeof(ebuf));
-		tokenstr(&p->l, p->tok, gbuf, sizeof(gbuf));
-		error(p, "expected '%s', got '%s'", ebuf, gbuf);
-	}
-	// make progress
-	next(p);
-	return 1;
-}
-
 static void skip_while(struct Parser *p, enum TokenType type) {
 	while (p->tok.type != TOK_EOF && p->tok.type == type) {
 		next(p);
@@ -118,6 +106,24 @@ static void skip_to_end_of_line(struct Parser *p) {
 	while (p->tok.type != TOK_EOF && p->tok.type != TOK_NEWLINE) {
 		next(p);
 	}
+}
+
+static int expect(struct Parser *p, enum TokenType t) {
+	if (p->tok.type != t) {
+		char ebuf[MAXTOKLEN], gbuf[MAXTOKLEN];
+		tokentypestr(t, ebuf, sizeof(ebuf));
+		tokenstr(&p->l, p->tok, gbuf, sizeof(gbuf));
+		error(p, "expected '%s', got '%s'", ebuf, gbuf);
+	}
+	// make progress
+	next(p);
+	return 1;
+}
+
+// Expect end of line, skipping over any end-of-line comments.
+static int expect_end_of_line(struct Parser *p) {
+	skip_while(p, TOK_COMMENT);
+	return expect(p, TOK_NEWLINE);
 }
 
 // TODO: remove
@@ -250,7 +256,7 @@ static struct Node *parse_stmt(struct Parser *p) {
 	// all productions from now on start with an expression
 	// TODO: exprstmt?
 	struct Node *expr = parse_expr(p);
-	expect(p, TOK_NEWLINE);
+	expect_end_of_line(p);
 	return expr;
 
 	// if (expr)
@@ -270,7 +276,7 @@ static struct Node *parse_func(struct Parser *p) {
 
 	// return type
 	func->rettypeexpr = NULL;
-	expect(p, TOK_NEWLINE);
+	expect_end_of_line(p);
 
 	while (p->tok.type != TOK_END) {
 		struct Node *stmt = parse_stmt(p);

@@ -172,7 +172,7 @@ strclose:
 
 // Lex the next token and place it at l->tok.
 // Return EOF if reached source EOF.
-int lex_next(struct Lexer *l) {
+int lex(struct Lexer *l) {
 	for (;;) {
 		l->start = l->off;
 
@@ -189,16 +189,16 @@ int lex_next(struct Lexer *l) {
 		case '"':
 			lex_string(l);
 			return 0;
-		case '/':
+		case '-':
 			step(l);
-			if (l->ch == '/') {
+			if (l->ch == '-') {
 				while (l->ch != '\n') {
 					step(l);
 				}
 				maketoken(l, TOK_COMMENT);
 				return 0;
 			} else {
-				maketoken(l, '/');
+				maketoken(l, '-');
 				return 0;
 			}
 		case '0':
