@@ -11,6 +11,9 @@ enum TokenType {
 	TOK_NEWLINE = '\n',
 	TOK_LPAREN = '(',
 	TOK_RPAREN = ')',
+	TOK_DOT = '.',
+	TOK_COLON = ':',
+	TOK_EQUAL = '=',
 	TOK_PLUS = '+',
 	TOK_MINUS = '-',
 	TOK_STAR = '*',
@@ -89,6 +92,7 @@ enum NodeKind {
 	ND_LITERAL,
 	ND_IDEXPR,
 	ND_BINEXPR,
+	ND_ASSIGN,
 	ND_FUNC,
 };
 

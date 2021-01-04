@@ -14,7 +14,6 @@ char *token_names[NUM_TOKENTYPES] = {
 };
 
 struct token_map keywords[] = {
-    {"--", TOK_COMMENT},
     {"def", TOK_DEF},
     {"end", TOK_END},
     {NULL, 0},

@@ -41,6 +41,14 @@ static struct Node *makebinexpr(struct Parser *p, struct Node *lhs,
 	return n;
 }
 
+static struct Node *makeassign(struct Parser *p, struct Node *lhs,
+			       struct Node *rhs) {
+	struct Node *n = makenode(p, ND_ASSIGN, p->tok);
+	n->lhs = lhs;
+	n->rhs = rhs;
+	return n;
+}
+
 // Initialize a Parser that parses the given filename.
 void parser_from_file(struct Parser *p, const char *filename) {
 	memset(p, 0, sizeof(struct Parser));
@@ -230,8 +238,21 @@ static struct Node *parse_expr(struct Parser *p) {
 	return e;
 }
 
+// Possibly parse the equal and RHS expression of an expression.
+// 'expr' is already consumed.
+static struct Node *parse_assign(struct Parser *p, struct Node *expr) {
+	if (p->tok.type != TOK_DOT && p->tok.type != TOK_COLON) {
+		return expr;
+	}
+
+	next(p);
+	expect(p, TOK_EQUAL);
+	struct Node *rhs = parse_expr(p);
+	return makeassign(p, expr, rhs);
+}
+
 static struct Node *parse_stmt(struct Parser *p) {
-	struct Node *stmt;
+	struct Node *s;
 
 	skip_newlines(p);
 
@@ -258,12 +279,10 @@ static struct Node *parse_stmt(struct Parser *p) {
 
 	// all productions from now on start with an expression
 	// TODO: exprstmt?
-	struct Node *expr = parse_expr(p);
+	s = parse_expr(p);
+	s = parse_assign(p, s);
 	expect_end_of_line(p);
-	return expr;
-
-	// if (expr)
-	// 	return parseAssignOrExprStmt(p, expr);
+	return s;
 }
 
 static struct Node *parse_func(struct Parser *p) {
