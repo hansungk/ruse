@@ -88,11 +88,13 @@ void tokenprint(const char *src, const struct Token tok);
 
 enum NodeKind {
 	ND_FILE,
+	ND_FUNC,
+	ND_ASSIGN,
+	ND_START_EXPR,
 	ND_LITERAL,
 	ND_IDEXPR,
 	ND_BINEXPR,
-	ND_ASSIGN,
-	ND_FUNC,
+	ND_END_EXPR,
 };
 
 // AST node.
@@ -126,7 +128,6 @@ struct Context {
 };
 
 void context_init(struct Context *ctx, const char *src);
-void ruse_eval(struct Context *ctx, struct Node *n);
-void ruse_print(struct Node *v);
+void run(struct Context *ctx, struct Node *v);
 
 #endif
