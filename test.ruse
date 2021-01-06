@@ -3,6 +3,7 @@ proc fibo()
     a
     a + b * c
     (a + b * c)
+    var a = 4 + 3
     a. = 4 + 3 -- constant
     -- fibo(a - 1) + fibo(a - 2)
 end

@@ -16,6 +16,7 @@ int main(void) {
 
 	run(&ctx, n);
 
+	context_free(&ctx);
 	parser_cleanup(&p);
 	return 0;
 }

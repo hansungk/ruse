@@ -28,6 +28,7 @@ enum TokenType {
 	TOK_COMMENT,
 
 	TOK_KEYWORDS,
+	TOK_VAR,
 	TOK_PROC,
 	TOK_END,
 
@@ -89,12 +90,13 @@ void tokenprint(const char *src, const struct Token tok);
 enum NodeKind {
 	ND_FILE,
 	ND_FUNC,
-	ND_ASSIGN,
 	ND_START_EXPR,
 	ND_LITERAL,
 	ND_IDEXPR,
 	ND_BINEXPR,
 	ND_END_EXPR,
+	ND_DECL,
+	ND_ASSIGN,
 };
 
 // AST node.
@@ -132,12 +134,23 @@ struct Value {
 	double num;
 };
 
+struct Map {
+	struct Token name;
+	struct Value *val;
+};
+
+struct SymbolTable {
+	struct Map *tab;
+	struct SymbolTable *next; // outer scope
+};
+
 struct Context {
 	const char *src;
-	// TODO: scoped hash table
+	struct SymbolTable *symtab; // symbol table at current scope
 };
 
 void context_init(struct Context *ctx, const char *src);
+void context_free(struct Context *ctx);
 void run(struct Context *ctx, struct Node *v);
 
 #endif

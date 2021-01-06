@@ -14,6 +14,7 @@ char *token_names[NUM_TOKENTYPES] = {
 };
 
 struct token_map keywords[] = {
+    {"var", TOK_VAR},
     {"proc", TOK_PROC},
     {"end", TOK_END},
     {NULL, 0},

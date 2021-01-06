@@ -41,6 +41,13 @@ static struct Node *makebinexpr(struct Parser *p, struct Node *lhs,
 	return n;
 }
 
+static struct Node *makedecl(struct Parser *p, struct Token name,
+			     struct Node *rhs /*TODO: type*/) {
+	struct Node *n = makenode(p, ND_DECL, name);
+	n->rhs = rhs;
+	return n;
+}
+
 static struct Node *makeassign(struct Parser *p, struct Node *lhs,
 			       struct Node *rhs) {
 	struct Node *n = makenode(p, ND_ASSIGN, p->tok);
@@ -142,6 +149,18 @@ static void tokentypeprint(enum TokenType t) {
 	char buf[MAXTOKLEN];
 	tokentypestr(t, buf, sizeof(buf));
 	printf("i saw %s\n", buf);
+}
+
+static struct Node *parse_decl(struct Parser *p) {
+	expect(p, TOK_VAR);
+
+	struct Token name = p->tok;
+	next(p);
+
+	expect(p, TOK_EQUAL);
+
+	struct Node *rhs = parse_expr(p);
+	return makedecl(p, name, rhs);
 }
 
 static struct Node *parse_unaryexpr(struct Parser *p) {
@@ -263,6 +282,8 @@ static struct Node *parse_stmt(struct Parser *p) {
 	case TOK_COMMENT:
 		expect_end_of_line(p);
 		return parse_stmt(p);
+	case TOK_VAR:
+		return parse_decl(p);
 	// case TOK_RETURN:
 	// 	stmt = parseReturnStmt(p);
 	// 	return stmt;
