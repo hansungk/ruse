@@ -28,7 +28,7 @@ enum TokenType {
 	TOK_COMMENT,
 
 	TOK_KEYWORDS,
-	TOK_DEF,
+	TOK_PROC,
 	TOK_END,
 
 	TOK_ERR,
@@ -123,8 +123,18 @@ void parser_from_buf(struct Parser *p, const char *buf, size_t len);
 void parser_cleanup(struct Parser *p);
 struct Node *parse(struct Parser *p);
 
+enum ValueKind {
+	VAL_NUM,
+};
+
+struct Value {
+	enum ValueKind kind;
+	double num;
+};
+
 struct Context {
 	const char *src;
+	// TODO: scoped hash table
 };
 
 void context_init(struct Context *ctx, const char *src);

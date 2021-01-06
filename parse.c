@@ -289,7 +289,7 @@ static struct Node *parse_stmt(struct Parser *p) {
 }
 
 static struct Node *parse_func(struct Parser *p) {
-	expect(p, TOK_DEF);
+	expect(p, TOK_PROC);
 
 	struct Node *func = makefunc(p, p->tok);
 	next(p);
@@ -318,7 +318,7 @@ static struct Node *parse_toplevel(struct Parser *p) {
 	skip_newlines(p);
 
 	switch (p->tok.type) {
-	case TOK_DEF:
+	case TOK_PROC:
 		return parse_func(p);
 	default:
 		assert(0 && "unreachable");

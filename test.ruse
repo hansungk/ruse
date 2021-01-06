@@ -1,4 +1,4 @@
-def fibo()
+proc fibo()
     4
     a
     a + b * c
