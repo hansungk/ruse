@@ -11,7 +11,12 @@ void context_init(struct Context *ctx, const char *src) {
 }
 
 void context_free(struct Context *ctx) {
-	// TODO
+	for (int i = 0; i < sb_count(ctx->symtab->tab); i++) {
+		if (ctx->symtab->tab[i].val) {
+			free(ctx->symtab->tab[i].val);
+		}
+	}
+	sb_free(ctx->symtab->tab);
 	free(ctx->symtab);
 }
 
@@ -56,6 +61,12 @@ static void eval_expr(struct Context *ctx, struct Node *n) {
 		tokenprint(ctx->src, n->tok);
 		printf("\n");
 		n->val = lookup_var(ctx, n);
+		if (!n->val) {
+			char buf[MAXTOKLEN];
+			tokenstr(ctx->src, n->tok, buf, sizeof(buf));
+			// fprintf(stderr, "undeclared variable '%s'\n", buf);
+			// exit(EXIT_FAILURE);
+		}
 		break;
 	case ND_BINEXPR:
 		eval_expr(ctx, n->lhs);
