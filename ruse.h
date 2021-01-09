@@ -83,7 +83,7 @@ void lexer_cleanup(struct Lexer *l);
 struct SrcLoc locate(struct Lexer *l, size_t pos);
 int lex(struct Lexer *l);
 char *srclocstr(struct SrcLoc loc, char *buf, size_t len);
-char *tokenstr(struct Lexer *lex, struct Token tok, char *buf, size_t len);
+char *tokenstr(const char *src, struct Token tok, char *buf, size_t blen);
 char *tokentypestr(enum TokenType t, char *buf, size_t blen);
 void tokenprint(const char *src, const struct Token tok);
 
@@ -104,6 +104,7 @@ struct Node {
 	enum NodeKind kind;
 	struct Token tok;
 	long num;
+	struct Value *val;
 	struct Node **children;
 	struct Node *lhs;
 	struct Node *rhs;

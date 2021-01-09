@@ -26,8 +26,21 @@ struct Value *push_var(struct Context *ctx, struct Node *n) {
 	return val;
 }
 
+// Compare the string content of the two tokens.
+static int token_equal(const char *src, struct Token t1, struct Token t2) {
+	char buf1[MAXTOKLEN], buf2[MAXTOKLEN];
+	tokenstr(src, t1, buf1, sizeof(buf1));
+	tokenstr(src, t2, buf2, sizeof(buf2));
+	return strcmp(buf1, buf2) == 0;
+}
+
 struct Value *lookup_var(struct Context *ctx, struct Node *n) {
-	// TODO
+	for (int i = 0; i < sb_count(ctx->symtab->tab); i++) {
+		if (token_equal(ctx->src, n->tok, ctx->symtab->tab[i].name)) {
+			printf("lookup: found!\n");
+			return ctx->symtab->tab[i].val;
+		}
+	}
 	return NULL;
 }
 
@@ -42,6 +55,7 @@ static void eval_expr(struct Context *ctx, struct Node *n) {
 		printf("id: ");
 		tokenprint(ctx->src, n->tok);
 		printf("\n");
+		n->val = lookup_var(ctx, n);
 		break;
 	case ND_BINEXPR:
 		eval_expr(ctx, n->lhs);

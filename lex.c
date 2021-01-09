@@ -248,10 +248,10 @@ struct SrcLoc locate(struct Lexer *l, size_t pos) {
 
 // Print 'tok' as string into buf.
 // Needs lexer because it needs the source text.
-char *tokenstr(struct Lexer *lex, struct Token tok, char *buf, size_t blen) {
+char *tokenstr(const char *src, struct Token tok, char *buf, size_t blen) {
 	size_t tlen = tok.range.end - tok.range.start;
 	size_t strlen = (blen - 1) < tlen ? (blen - 1) : tlen;
-	strncpy(buf, lex->src + tok.range.start, strlen);
+	strncpy(buf, src + tok.range.start, strlen);
 	buf[strlen] = '\0';
 	return buf;
 }
