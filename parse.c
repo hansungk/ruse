@@ -103,7 +103,7 @@ static void error(struct Parser *p, const char *fmt, ...) {
 	vsnprintf(msg, sizeof(msg), fmt, args);
 	va_end(args);
 
-	struct SrcLoc loc = locate(p->l.src, p->tok.range.start);
+	struct SrcLoc loc = locate(&p->l.src, p->tok.range.start);
 	fprintf(stderr, "parse error in %s:%d:%d:(%ld): %s\n",
 			loc.filename, loc.line, loc.col, p->tok.range.start, msg);
 	exit(EXIT_FAILURE);
