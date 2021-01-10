@@ -36,13 +36,12 @@ static int token_equal(const char *src, struct Token t1, struct Token t2) {
 	char buf1[MAXTOKLEN], buf2[MAXTOKLEN];
 	tokenstr(src, t1, buf1, sizeof(buf1));
 	tokenstr(src, t2, buf2, sizeof(buf2));
-	return strcmp(buf1, buf2) == 0;
+	return (strcmp(buf1, buf2) == 0);
 }
 
 struct Value *lookup_var(struct Context *ctx, struct Node *n) {
 	for (int i = 0; i < sb_count(ctx->symtab->tab); i++) {
 		if (token_equal(ctx->src, n->tok, ctx->symtab->tab[i].name)) {
-			printf("lookup: found!\n");
 			return ctx->symtab->tab[i].val;
 		}
 	}
@@ -64,8 +63,8 @@ static void eval_expr(struct Context *ctx, struct Node *n) {
 		if (!n->val) {
 			char buf[MAXTOKLEN];
 			tokenstr(ctx->src, n->tok, buf, sizeof(buf));
-			// fprintf(stderr, "undeclared variable '%s'\n", buf);
-			// exit(EXIT_FAILURE);
+			fprintf(stderr, "undeclared variable '%s'\n", buf);
+			exit(EXIT_FAILURE);
 		}
 		break;
 	case ND_BINEXPR:

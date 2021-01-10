@@ -6,6 +6,25 @@
 
 #define MAXTOKLEN 64
 
+struct Source {
+	char filename[256]; // source filename
+	size_t *line_offs;  // byte offsets of '\n's
+	char *src;	    // source text
+	long srclen;	    // length of src excluding \0
+};
+
+struct SrcRange {
+	size_t start; // start position in the source
+	size_t end;   // end position in the source
+};
+
+// Represents a unique location (file:line:col) in the source.
+struct SrcLoc {
+	const char *filename;
+	int line;
+	int col;
+};
+
 enum TokenType {
 	TOK_EOF = '\0',
 	TOK_NEWLINE = '\n',
@@ -36,17 +55,11 @@ enum TokenType {
 	NUM_TOKENTYPES
 };
 
-#define TOKLEN 100
 extern char *token_names[NUM_TOKENTYPES];
 
 struct token_map {
 	const char *text;
 	enum TokenType type;
-};
-
-struct SrcRange {
-	size_t start; // start position in the source
-	size_t end;   // end position in the source
 };
 
 // Making Tokens store source ranges instead of string memory blocks makes
@@ -56,25 +69,15 @@ struct Token {
 	struct SrcRange range;
 };
 
-// Represents a unique location (file:line:col) in the source.
-struct SrcLoc {
-	const char *filename;
-	int line;
-	int col;
-};
-
 // Lexer state.
 struct Lexer {
+	struct Source src;  // program source
 	struct Token tok;   // currently lexed token
 	char ch;	    // lookahead character
 	long off;	    // lookahead character offset
 	long rd_off;	    // next read character offset
 	long line_off;	    // current line offset
-	size_t *line_offs;  // byte offsets of '\n's
 	long start;	    // start position of `tok`
-	char filename[256]; // source filename
-	char *src;	    // source text
-	long srclen;	    // length of src excluding \0
 };
 
 int lexer_from_file(struct Lexer *l, const char *filename);

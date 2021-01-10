@@ -42,15 +42,15 @@ static char *readfile(const char *filename, long *filesize) {
 }
 
 static void step(struct Lexer *l) {
-	if (l->rd_off < l->srclen) {
+	if (l->rd_off < l->src.srclen) {
 		l->off = l->rd_off;
-		l->ch = l->src[l->off];
+		l->ch = l->src.src[l->off];
 		if (l->ch == '\n') {
-			sb_push(l->line_offs, l->off);
+			sb_push(l->src.line_offs, l->off);
 		}
 		l->rd_off++;
 	} else {
-		l->off = l->srclen;
+		l->off = l->src.srclen;
 		l->ch = 0; // EOF
 	}
 }
@@ -62,33 +62,33 @@ static void consume(struct Lexer *l, long n) {
 }
 
 static char lookn(struct Lexer *l, long n) {
-	if (l->off + n < l->srclen) {
-		return l->src[l->off + n];
+	if (l->off + n < l->src.srclen) {
+		return l->src.src[l->off + n];
 	}
 	return '\0';
 }
 
 int lexer_from_file(struct Lexer *l, const char *filename) {
 	memset(l, 0, sizeof(struct Lexer));
-	memcpy(l->filename, filename, 255);
-	l->src = readfile(filename, &l->srclen);
+	memcpy(l->src.filename, filename, 255);
+	l->src.src = readfile(filename, &l->src.srclen);
 	step(l);
 	return 1;
 }
 
 int lexer_from_buf(struct Lexer *l, const char *buf, size_t len) {
 	memset(l, 0, sizeof(struct Lexer));
-	strncpy(l->filename, "(null)", 255);
-	l->srclen = len;
-	l->src = calloc(len + 1, 1);
-	strncpy(l->src, buf, len);
+	strncpy(l->src.filename, "(null)", 255);
+	l->src.srclen = len;
+	l->src.src = calloc(len + 1, 1);
+	strncpy(l->src.src, buf, len);
 	step(l);
 	return 1;
 }
 
 void lexer_cleanup(struct Lexer *l) {
-	sb_free(l->line_offs);
-	free(l->src);
+	sb_free(l->src.line_offs);
+	free(l->src.src);
 }
 
 static void maketoken(struct Lexer *l, enum TokenType type) {
@@ -231,19 +231,19 @@ struct SrcLoc locate(struct Lexer *l, size_t pos) {
 	// TODO: performance
 
 	// single-line
-	if (sb_count(l->line_offs) == 0) {
-		return (struct SrcLoc){l->filename, 1, pos + 1};
+	if (sb_count(l->src.line_offs) == 0) {
+		return (struct SrcLoc){l->src.filename, 1, pos + 1};
 	}
 
 	int line;
-	for (line = 0; line < sb_count(l->line_offs); line++) {
-		if (pos < l->line_offs[line]) {
+	for (line = 0; line < sb_count(l->src.line_offs); line++) {
+		if (pos < l->src.line_offs[line]) {
 			break;
 		}
 	}
 
-	int col = pos - l->line_offs[line - 1];
-	return (struct SrcLoc){l->filename, line + 1, col};
+	int col = pos - l->src.line_offs[line - 1];
+	return (struct SrcLoc){l->src.filename, line + 1, col};
 }
 
 // Print 'tok' as string into buf.
