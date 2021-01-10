@@ -83,7 +83,7 @@ struct Lexer {
 int lexer_from_file(struct Lexer *l, const char *filename);
 int lexer_from_buf(struct Lexer *l, const char *buf, size_t len);
 void lexer_cleanup(struct Lexer *l);
-struct SrcLoc locate(struct Lexer *l, size_t pos);
+struct SrcLoc locate(struct Source src, size_t pos);
 int lex(struct Lexer *l);
 char *srclocstr(struct SrcLoc loc, char *buf, size_t len);
 char *tokenstr(const char *src, struct Token tok, char *buf, size_t blen);
@@ -149,11 +149,11 @@ struct SymbolTable {
 };
 
 struct Context {
-	const char *src;
+	struct Source src;
 	struct SymbolTable *symtab; // symbol table at current scope
 };
 
-void context_init(struct Context *ctx, const char *src);
+void context_init(struct Context *ctx, struct Source src);
 void context_free(struct Context *ctx);
 void run(struct Context *ctx, struct Node *v);
 

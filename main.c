@@ -6,7 +6,7 @@ int main(void) {
 	struct Parser p;
 	struct Context ctx;
 	parser_from_file(&p, "test.ruse");
-	context_init(&ctx, p.l.src.src);
+	context_init(&ctx, p.l.src);
 
 	struct Node *n = parse(&p);
 	if (p.tok.type != TOK_EOF) {

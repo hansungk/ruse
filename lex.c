@@ -226,24 +226,24 @@ int lex(struct Lexer *l) {
 	return 0;
 }
 
-struct SrcLoc locate(struct Lexer *l, size_t pos) {
+struct SrcLoc locate(struct Source src, size_t pos) {
 	// search linearly for line that contains this position
 	// TODO: performance
 
 	// single-line
-	if (sb_count(l->src.line_offs) == 0) {
-		return (struct SrcLoc){l->src.filename, 1, pos + 1};
+	if (sb_count(src.line_offs) == 0) {
+		return (struct SrcLoc){src.filename, 1, pos + 1};
 	}
 
 	int line;
-	for (line = 0; line < sb_count(l->src.line_offs); line++) {
-		if (pos < l->src.line_offs[line]) {
+	for (line = 0; line < sb_count(src.line_offs); line++) {
+		if (pos < src.line_offs[line]) {
 			break;
 		}
 	}
 
-	int col = pos - l->src.line_offs[line - 1];
-	return (struct SrcLoc){l->src.filename, line + 1, col};
+	int col = pos - src.line_offs[line - 1];
+	return (struct SrcLoc){src.filename, line + 1, col};
 }
 
 // Print 'tok' as string into buf.
