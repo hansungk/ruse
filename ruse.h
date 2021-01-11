@@ -108,7 +108,7 @@ struct Node {
 	enum NodeKind kind;
 	struct Token tok;
 	long num;
-	struct Value *val;
+	struct Decl *decl;
 	struct Node **children;
 	struct Node *lhs;
 	struct Node *rhs;
@@ -130,18 +130,18 @@ void parser_from_buf(struct Parser *p, const char *buf, size_t len);
 void parser_cleanup(struct Parser *p);
 struct Node *parse(struct Parser *p);
 
-enum ValueKind {
-	VAL_NUM,
+enum DeclKind {
+	DCL_NUM,
 };
 
-struct Value {
-	enum ValueKind kind;
+struct Decl {
+	enum DeclKind kind;
 	double num;
 };
 
 struct Map {
 	struct Token name;
-	struct Value *val;
+	struct Decl *decl;
 };
 
 struct SymbolTable {

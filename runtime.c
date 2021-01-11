@@ -13,8 +13,8 @@ void context_init(struct Context *ctx, struct Source *src) {
 
 void context_free(struct Context *ctx) {
 	for (int i = 0; i < sb_count(ctx->symtab->tab); i++) {
-		if (ctx->symtab->tab[i].val) {
-			free(ctx->symtab->tab[i].val);
+		if (ctx->symtab->tab[i].decl) {
+			free(ctx->symtab->tab[i].decl);
 		}
 	}
 	sb_free(ctx->symtab->tab);
@@ -37,20 +37,20 @@ static void error(struct Context *ctx, long loc, const char *fmt, ...) {
 }
 
 // Push a variable to the current scope.  `n` should be a declaration node.
-struct Value *push_var(struct Context *ctx, struct Node *n) {
+struct Decl *push_var(struct Context *ctx, struct Node *n) {
 	printf("decl: ");
 	tokenprint(ctx->src->src, n->tok);
 	printf("\n");
-	struct Value *val = calloc(sizeof(struct Value), 1);
-	struct Map map = {.name = n->tok, .val = val};
+	struct Decl *val = calloc(sizeof(struct Decl), 1);
+	struct Map map = {.name = n->tok, .decl = val};
 	sb_push(ctx->symtab->tab, map);
 	return val;
 }
 
-struct Value *lookup_var(struct Context *ctx, struct Node *n) {
+struct Decl *lookup_var(struct Context *ctx, struct Node *n) {
 	for (int i = 0; i < sb_count(ctx->symtab->tab); i++) {
 		if (tokeneq(ctx->src->src, n->tok, ctx->symtab->tab[i].name)) {
-			return ctx->symtab->tab[i].val;
+			return ctx->symtab->tab[i].decl;
 		}
 	}
 	return NULL;
@@ -67,8 +67,8 @@ static void eval_expr(struct Context *ctx, struct Node *n) {
 		printf("id: ");
 		tokenprint(ctx->src->src, n->tok);
 		printf("\n");
-		n->val = lookup_var(ctx, n);
-		if (!n->val) {
+		n->decl = lookup_var(ctx, n);
+		if (!n->decl) {
 			char buf[MAXTOKLEN];
 			tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
 			error(ctx, n->tok.range.start,
