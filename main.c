@@ -14,7 +14,7 @@ int main(void) {
 		return 1;
 	}
 
-	run(&ctx, n);
+	eval(&ctx, n);
 	codegen(&ctx, n);
 
 	context_free(&ctx);

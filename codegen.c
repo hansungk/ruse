@@ -19,7 +19,7 @@ static void codegen_expr(struct Context *ctx, struct Node *n) {
 
 	switch (n->kind) {
 	case ND_LITERAL:
-		emit("%s", buf);
+		emit("add 0, %s", buf);
 		break;
 	case ND_IDEXPR:
 		break;
@@ -33,6 +33,8 @@ static void codegen_expr(struct Context *ctx, struct Node *n) {
 }
 
 void codegen(struct Context *ctx, struct Node *n) {
+	char buf[MAXTOKLEN];
+
 	switch (n->kind) {
 	case ND_FILE:
 		emit("export function w $main() {\n");
@@ -50,6 +52,10 @@ void codegen(struct Context *ctx, struct Node *n) {
 		}
 		break;
 	case ND_DECL:
+		tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
+		emit("	%%%s =w ", buf);
+		codegen(ctx, n->rhs);
+		emit("\n");
 		break;
 	default:
 		if (ND_START_EXPR < n->kind && n->kind < ND_END_EXPR) {
