@@ -19,7 +19,7 @@ static void codegen_expr(struct Context *ctx, struct Node *n) {
 
 	switch (n->kind) {
 	case ND_LITERAL:
-		emit("add 0, %s", buf);
+		emit("%s", buf);
 		break;
 	case ND_IDEXPR:
 		emit("%%%s", buf);
@@ -53,7 +53,12 @@ void codegen(struct Context *ctx, struct Node *n) {
 		break;
 	case ND_DECL:
 		tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
-		emit("	%%%s =w ", buf);
+		emit("	%%%s =w add 0, ", buf);
+		codegen(ctx, n->rhs);
+		emit("\n");
+		break;
+	case ND_EXPRSTMT:
+		emit("	%%_ =w add 0, ");
 		codegen(ctx, n->rhs);
 		emit("\n");
 		break;

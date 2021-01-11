@@ -278,18 +278,14 @@ static struct Node *parse_expr(struct Parser *p) {
 // Possibly parse the equal and RHS expression of an expression.
 // 'expr' is already consumed.
 static struct Node *parse_assign_or_expr_stmt(struct Parser *p, struct Node *expr) {
-	if (p->tok.type != TOK_DOT && p->tok.type != TOK_COLON) {
-		return expr;
-	}
-
-	next(p);
 	struct Node *stmt = NULL;
+
 	if (p->tok.type == TOK_EQUAL) {
 		next(p);
 		struct Node *rhs = parse_expr(p);
 		stmt = makeassign(p, expr, rhs);
 	} else {
-		stmt = makeexprstmt(p, stmt);
+		stmt = makeexprstmt(p, expr);
 	}
 	expect_end_of_line(p);
 	return stmt;
