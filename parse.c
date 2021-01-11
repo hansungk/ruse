@@ -48,6 +48,12 @@ static struct Node *makedecl(struct Parser *p, struct Token name,
 	return n;
 }
 
+static struct Node *makeret(struct Parser *p, struct Node *rhs) {
+	struct Node *n = makenode(p, ND_RETURN, p->tok);
+	n->rhs = rhs;
+	return n;
+}
+
 static struct Node *makeassign(struct Parser *p, struct Node *lhs,
 			       struct Node *rhs) {
 	struct Node *n = makenode(p, ND_ASSIGN, p->tok);
@@ -161,6 +167,12 @@ static struct Node *parse_decl(struct Parser *p) {
 
 	struct Node *rhs = parse_expr(p);
 	return makedecl(p, name, rhs);
+}
+
+static struct Node *parse_return(struct Parser *p) {
+	expect(p, TOK_RETURN);
+	struct Node *rhs = parse_expr(p);
+	return makeret(p, rhs);
 }
 
 static struct Node *parse_unaryexpr(struct Parser *p) {
@@ -284,9 +296,8 @@ static struct Node *parse_stmt(struct Parser *p) {
 		return parse_stmt(p);
 	case TOK_VAR:
 		return parse_decl(p);
-	// case TOK_RETURN:
-	// 	stmt = parseReturnStmt(p);
-	// 	return stmt;
+	case TOK_RETURN:
+		return parse_return(p);
 	default:
 		break;
 	}

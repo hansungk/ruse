@@ -22,6 +22,7 @@ static void codegen_expr(struct Context *ctx, struct Node *n) {
 		emit("add 0, %s", buf);
 		break;
 	case ND_IDEXPR:
+		emit("%%%s", buf);
 		break;
 	case ND_BINEXPR:
 		codegen_expr(ctx, n->lhs);
@@ -42,7 +43,6 @@ void codegen(struct Context *ctx, struct Node *n) {
 		for (int i = 0; i < sb_count(n->children); i++) {
 			codegen(ctx, n->children[i]);
 		}
-		emit("	ret 10\n");
 		emit("}\n");
 		break;
 	case ND_FUNC:
@@ -54,6 +54,11 @@ void codegen(struct Context *ctx, struct Node *n) {
 	case ND_DECL:
 		tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
 		emit("	%%%s =w ", buf);
+		codegen(ctx, n->rhs);
+		emit("\n");
+		break;
+	case ND_RETURN:
+		emit("	ret ");
 		codegen(ctx, n->rhs);
 		emit("\n");
 		break;

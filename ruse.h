@@ -49,6 +49,7 @@ enum TokenType {
 	TOK_KEYWORDS,
 	TOK_VAR,
 	TOK_PROC,
+	TOK_RETURN,
 	TOK_END,
 
 	TOK_ERR,
@@ -101,6 +102,7 @@ enum NodeKind {
 	ND_END_EXPR,
 	ND_DECL,
 	ND_ASSIGN,
+	ND_RETURN,
 };
 
 // AST node.
