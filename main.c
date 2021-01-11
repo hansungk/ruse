@@ -15,6 +15,7 @@ int main(void) {
 	}
 
 	run(&ctx, n);
+	codegen(&ctx, n);
 
 	context_free(&ctx);
 	parser_cleanup(&p);

@@ -54,14 +54,15 @@ struct Decl *lookup_var(struct Context *ctx, struct Node *n) {
 }
 
 static void eval_expr(struct Context *ctx, struct Node *n) {
+	char buf[MAXTOKLEN];
+	tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
+
 	switch (n->kind) {
 	case ND_LITERAL:
 		break;
 	case ND_IDEXPR:
 		n->decl = lookup_var(ctx, n);
 		if (!n->decl) {
-			char buf[MAXTOKLEN];
-			tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
 			error(ctx, n->tok.range.start,
 			      "undeclared variable '%s'", buf);
 		}
@@ -75,25 +76,12 @@ static void eval_expr(struct Context *ctx, struct Node *n) {
 	}
 }
 
-static void emit(const char *fmt, ...) {
-	va_list args;
-
-	va_start(args, fmt);
-	vprintf(fmt, args);
-	va_end(args);
-	putchar('\n');
-}
-
 void run(struct Context *ctx, struct Node *n) {
 	switch (n->kind) {
 	case ND_FILE:
-		emit("export function w $main() {");
-		emit("@start");
 		for (int i = 0; i < sb_count(n->children); i++) {
 			run(ctx, n->children[i]);
 		}
-		emit("	ret 10");
-		emit("}");
 		break;
 	case ND_FUNC:
 		// TODO: push/pop scope
