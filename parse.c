@@ -54,6 +54,12 @@ static struct Node *makeret(struct Parser *p, struct Node *rhs) {
 	return n;
 }
 
+static struct Node *makeexprstmt(struct Parser *p, struct Node *rhs) {
+	struct Node *n = makenode(p, ND_EXPRSTMT, p->tok);
+	n->rhs = rhs;
+	return n;
+}
+
 static struct Node *makeassign(struct Parser *p, struct Node *lhs,
 			       struct Node *rhs) {
 	struct Node *n = makenode(p, ND_ASSIGN, p->tok);
@@ -271,15 +277,22 @@ static struct Node *parse_expr(struct Parser *p) {
 
 // Possibly parse the equal and RHS expression of an expression.
 // 'expr' is already consumed.
-static struct Node *parse_assign(struct Parser *p, struct Node *expr) {
+static struct Node *parse_assign_or_expr_stmt(struct Parser *p, struct Node *expr) {
 	if (p->tok.type != TOK_DOT && p->tok.type != TOK_COLON) {
 		return expr;
 	}
 
 	next(p);
-	expect(p, TOK_EQUAL);
-	struct Node *rhs = parse_expr(p);
-	return makeassign(p, expr, rhs);
+	struct Node *stmt = NULL;
+	if (p->tok.type == TOK_EQUAL) {
+		next(p);
+		struct Node *rhs = parse_expr(p);
+		stmt = makeassign(p, expr, rhs);
+	} else {
+		stmt = makeexprstmt(p, stmt);
+	}
+	expect_end_of_line(p);
+	return stmt;
 }
 
 static struct Node *parse_stmt(struct Parser *p) {
@@ -315,8 +328,7 @@ static struct Node *parse_stmt(struct Parser *p) {
 	// all productions from now on start with an expression
 	// TODO: exprstmt?
 	s = parse_expr(p);
-	s = parse_assign(p, s);
-	expect_end_of_line(p);
+	s = parse_assign_or_expr_stmt(p, s);
 	return s;
 }
 

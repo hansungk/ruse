@@ -101,6 +101,7 @@ enum NodeKind {
 	ND_BINEXPR,
 	ND_END_EXPR,
 	ND_DECL,
+	ND_EXPRSTMT,
 	ND_ASSIGN,
 	ND_RETURN,
 };
