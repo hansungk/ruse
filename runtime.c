@@ -75,16 +75,25 @@ static void eval_expr(struct Context *ctx, struct Node *n) {
 	}
 }
 
+static void emit(const char *fmt, ...) {
+	va_list args;
+
+	va_start(args, fmt);
+	vprintf(fmt, args);
+	va_end(args);
+	putchar('\n');
+}
+
 void run(struct Context *ctx, struct Node *n) {
 	switch (n->kind) {
 	case ND_FILE:
-		printf("export function w $main() {\n");
-		printf("@start\n");
+		emit("export function w $main() {");
+		emit("@start");
 		for (int i = 0; i < sb_count(n->children); i++) {
 			run(ctx, n->children[i]);
 		}
-		printf("	ret 10\n");
-		printf("}\n");
+		emit("	ret 10");
+		emit("}");
 		break;
 	case ND_FUNC:
 		// TODO: push/pop scope
