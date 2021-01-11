@@ -38,9 +38,6 @@ static void error(struct Context *ctx, long loc, const char *fmt, ...) {
 
 // Push a variable to the current scope.  `n` should be a declaration node.
 struct Decl *push_var(struct Context *ctx, struct Node *n) {
-	printf("decl: ");
-	tokenprint(ctx->src->src, n->tok);
-	printf("\n");
 	struct Decl *val = calloc(sizeof(struct Decl), 1);
 	struct Map map = {.name = n->tok, .decl = val};
 	sb_push(ctx->symtab->tab, map);
@@ -59,14 +56,8 @@ struct Decl *lookup_var(struct Context *ctx, struct Node *n) {
 static void eval_expr(struct Context *ctx, struct Node *n) {
 	switch (n->kind) {
 	case ND_LITERAL:
-		printf("literal: ");
-		tokenprint(ctx->src->src, n->tok);
-		printf("\n");
 		break;
 	case ND_IDEXPR:
-		printf("id: ");
-		tokenprint(ctx->src->src, n->tok);
-		printf("\n");
 		n->decl = lookup_var(ctx, n);
 		if (!n->decl) {
 			char buf[MAXTOKLEN];
@@ -87,9 +78,13 @@ static void eval_expr(struct Context *ctx, struct Node *n) {
 void run(struct Context *ctx, struct Node *n) {
 	switch (n->kind) {
 	case ND_FILE:
+		printf("export function w $main() {\n");
+		printf("@start\n");
 		for (int i = 0; i < sb_count(n->children); i++) {
 			run(ctx, n->children[i]);
 		}
+		printf("	ret 10\n");
+		printf("}\n");
 		break;
 	case ND_FUNC:
 		// TODO: push/pop scope
