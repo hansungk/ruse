@@ -256,6 +256,14 @@ char *tokenstr(const char *src, struct Token tok, char *buf, size_t blen) {
 	return buf;
 }
 
+// Compare the string content of the two tokens.
+int tokeneq(const char *src, struct Token t1, struct Token t2) {
+	char buf1[MAXTOKLEN], buf2[MAXTOKLEN];
+	tokenstr(src, t1, buf1, sizeof(buf1));
+	tokenstr(src, t2, buf2, sizeof(buf2));
+	return (strcmp(buf1, buf2) == 0);
+}
+
 // Return the descriptive name for a TokenType enum.
 // Different from tokenstr as it does not return the actual text for
 // the token, but the description for the type of the token.

@@ -87,6 +87,7 @@ struct SrcLoc locate(struct Source *src, size_t pos);
 int lex(struct Lexer *l);
 char *srclocstr(struct SrcLoc loc, char *buf, size_t len);
 char *tokenstr(const char *src, struct Token tok, char *buf, size_t blen);
+int tokeneq(const char *src, struct Token t1, struct Token t2);
 char *tokentypestr(enum TokenType t, char *buf, size_t blen);
 void tokenprint(const char *src, const struct Token tok);
 

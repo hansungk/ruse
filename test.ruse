@@ -1,9 +1,9 @@
 proc fibo()
-    4
-    a
+    var a = 4
+    var b = 3
+    var c = 2
     a + b * c
     (a + b * c)
-    var a = 4 + 3
     a. = 4 + 3 -- constant
     a
     -- fibo(a - 1) + fibo(a - 2)
