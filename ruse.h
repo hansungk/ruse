@@ -147,14 +147,14 @@ struct Map {
 	struct Decl *decl;
 };
 
-struct SymbolTable {
+struct Scope {
 	struct Map *tab;
-	struct SymbolTable *next; // outer scope
+	struct Scope *outer;
 };
 
 struct Context {
 	struct Source *src;
-	struct SymbolTable *symtab; // symbol table at current scope
+	struct Scope *scope;
 };
 
 void context_init(struct Context *ctx, struct Source *src);

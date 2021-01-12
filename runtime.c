@@ -8,17 +8,17 @@
 void context_init(struct Context *ctx, struct Source *src) {
 	memset(ctx, 0, sizeof(struct Context));
 	ctx->src = src;
-	ctx->symtab = calloc(sizeof(struct SymbolTable), 1);
+	ctx->scope = calloc(sizeof(struct Scope), 1);
 }
 
 void context_free(struct Context *ctx) {
-	for (int i = 0; i < sb_count(ctx->symtab->tab); i++) {
-		if (ctx->symtab->tab[i].decl) {
-			free(ctx->symtab->tab[i].decl);
+	for (int i = 0; i < sb_count(ctx->scope->tab); i++) {
+		if (ctx->scope->tab[i].decl) {
+			free(ctx->scope->tab[i].decl);
 		}
 	}
-	sb_free(ctx->symtab->tab);
-	free(ctx->symtab);
+	sb_free(ctx->scope->tab);
+	free(ctx->scope);
 }
 
 // TODO: merge this with the one in parse.c
@@ -40,14 +40,14 @@ static void error(struct Context *ctx, long loc, const char *fmt, ...) {
 struct Decl *push_var(struct Context *ctx, struct Node *n) {
 	struct Decl *val = calloc(sizeof(struct Decl), 1);
 	struct Map map = {.name = n->tok, .decl = val};
-	sb_push(ctx->symtab->tab, map);
+	sb_push(ctx->scope->tab, map);
 	return val;
 }
 
 struct Decl *lookup_var(struct Context *ctx, struct Node *n) {
-	for (int i = 0; i < sb_count(ctx->symtab->tab); i++) {
-		if (tokeneq(ctx->src->src, n->tok, ctx->symtab->tab[i].name)) {
-			return ctx->symtab->tab[i].decl;
+	for (int i = 0; i < sb_count(ctx->scope->tab); i++) {
+		if (tokeneq(ctx->src->src, n->tok, ctx->scope->tab[i].name)) {
+			return ctx->scope->tab[i].decl;
 		}
 	}
 	return NULL;
