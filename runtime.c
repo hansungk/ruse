@@ -79,14 +79,14 @@ static void eval_expr(struct Context *ctx, struct Node *n) {
 void eval(struct Context *ctx, struct Node *n) {
 	switch (n->kind) {
 	case ND_FILE:
-		for (int i = 0; i < sb_count(n->children); i++) {
-			eval(ctx, n->children[i]);
+		for (int i = 0; i < sb_count(n->stmts); i++) {
+			eval(ctx, n->stmts[i]);
 		}
 		break;
 	case ND_FUNC:
 		// TODO: push/pop scope
-		for (int i = 0; i < sb_count(n->children); i++) {
-			eval(ctx, n->children[i]);
+		for (int i = 0; i < sb_count(n->stmts); i++) {
+			eval(ctx, n->stmts[i]);
 		}
 		break;
 	case ND_DECL:

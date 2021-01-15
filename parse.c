@@ -24,7 +24,7 @@ static struct Node *makenode(struct Parser *p, enum NodeKind k, struct Token tok
 
 static struct Node *makefile(struct Parser *p, struct Node **toplevel) {
 	struct Node *n = makenode(p, ND_FILE, p->tok);
-	n->children = toplevel;
+	n->stmts = toplevel;
 	return n;
 }
 
@@ -89,8 +89,8 @@ void parser_cleanup(struct Parser *p) {
 	for (int i = 0; i < sb_count(p->nodeptrbuf); i++) {
 		struct Node *n = p->nodeptrbuf[i];
 		if (n) {
-			if (n->children)
-				sb_free(n->children);
+			if (n->stmts)
+				sb_free(n->stmts);
 			free(n);
 		}
 	}
@@ -346,7 +346,7 @@ static struct Node *parse_func(struct Parser *p) {
 	while (p->tok.type != TOK_END) {
 		struct Node *s = parse_stmt(p);
 		if (s) {
-			sb_push(func->children, s);
+			sb_push(func->stmts, s);
 		}
 	}
 	expect(p, TOK_END);

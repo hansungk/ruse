@@ -101,9 +101,11 @@ enum NodeKind {
 	ND_BINEXPR,
 	ND_END_EXPR,
 	ND_DECL,
+	ND_START_STMT,
 	ND_EXPRSTMT,
 	ND_ASSIGN,
 	ND_RETURN,
+	ND_END_STMT,
 };
 
 // AST node.
@@ -112,7 +114,7 @@ struct Node {
 	struct Token tok;
 	long num;
 	struct Decl *decl;
-	struct Node **children;
+	struct Node **stmts;
 	struct Node *lhs;
 	struct Node *rhs;
 	// functions
@@ -155,6 +157,10 @@ struct Scope {
 struct Context {
 	struct Source *src;
 	struct Scope *scope;
+	struct Valstack {
+		int curr_id; // next id to be pushed to valstack
+		int *stack;  // stack of the id of expression results
+	} valstack;
 };
 
 void context_init(struct Context *ctx, struct Source *src);
