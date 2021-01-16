@@ -141,6 +141,7 @@ enum DeclKind {
 
 struct Decl {
 	enum DeclKind kind;
+	struct Token name;
 	double num;
 };
 

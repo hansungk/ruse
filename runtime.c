@@ -1,5 +1,6 @@
 #include "ruse.h"
 #include "stretchy_buffer.h"
+#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +40,7 @@ static void error(struct Context *ctx, long loc, const char *fmt, ...) {
 // Push a variable to the current scope.  `n` should be a declaration node.
 struct Decl *push_var(struct Context *ctx, struct Node *n) {
 	struct Decl *val = calloc(sizeof(struct Decl), 1);
+	val->name = n->tok;
 	struct Map map = {.name = n->tok, .decl = val};
 	sb_push(ctx->scope->tab, map);
 	return val;
@@ -76,6 +78,22 @@ static void eval_expr(struct Context *ctx, struct Node *n) {
 	}
 }
 
+static void eval_stmt(struct Context *ctx, struct Node *n) {
+	switch (n->kind) {
+	case ND_EXPRSTMT:
+		eval_expr(ctx, n->rhs);
+		break;
+	case ND_ASSIGN:
+		eval_expr(ctx, n->rhs);
+		eval_expr(ctx, n->lhs);
+		break;
+	case ND_RETURN:
+		break;
+	default:
+		assert(!"unknown stmt kind");
+	}
+}
+
 void eval(struct Context *ctx, struct Node *n) {
 	switch (n->kind) {
 	case ND_FILE:
@@ -95,6 +113,8 @@ void eval(struct Context *ctx, struct Node *n) {
 	default:
 		if (ND_START_EXPR < n->kind && n->kind < ND_END_EXPR) {
 			eval_expr(ctx, n);
+		} else if (ND_START_STMT < n->kind && n->kind < ND_END_STMT) {
+			eval_stmt(ctx, n);
 		}
 		break;
 	}

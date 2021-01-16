@@ -44,7 +44,7 @@ static void codegen_expr(struct Context *ctx, struct Node *n) {
 		// during the post-order traversal.
 		id_rhs = arrpop(ctx->valstack.stack);
 		id_lhs = arrpop(ctx->valstack.stack);
-		emit("	%%_%d =w add %%%d, %%%d\n", ctx->valstack.curr_id,
+		emit("	%%_%d =w add %%_%d, %%_%d\n", ctx->valstack.curr_id,
 		     id_lhs, id_rhs);
 		valstack_push_and_incr(ctx);
 		break;
@@ -63,8 +63,9 @@ static void codegen_stmt(struct Context *ctx, struct Node *n) {
 	case ND_ASSIGN:
 		codegen(ctx, n->rhs);
 
-		// tokenstr(ctx->src->src, n->lhs, buf, sizeof(buf));
-		emit("	%%lhs =w add 0, %%%d\n", arrpop(ctx->valstack.stack));
+		tokenstr(ctx->src->src, n->lhs->decl->name, buf, sizeof(buf));
+		emit("	%%%s =w add 0, %%_%d\n", buf,
+		     arrpop(ctx->valstack.stack));
 		break;
 	case ND_RETURN:
 		emit("	ret ");
