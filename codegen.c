@@ -22,7 +22,7 @@ static int valstack_push_and_incr(struct Context *ctx) {
 }
 
 static void codegen_expr(struct Context *ctx, struct Node *n) {
-	char buf[MAXTOKLEN]; // FIXME: stack overflow
+	char buf[MAXTOKLEN]; // FIXME: stack usage
 	int id_lhs, id_rhs;
 
 	tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
@@ -62,15 +62,13 @@ static void codegen_stmt(struct Context *ctx, struct Node *n) {
 		break;
 	case ND_ASSIGN:
 		codegen(ctx, n->rhs);
-
 		tokenstr(ctx->src->src, n->lhs->decl->name, buf, sizeof(buf));
 		emit("	%%%s =w add 0, %%_%d\n", buf,
 		     arrpop(ctx->valstack.stack));
 		break;
 	case ND_RETURN:
-		emit("	ret ");
 		codegen(ctx, n->rhs);
-		emit("\n");
+		emit("	ret %%_%d\n", arrpop(ctx->valstack.stack));
 		break;
 	default:
 		assert(!"unknown stmt kind");

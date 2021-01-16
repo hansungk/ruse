@@ -7,6 +7,6 @@ proc fibo()
     -- (a + b * c)
     a = 4
     -- + 3 -- constant
-    -- return a
+    return a
     -- fibo(a - 1) + fibo(a - 2)
 end
