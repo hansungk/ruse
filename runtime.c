@@ -1,3 +1,4 @@
+#include "stb_ds.h"
 #include "ruse.h"
 #include "stretchy_buffer.h"
 #include <assert.h>
@@ -20,6 +21,7 @@ void context_free(struct Context *ctx) {
 	}
 	sb_free(ctx->scope->tab);
 	free(ctx->scope);
+	arrfree(ctx->valstack.stack);
 }
 
 // TODO: merge this with the one in parse.c
