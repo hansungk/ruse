@@ -1,0 +1,6 @@
+// exit 4
+
+proc main()
+    var a = 4
+    return a
+end
