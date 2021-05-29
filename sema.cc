@@ -108,6 +108,7 @@ bool is_builtin_type(const Type *ty, Sema &sema) {
 }
 
 bool is_lvalue(const Expr *e) {
+    // Determine lvalue-ness by the expression kind.
     switch (e->kind) {
     case ExprKind::decl_ref:
     case ExprKind::member:
@@ -267,11 +268,9 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         }
         c->callee_decl = sym->value;
 
-        // TODO: return type
         // assumes callee_decl is a FuncDecl
         auto func_decl = static_cast<FuncDecl *>(c->callee_decl);
         c->type = func_decl->rettype;
-
         break;
     }
     case ExprKind::struct_def: {
@@ -445,10 +444,10 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
         auto lhs_type = as->lhs->type;
         auto rhs_type = as->rhs->type;
 
-        // if (!islvalue(as->lhs)) {
-        //     error(as->loc, "cannot assign to an rvalue");
-        //     return;
-        // }
+        if (!is_lvalue(as->lhs)) {
+            return error(as->loc, "cannot assign to an rvalue");
+        }
+
         if (!typecheck_assignable(lhs_type, rhs_type)) {
             error(as->loc, "cannot assign '{}' type to '{}'",
                   rhs_type->name->text, lhs_type->name->text);
