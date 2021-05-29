@@ -256,18 +256,21 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         break;
     }
     case ExprKind::call: {
-        auto f = static_cast<CallExpr *>(e);
-        if (f->kind != CallExprKind::func) {
+        auto c = static_cast<CallExpr *>(e);
+        if (c->kind != CallExprKind::func) {
             assert(!"not implemented");
         }
 
-        auto sym = sema.decl_table.find(f->func_name);
+        auto sym = sema.decl_table.find(c->func_name);
         if (!sym) {
-            return error(f->loc, "undeclared function '{}'", f->func_name->text);
+            return error(c->loc, "undeclared function '{}'", c->func_name->text);
         }
-        f->callee_decl = sym->value;
+        c->callee_decl = sym->value;
 
         // TODO: return type
+        // assumes callee_decl is a FuncDecl
+        auto func_decl = static_cast<FuncDecl *>(c->callee_decl);
+        c->type = func_decl->rettype;
 
         break;
     }
@@ -422,6 +425,8 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         assert(!"unknown expr kind");
     }
 
+    assert(e->type);
+
     // No more work is supposed to be done here.
     return true;
 }
@@ -539,6 +544,15 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 
         if (!declare(sema, f->name, f)) {
             return false;
+        }
+
+        if (f->rettypeexpr) {
+            if (!typecheck_expr(sema, f->rettypeexpr)) {
+                return false;
+            }
+            f->rettype = f->rettypeexpr->type;
+        } else {
+            f->rettype = sema.context.void_type;
         }
 
         bool success = true;

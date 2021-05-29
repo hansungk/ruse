@@ -86,7 +86,7 @@ func main() {
     }
 
     // function calls
-    // car = f()
+    car = f()
     // var i: int
     // i = f() //~error: cannot assign 'Car'.*'int'
     // f() + g() //~error: incompatible.*binary.*'Car'.*'int'
