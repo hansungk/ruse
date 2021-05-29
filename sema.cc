@@ -670,7 +670,8 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         break;
     }
     case ExprKind::call: {
-        fmt::print("TODO\n");
+        auto c = static_cast<CallExpr *>(e);
+        q.emit_indent("call ${}()\n", c->func_name->text);
         break;
     }
     case ExprKind::struct_def:
