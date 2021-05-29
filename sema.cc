@@ -536,8 +536,12 @@ bool typecheck_decl(Sema &sema, Decl *d) {
     }
     case DeclKind::func: {
         auto f = static_cast<FuncDecl *>(d);
-        bool success = true;
 
+        if (!declare(sema, f->name, f)) {
+            return false;
+        }
+
+        bool success = true;
         sema.context.func_stack.push_back(f);
         for (auto stmt : f->body->stmts) {
             if (!typecheck_stmt(sema, stmt)) {
@@ -663,6 +667,10 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         } else {
             assert(!"not implemented");
         }
+        break;
+    }
+    case ExprKind::call: {
+        fmt::print("TODO\n");
         break;
     }
     case ExprKind::struct_def:
@@ -848,7 +856,7 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
     }
     case DeclKind::func: {
         auto f = static_cast<FuncDecl *>(d);
-        q.emit("export function w $main() {{\n");
+        q.emit("export function w ${}() {{\n", f->name->text);
         q.emit("@start\n");
 
         q.context.func_stack.push_back(f);
