@@ -556,11 +556,13 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 
         bool success = true;
         sema.context.func_stack.push_back(f);
+        sema.decl_table.scope_open();
         for (auto stmt : f->body->stmts) {
             if (!typecheck_stmt(sema, stmt)) {
                 success = false;
             }
         }
+        sema.decl_table.scope_close();
         sema.context.func_stack.pop_back();
 
         return success;

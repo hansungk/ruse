@@ -54,7 +54,7 @@ func main() {
         var i: int
         *i //~error: dereferenced a non-pointer type 'int'
         &24 //~error: cannot take address of an rvalue
-        // &g() //~error: cannot take address of an rvalue
+        &g() //~error: cannot take address of an rvalue
 
         // mutable reference of an immutable variable
         let ii = 4
@@ -92,7 +92,7 @@ func main() {
     f() + g() //~error: incompatible binary op with type 'Car' and 'int'
     f().engine
     f().engine = 3 //~error: cannot assign to an rvalue
-    f().wing //~error: 'wing'.*not.*member.*'Car'
+    f().wing //~error: unknown field 'wing' in struct 'Car'
     // h(3, 4) //~error: argument type mismatch
     // void_ret()
     // i = void_ret() //~error: cannot assign 'void' .* 'int'
