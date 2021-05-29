@@ -25,8 +25,12 @@ def test(binname, filename):
         return
 
     for line in r.stderr.splitlines():
-        line_number = int(line.split(':')[1])
-        error_string = line.split(':')[4].strip()
+        splits = line.split(':')
+        if len(splits) != 5:
+            print('\033[0;31mfail\033[0m {}'.format(filename))
+            return
+        line_number = int(splits[1])
+        error_string = splits[4].strip()
         error_list.append((line_number, error_string))
 
     success = True

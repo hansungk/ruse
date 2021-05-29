@@ -21,8 +21,12 @@ bool Driver::compile() {
     codegen(c, node);
     fflush(c.file);
 
-    system("$HOME/build/qbe/bin/qbe -o out.s out.qbe");
-    system("gcc -o out out.s");
+    if (system("$HOME/build/qbe/bin/qbe -o out.s out.qbe") != 0) {
+        return false;
+    }
+    if (system("gcc -o out out.s") != 0) {
+        return false;
+    }
 
     return true;
 }
