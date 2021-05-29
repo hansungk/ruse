@@ -12,10 +12,11 @@
 
 using namespace cmp;
 
-template <typename... Args> static void error(SourceLoc loc, Args &&...args) {
+template <typename... Args> static bool error(SourceLoc loc, Args &&...args) {
     auto message = fmt::format(std::forward<Args>(args)...);
     fmt::print(stderr, "{}:{}:{}: error: {}\n", loc.filename, loc.line, loc.col,
                message);
+    return false;
     // Not exiting here makes the compiler go as far as it can and report all of
     // the errors it encounters.
     // exit(EXIT_FAILURE);
@@ -247,17 +248,29 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         auto de = static_cast<DeclRefExpr *>(e);
         auto sym = sema.decl_table.find(de->name);
         if (!sym) {
-            error(de->loc, "undeclared identifier '{}'", de->name->text);
-            return false;
+            return error(de->loc, "undeclared identifier '{}'", de->name->text);
         }
         de->decl = sym->value;
         assert(de->decl);
         de->type = de->decl->type;
         break;
     }
-    case ExprKind::call:
-        assert(!"not implemented");
+    case ExprKind::call: {
+        auto f = static_cast<CallExpr *>(e);
+        if (f->kind != CallExprKind::func) {
+            assert(!"not implemented");
+        }
+
+        auto sym = sema.decl_table.find(f->func_name);
+        if (!sym) {
+            return error(f->loc, "undeclared function '{}'", f->func_name->text);
+        }
+        f->callee_decl = sym->value;
+
+        // TODO: return type
+
         break;
+    }
     case ExprKind::struct_def: {
         auto sde = static_cast<StructDefExpr *>(e);
         if (!typecheck_expr(sema, sde->name_expr)) return false;
@@ -458,15 +471,15 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
     case StmtKind::return_:
         return typecheck_expr(sema, static_cast<ReturnStmt *>(s)->expr);
     case StmtKind::compound: {
-        bool all_success = true;
+        bool success = true;
         sema.scope_open();
         for (auto stmt : static_cast<CompoundStmt *>(s)->stmts) {
             if (!typecheck_stmt(sema, stmt)) {
-                all_success = false;
+                success = false;
             }
         }
         sema.scope_close();
-        return all_success;
+        return success;
     }
     default:
         assert(!"unknown stmt kind");
@@ -510,8 +523,8 @@ bool typecheck_decl(Sema &sema, Decl *d) {
         }
 
         // If we are in a function, give this decl a local_id.
-        if (!sema.context.func_decl_stack.empty()) {
-            auto current_func = sema.context.func_decl_stack.back();
+        if (!sema.context.func_stack.empty()) {
+            auto current_func = sema.context.func_stack.back();
             v->local_id = current_func->local_id_counter;
             current_func->local_id_counter++;
             for (auto child : v->children) {
@@ -523,15 +536,17 @@ bool typecheck_decl(Sema &sema, Decl *d) {
     }
     case DeclKind::func: {
         auto f = static_cast<FuncDecl *>(d);
-        bool all_success = true;
-        sema.context.func_decl_stack.push_back(f);
-        for (auto body_stmt : f->body->stmts) {
-            if (!typecheck_stmt(sema, body_stmt)) {
-                all_success = false;
+        bool success = true;
+
+        sema.context.func_stack.push_back(f);
+        for (auto stmt : f->body->stmts) {
+            if (!typecheck_stmt(sema, stmt)) {
+                success = false;
             }
         }
-        sema.context.func_decl_stack.pop_back();
-        return all_success;
+        sema.context.func_stack.pop_back();
+
+        return success;
     }
     case DeclKind::field: {
         auto f = static_cast<FieldDecl *>(d);
@@ -553,14 +568,14 @@ bool typecheck_decl(Sema &sema, Decl *d) {
         s->type = make_value_type(sema, s->name, s);
 
         sema.decl_table.scope_open();
-        bool all_success = true;
+        bool success = true;
         for (auto field : s->fields) {
             if (!typecheck_decl(sema, field)) {
-                all_success = false;
+                success = false;
             }
         }
         sema.decl_table.scope_close();
-        return all_success;
+        return success;
     }
     default:
         assert(!"unknown decl kind");
@@ -574,13 +589,13 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 bool cmp::typecheck(Sema &sema, AstNode *n) {
     switch (n->kind) {
     case AstKind::file: {
-        bool all_success = true;
+        bool success = true;
         for (auto toplevel : static_cast<File *>(n)->toplevels) {
             if (!typecheck(sema, toplevel)) {
-                all_success = false;
+                success = false;
             }
         }
-        return all_success;
+        return success;
     }
     case AstKind::stmt:
         return typecheck_stmt(sema, static_cast<Stmt *>(n));
@@ -779,54 +794,54 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
 
-        if (!q.context.func_decl_stack.empty()) {
-            assert(v->type->size);
-            q.emit_indent("%A{} =l ", v->local_id);
-            if (v->type->size < 8) {
-                q.emit("alloc4");
-            } else {
-                q.emit("alloc8");
-            }
-            q.emit(" {}\n", v->type->size);
-
-            if (v->assign_expr) {
-                // FIXME: shouldn't this be done in codegen_expr?
-                if (v->assign_expr->kind == ExprKind::struct_def) {
-                    auto sde = static_cast<StructDefExpr *>(v->assign_expr);
-                    for (auto term : sde->terms) {
-                        // find the matching child vardecl
-                        VarDecl *child_decl = nullptr;
-                        // TODO: make this into a function
-                        for (auto child : v->children) {
-                            if (child->name == term.name) {
-                                child_decl = child;
-                                break;
-                            }
-                        }
-                        assert(child_decl);
-
-                        // Don't stack allocate here but just calculate the
-                        // right offsetted memory location.
-                        assert(term.field_decl);
-                        q.emit_indent("%A{} =l add %A{}, {}\n",
-                                      child_decl->local_id, v->local_id,
-                                      term.field_decl->offset);
-                        q.valstack.push();
-
-                        codegen_expr(q, term.initexpr);
-                        fmt::print("{}: local_id={}\n", term.name->text,
-                                   child_decl->local_id);
-                        q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(),
-                                      child_decl->local_id);
-                    }
-                } else {
-                    codegen_expr(q, v->assign_expr);
-                    q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(),
-                                  v->local_id);
-                }
-            }
-        } else {
+        if (q.context.func_stack.empty()) {
             assert(!"vardecl outside function?");
+        }
+
+        assert(v->type->size);
+        q.emit_indent("%A{} =l ", v->local_id);
+        if (v->type->size < 8) {
+            q.emit("alloc4");
+        } else {
+            q.emit("alloc8");
+        }
+        q.emit(" {}\n", v->type->size);
+
+        if (v->assign_expr) {
+            // FIXME: shouldn't this be done in codegen_expr?
+            if (v->assign_expr->kind == ExprKind::struct_def) {
+                auto sde = static_cast<StructDefExpr *>(v->assign_expr);
+                for (auto term : sde->terms) {
+                    // find the matching child vardecl
+                    VarDecl *child_decl = nullptr;
+                    // TODO: make this into a function
+                    for (auto child : v->children) {
+                        if (child->name == term.name) {
+                            child_decl = child;
+                            break;
+                        }
+                    }
+                    assert(child_decl);
+
+                    // Don't stack allocate here but just calculate the
+                    // right offsetted memory location.
+                    assert(term.field_decl);
+                    q.emit_indent("%A{} =l add %A{}, {}\n",
+                                  child_decl->local_id, v->local_id,
+                                  term.field_decl->offset);
+                    q.valstack.push();
+
+                    codegen_expr(q, term.initexpr);
+                    fmt::print("{}: local_id={}\n", term.name->text,
+                               child_decl->local_id);
+                    q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(),
+                                  child_decl->local_id);
+                }
+            } else {
+                codegen_expr(q, v->assign_expr);
+                q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(),
+                              v->local_id);
+            }
         }
 
         break;
@@ -836,7 +851,7 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
         q.emit("export function w $main() {{\n");
         q.emit("@start\n");
 
-        q.context.func_decl_stack.push_back(f);
+        q.context.func_stack.push_back(f);
         {
             QbeGenerator::IndentBlock ib{q};
 
@@ -848,7 +863,7 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
             // those analyses are not fully implemented yet.
             q.emit_indent("ret\n");
         }
-        q.context.func_decl_stack.pop_back();
+        q.context.func_stack.pop_back();
 
         q.emit("}}\n");
         break;

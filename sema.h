@@ -14,7 +14,7 @@ inline void unreachable() { assert(false && "unreachable"); }
 
 struct Context {
     // Current enclosing decls.
-    std::vector<FuncDecl *> func_decl_stack;
+    std::vector<FuncDecl *> func_stack;
     std::vector<EnumDecl *> enum_decl_stack;
     // Builtin types.
     // voidType exists to differentiate the type of FuncCallExprs whose
@@ -253,9 +253,7 @@ struct QbeGenerator {
     QbeGenerator(Context &c, const char *filename) : context{c} {
         file = fopen(filename, "w");
     }
-    ~QbeGenerator() {
-        fclose(file);
-    }
+    ~QbeGenerator() { fclose(file); }
     template <typename... Args> void emit_indent(Args &&...args) {
         fmt::print(file, "{:{}}", "", indent);
         fmt::print(file, std::forward<Args>(args)...);
