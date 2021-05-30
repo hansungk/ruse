@@ -3,7 +3,7 @@ struct S {
     b: int
 }
 
-func main() {
+func main() -> int {
     let s = S {.a = 3, .b = 4}
     // let s: S
     // s.b = 4

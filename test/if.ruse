@@ -1,4 +1,4 @@
-func main() {
+func main() -> int {
     var a = 4
     if a == 4 {
         a = a + 1
