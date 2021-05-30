@@ -271,6 +271,26 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         // assumes callee_decl is a FuncDecl
         auto func_decl = static_cast<FuncDecl *>(c->callee_decl);
         c->type = func_decl->rettype;
+
+        for (size_t i = 0; i < c->args.size(); i++) {
+            if (!typecheck_expr(sema, c->args[i]))
+                return false;
+
+            if (!typecheck_assignable(func_decl->args[i]->type,
+                                      c->args[i]->type)) {
+                // TODO: non-th (1st, 2nd, 3rd)
+                auto suffix = (i == 0)   ? "st"
+                              : (i == 1) ? "nd"
+                              : (i == 2) ? "rd"
+                                         : "th";
+                return error(c->args[i]->loc,
+                             "type mismatch for {}{} argument: cannot assign "
+                             "'{}' type to '{}'",
+                             i + 1, suffix, c->args[i]->type->name->text,
+                             func_decl->args[i]->type->name->text);
+            }
+        }
+
         break;
     }
     case ExprKind::struct_def: {
@@ -541,27 +561,33 @@ bool typecheck_decl(Sema &sema, Decl *d) {
     case DeclKind::func: {
         auto f = static_cast<FuncDecl *>(d);
 
-        if (!declare(sema, f->name, f)) {
+        if (!declare(sema, f->name, f))
             return false;
-        }
 
         if (f->rettypeexpr) {
-            if (!typecheck_expr(sema, f->rettypeexpr)) {
+            if (!typecheck_expr(sema, f->rettypeexpr))
                 return false;
-            }
             f->rettype = f->rettypeexpr->type;
         } else {
             f->rettype = sema.context.void_type;
         }
 
-        bool success = true;
+        // TODO: rename args to param
+        for (auto param : f->args) {
+            if (!typecheck_decl(sema, param))
+                return false;
+        }
+
         sema.context.func_stack.push_back(f);
         sema.decl_table.scope_open();
+
+        bool success = true;
         for (auto stmt : f->body->stmts) {
             if (!typecheck_stmt(sema, stmt)) {
                 success = false;
             }
         }
+
         sema.decl_table.scope_close();
         sema.context.func_stack.pop_back();
 
@@ -906,6 +932,7 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
 
         q.emit_indent("type :{} = {{", s->name->text);
         for (auto field : s->fields) {
+            (void)field;
             q.emit("w, ");
         }
         q.emit("}}\n");
