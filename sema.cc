@@ -278,7 +278,6 @@ bool typecheck_expr(Sema &sema, Expr *e) {
 
             if (!typecheck_assignable(func_decl->args[i]->type,
                                       c->args[i]->type)) {
-                // TODO: non-th (1st, 2nd, 3rd)
                 auto suffix = (i == 0)   ? "st"
                               : (i == 1) ? "nd"
                               : (i == 2) ? "rd"
@@ -492,8 +491,31 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
         }
         break;
     }
-    case StmtKind::return_:
-        return typecheck_expr(sema, static_cast<ReturnStmt *>(s)->expr);
+    case StmtKind::return_: {
+        auto r = static_cast<ReturnStmt *>(s);
+        if (!r->expr)
+            break;
+        if (!typecheck_expr(sema, r->expr))
+            return false;
+
+        assert(!sema.context.func_stack.empty());
+        auto current_func = sema.context.func_stack.back();
+        if (r->expr->type != current_func->rettype) {
+            if (current_func->rettype == sema.context.void_type) {
+                return error(
+                    r->expr->loc,
+                    "tried to return a value from a void function '{}'",
+                    current_func->name->text);
+            }
+            return error(
+                r->expr->loc,
+                "tried to return '{}' from function '{}', which returns '{}'",
+                r->expr->type->name->text, current_func->name->text,
+                current_func->rettype->name->text);
+        }
+
+        break;
+    }
     case StmtKind::compound: {
         bool success = true;
         sema.scope_open();
