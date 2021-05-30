@@ -457,8 +457,10 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
         return typecheck_decl(sema, static_cast<DeclStmt *>(s)->decl);
     case StmtKind::assign: {
         auto as = static_cast<AssignStmt *>(s);
-        if (!typecheck_expr(sema, as->rhs)) return false;
-        if (!typecheck_expr(sema, as->lhs)) return false;
+        if (!typecheck_expr(sema, as->rhs))
+            return false;
+        if (!typecheck_expr(sema, as->lhs))
+            return false;
 
         auto lhs_type = as->lhs->type;
         auto rhs_type = as->rhs->type;
@@ -468,9 +470,8 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
         }
 
         if (!typecheck_assignable(lhs_type, rhs_type)) {
-            error(as->loc, "cannot assign '{}' type to '{}'",
-                  rhs_type->name->text, lhs_type->name->text);
-            return false;
+            return error(as->loc, "cannot assign '{}' type to '{}'",
+                         rhs_type->name->text, lhs_type->name->text);
         }
 
         break;

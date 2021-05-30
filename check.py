@@ -12,7 +12,7 @@ def test(binname, filename):
         if match:
             comment_string = match.string[match.start():]
             # strip '//~error: ' and '\n'
-            just_beacon = comment_string[10:-1]
+            just_beacon = comment_string[len("//~error: "):-1]
             beacon_list.append((line_number, just_beacon))
         line_number = line_number + 1
 
@@ -25,12 +25,14 @@ def test(binname, filename):
         return
 
     for line in r.stderr.splitlines():
+        match = re.search("error:", line)
         splits = line.split(':')
-        if len(splits) != 5:
-            print('\033[0;31mfail\033[0m {}'.format(filename))
+        if not match or len(splits) < 5:
+            print('\033[0;31mfail\033[0m {} ({})'.format(filename, line))
             return
         line_number = int(splits[1])
-        error_string = splits[4].strip()
+        # strip 'error: '
+        error_string = match.string[match.start():][len("error: "):]
         error_list.append((line_number, error_string))
 
     success = True
