@@ -331,7 +331,7 @@ FuncDecl *Parser::parse_func_header() {
 
     // argument list
     expect(Tok::lparen);
-    func->args = parse_comma_separated_list<VarDecl *>(
+    func->params = parse_comma_separated_list<VarDecl *>(
         [this] { return parse_var_decl(VarDeclKind::param); });
     if (!expect(Tok::rparen)) {
         skip_until(Tok::rparen);

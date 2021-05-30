@@ -277,7 +277,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
             if (!typecheck_expr(sema, c->args[i]))
                 return false;
 
-            if (!typecheck_assignable(func_decl->args[i]->type,
+            if (!typecheck_assignable(func_decl->params[i]->type,
                                       c->args[i]->type)) {
                 auto suffix = (i == 0)   ? "st"
                               : (i == 1) ? "nd"
@@ -287,7 +287,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
                              "type mismatch for {}{} argument: cannot assign "
                              "'{}' type to '{}'",
                              i + 1, suffix, c->args[i]->type->name->text,
-                             func_decl->args[i]->type->name->text);
+                             func_decl->params[i]->type->name->text);
             }
         }
 
@@ -594,8 +594,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
             f->rettype = sema.context.void_type;
         }
 
-        // TODO: rename args to param
-        for (auto param : f->args) {
+        for (auto param : f->params) {
             if (!typecheck_decl(sema, param))
                 return false;
         }

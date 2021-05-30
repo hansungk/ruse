@@ -281,7 +281,7 @@ void walk_var_decl(Visitor &v, VarDecl *var, Args... args) {
 template <typename Visitor, typename... Args>
 void walk_func_decl(Visitor &v, FuncDecl *f, Args... args) {
   if (f->rettypeexpr) v.visitExpr(f->rettypeexpr, args...);
-  for (auto arg : f->args) {
+  for (auto arg : f->params) {
     v.visitDecl(arg, args...);
   }
   if (f->body) {

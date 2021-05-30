@@ -443,7 +443,7 @@ struct VarDecl : public Decl {
 // should always be defined whenever they are declared.
 struct FuncDecl : public Decl {
     Type *rettype = nullptr;      // return type of the function
-    std::vector<VarDecl *> args;  // list of parameters
+    std::vector<VarDecl *> params;  // list of parameters
     CompoundStmt *body = nullptr; // body statements
     Expr *rettypeexpr = nullptr;  // return type expression
     Name *ret_lifetime_annot =
@@ -453,7 +453,7 @@ struct FuncDecl : public Decl {
     long local_id_counter = 0;
 
     FuncDecl(Name *n) : Decl(DeclKind::func, n) {}
-    size_t args_count() const { return args.size(); }
+    size_t args_count() const { return params.size(); }
 };
 
 struct FieldDecl : public Decl {
