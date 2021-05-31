@@ -732,7 +732,15 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
     }
     case ExprKind::call: {
         auto c = static_cast<CallExpr *>(e);
-        q.emit_indent("call ${}()\n", c->func_name->text);
+
+        assert(c->callee_decl->kind == DeclKind::func);
+        if (static_cast<FuncDecl *>(c->callee_decl)->rettypeexpr) {
+            q.emit_indent("%_{} =w call ${}()\n", q.valstack.next_id,
+                          c->func_name->text);
+            q.valstack.push();
+        } else {
+            q.emit_indent("call ${}()\n", c->func_name->text);
+        }
         break;
     }
     case ExprKind::struct_def:

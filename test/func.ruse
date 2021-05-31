@@ -1,6 +1,9 @@
-func f() {
+// exit 3
+
+func f() -> int {
+    return 3
 }
 
-func main() {
-    f()
+func main() -> int {
+    return f() + f()
 }
