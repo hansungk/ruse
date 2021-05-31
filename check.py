@@ -68,10 +68,13 @@ def test(binname, filename):
         print('line {}: expected: {}'.format(this_beacon[0], this_beacon[1]))
         j = j + 1
 
-    if success:
-        print('\033[0;32mpass\033[0m {}'.format(filename))
-    else:
+    if not success:
         print('\033[0;31mfail\033[0m {}'.format(filename))
+        return
+
+    r = subprocess.run('./out')
+    print('retcode={}'.format(r.returncode))
+    print('\033[0;32mpass\033[0m {}'.format(filename))
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

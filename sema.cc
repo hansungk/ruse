@@ -735,6 +735,7 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
 
         assert(c->callee_decl->kind == DeclKind::func);
         if (static_cast<FuncDecl *>(c->callee_decl)->rettypeexpr) {
+            // FIXME: =:ident instead of =w?
             q.emit_indent("%_{} =w call ${}()\n", q.valstack.next_id,
                           c->func_name->text);
             q.valstack.push();
