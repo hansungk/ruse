@@ -5,9 +5,16 @@ import subprocess
 
 def test(binname, filename):
     beacon_list = []
+    exit_beacon = 0
 
     line_number = 1
     for line in open(filename, 'r'):
+        if line_number == 1:
+            match = re.search("// exit", line)
+            if match:
+                exit_beacon_string = match.string[match.start():][len("// exit "):-1]
+                exit_beacon = int(exit_beacon_string)
+
         match = re.search("//~error:", line)
         if match:
             comment_string = match.string[match.start():]
@@ -73,7 +80,10 @@ def test(binname, filename):
         return
 
     r = subprocess.run('./out')
-    print('retcode={}'.format(r.returncode))
+    if exit_beacon != r.returncode:
+        print('\033[0;31mfail\033[0m {} (exit: expected {}, got {})'
+                .format(filename, exit_beacon, r.returncode))
+        return
     print('\033[0;32mpass\033[0m {}'.format(filename))
 
 if __name__ == "__main__":

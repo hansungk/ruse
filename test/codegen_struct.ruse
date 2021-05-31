@@ -1,3 +1,5 @@
+// exit 7
+
 struct S {
     a: int
     b: int
