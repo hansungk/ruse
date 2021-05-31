@@ -76,12 +76,12 @@ def test(binname, filename):
         j = j + 1
 
     if not success:
-        print('\033[0;31mfail\033[0m {}'.format(filename))
+        print('\033[0;31mcompile\033[0m {}'.format(filename))
         return
 
     r = subprocess.run('./out')
     if exit_beacon != r.returncode:
-        print('\033[0;31mfail\033[0m {} (exit: expected {}, got {})'
+        print('\033[0;31mrun\033[0m {} (expected {}, got {})'
                 .format(filename, exit_beacon, r.returncode))
         return
     print('\033[0;32mpass\033[0m {}'.format(filename))
