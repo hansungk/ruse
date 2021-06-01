@@ -266,6 +266,8 @@ struct QbeGenerator {
         IndentBlock(QbeGenerator &c) : c{c} { c.indent += 4; }
         ~IndentBlock() { c.indent -= 4; }
     };
+
+    long emit_stack_alloc(const Type *type);
 };
 
 void codegen(QbeGenerator &c, AstNode *n);

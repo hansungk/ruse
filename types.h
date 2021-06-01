@@ -94,8 +94,8 @@ struct Type {
     // checking phase.
     bool copyable = true;
     union {
-        // For value types: back-reference to the decl object that defines this
-        // value type.
+        // For value types: back-reference to the decl that this type
+        // originates from.
         Decl *type_decl = nullptr;
         // For derived types e.g. pointers: the target type that this type
         // refers to.

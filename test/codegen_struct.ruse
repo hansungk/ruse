@@ -5,6 +5,10 @@ struct S {
     b: int
 }
 
+func return_by_value() -> S {
+    return S {.a = 3, .b = 4}
+}
+
 func main() -> int {
     let s = S {.a = 3, .b = 4}
     // let s: S

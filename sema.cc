@@ -568,16 +568,6 @@ bool typecheck_decl(Sema &sema, Decl *d) {
             }
         }
 
-        // If we are in a function, give this decl a local_id.
-        if (!sema.context.func_stack.empty()) {
-            auto current_func = sema.context.func_stack.back();
-            v->local_id = current_func->local_id_counter;
-            current_func->local_id_counter++;
-            for (auto child : v->children) {
-                child->local_id = current_func->local_id_counter;
-                current_func->local_id_counter++;
-            }
-        }
         break;
     }
     case DeclKind::func: {
@@ -678,7 +668,9 @@ namespace {
 void codegen_decl(QbeGenerator &q, Decl *d);
 
 // 'value' denotes whether the caller that contains the use of this expression
-// requires the actual value of it, or just the address (for lvalues).
+// requires the actual value of it, or just the address (for lvalues).  If
+// 'value' is true, a handle for the generated value is placed on the valstack
+// top.
 void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
     switch (e->kind) {
     case ExprKind::integer_literal:
@@ -719,10 +711,10 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
             auto var = static_cast<VarDecl *>(dre->decl);
             if (value) {
                 q.emit_indent("%_{} =w loadw %A{}\n", q.valstack.next_id,
-                              var->local_id);
+                              var->frame_local_id);
             } else {
                 q.emit_indent("%_{} =l add 0, %A{}\n", q.valstack.next_id,
-                              var->local_id);
+                              var->frame_local_id);
             }
             q.valstack.push();
         } else {
@@ -744,14 +736,15 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         }
         break;
     }
-    case ExprKind::struct_def:
-        // TODO
+    case ExprKind::struct_def: {
+        // example: 'return S {.a = 3}'
+        assert(!value && "structs cannot be emitted directly to QBE temporary");
         break;
+    }
     case ExprKind::member: {
         auto mem = static_cast<MemberExpr *>(e);
         assert(mem->decl);
-        fmt::print("{}, offset={}\n", mem->decl->name->text,
-                   mem->field_decl->offset);
+
         // TODO Respect byte alignment of the field.
         //
         // We can't handle all code generation at this end without recursing
@@ -762,6 +755,11 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         //
         // So we have to recurse into things, at which point the question of
         // whether to generate values or addresses still stands.
+        //
+        // TODO: what about this case:
+        //   ... = S {.a = 1}.memb
+
+        // emit correct address first
         codegen_expr_explicit(q, mem->parent_expr, false);
 
         q.emit_indent("%_{} =l add %_{}, {}\n", q.valstack.next_id,
@@ -877,14 +875,11 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
             assert(!"vardecl outside function?");
         }
 
-        assert(v->type->size);
-        q.emit_indent("%A{} =l ", v->local_id);
-        if (v->type->size < 8) {
-            q.emit("alloc4");
-        } else {
-            q.emit("alloc8");
-        }
-        q.emit(" {}\n", v->type->size);
+        // frame_local_id for vardecls is set on-the-fly during code
+        // generation. This is because there are other cases that allocate on
+        // the stack (such as returning a large struct by-value) that are not
+        // emitted by a vardecl.
+        v->frame_local_id = q.emit_stack_alloc(v->type);
 
         if (v->assign_expr) {
             // FIXME: shouldn't this be done in codegen_expr?
@@ -902,24 +897,24 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
                     }
                     assert(child_decl);
 
-                    // Don't stack allocate here but just calculate the
-                    // right offsetted memory location.
+                    // Don't stack allocate here but just calculate the right
+                    // offsetted memory location.
                     assert(term.field_decl);
                     q.emit_indent("%A{} =l add %A{}, {}\n",
-                                  child_decl->local_id, v->local_id,
+                                  child_decl->frame_local_id, v->frame_local_id,
                                   term.field_decl->offset);
                     q.valstack.push();
 
                     codegen_expr(q, term.initexpr);
-                    fmt::print("{}: local_id={}\n", term.name->text,
-                               child_decl->local_id);
+                    // fmt::print("{}: frame_local_id={}\n", term.name->text,
+                    //            child_decl->frame_local_id);
                     q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(),
-                                  child_decl->local_id);
+                                  child_decl->frame_local_id);
                 }
             } else {
                 codegen_expr(q, v->assign_expr);
                 q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(),
-                              v->local_id);
+                              v->frame_local_id);
             }
         }
 
@@ -950,12 +945,24 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
     case DeclKind::struct_: {
         auto s = static_cast<StructDecl *>(d);
 
-        // Calculate offset and padding.
-        // FIXME: alignment is always 4
+        long max_field_size = 0;
+        for (const auto f : s->fields) {
+            if (f->type->size > max_field_size) {
+                max_field_size = f->type->size;
+            }
+        }
+        if (max_field_size <= 4) {
+            s->alignment = 4;
+        } else if (max_field_size <= 8) {
+            s->alignment = 8;
+        } else {
+            assert(!"unimplemented: too large field size for alignment");
+        }
+
         size_t offset = 0;
         for (size_t i = 0; i < s->fields.size(); i++) {
             s->fields[i]->offset = offset;
-            offset += 4;
+            offset += s->alignment;
         }
         s->type->size = offset;
 
@@ -974,6 +981,35 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
 }
 
 } // namespace
+
+// Emit a value by allocating it on a stack.  That value will be handled with
+// its address.
+long QbeGenerator::emit_stack_alloc(const Type *type) {
+    assert(!context.func_stack.empty());
+    auto current_func = context.func_stack.back();
+    long id = current_func->frame_local_id_counter;
+    current_func->frame_local_id_counter++;
+
+    assert(type->kind == TypeKind::value &&
+           "stack allocation for non-value types not implemented");
+    assert(type->size);
+
+    emit_indent("%A{} =l ", id);
+    if (type->builtin) {
+        emit("alloc4");
+    } else {
+        assert(type->type_decl->kind == DeclKind::struct_ &&
+               "non-struct value type?");
+        if (static_cast<StructDecl *>(type->type_decl)->alignment == 4) {
+            emit("alloc4");
+        } else {
+            emit("alloc8");
+        }
+    }
+    emit(" {}\n", type->size);
+
+    return id;
+}
 
 void cmp::codegen(QbeGenerator &q, AstNode *n) {
     switch (n->kind) {

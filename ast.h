@@ -419,10 +419,10 @@ struct VarDecl : public Decl {
     // [References] Lifetime of the value that this reference borrowed from.
     Lifetime *borrowee_lifetime = nullptr;
 
-    // ID of the VarDecl that is local inside the current scope.  Used for
-    // codegen to easily designate the address to which we have to store the
-    // temporary value of an expression.
-    long local_id = 0;
+    // ID of the VarDecl that is local inside the current stack frame (~current
+    // function).  Used for codegen to easily designate the address to which we
+    // have to store the temporary value of an expression.
+    long frame_local_id = 0;
 
     // Decls for each of the values that are associated to this value.
     // For example, if this value is a struct type, these would be VarDecls for
@@ -450,7 +450,9 @@ struct FuncDecl : public Decl {
         nullptr; // lifetime annotation of the return value
     // "Bogus" lifetime that represents the scope of the function body.
     Lifetime *scope_lifetime = nullptr;
-    long local_id_counter = 0;
+
+    // FIXME: This sounds like this should be in sema.context.
+    long frame_local_id_counter = 0;
 
     FuncDecl(Name *n) : Decl(DeclKind::func, n) {}
     size_t args_count() const { return params.size(); }
@@ -469,6 +471,10 @@ struct FieldDecl : public Decl {
 // Struct declaration.
 struct StructDecl : public Decl {
     std::vector<FieldDecl *> fields;
+
+    // By a multiple of how much the start address for this struct should be
+    // aligned to.
+    uint64_t alignment;
 
     StructDecl(Name *n, std::vector<FieldDecl *> m)
         : Decl(DeclKind::struct_, n), fields(m) {}
