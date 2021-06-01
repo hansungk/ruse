@@ -1,0 +1,16 @@
+type :S = {l, l}
+
+export function :S $return_by_value(:S %s) {
+@start
+    ret %s
+}
+
+export function w $main() {
+@start
+    %A0 =l alloc8 24
+    storew 84, %A0
+    %h =:S call $return_by_value(:S %A0)
+    # %a =:S %h
+    %r =w loadw %h
+    ret %r
+}
