@@ -726,10 +726,17 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         auto c = static_cast<CallExpr *>(e);
 
         assert(c->callee_decl->kind == DeclKind::func);
-        if (static_cast<FuncDecl *>(c->callee_decl)->rettypeexpr) {
-            // FIXME: =:ident instead of =w?
-            q.emit_indent("%_{} =w call ${}()\n", q.valstack.next_id,
-                          c->func_name->text);
+        auto func_decl = static_cast<FuncDecl *>(c->callee_decl);
+        if (func_decl->rettypeexpr) {
+            std::string abity_str;
+            if (func_decl->rettype->builtin) {
+                // TODO: "l", "s", "d", ...
+                abity_str = "w";
+            } else {
+                abity_str = std::string{":"} + func_decl->rettype->name->text;
+            }
+            q.emit_indent("%_{} ={} call ${}()\n", q.valstack.next_id,
+                          abity_str, c->func_name->text);
             q.valstack.push();
         } else {
             q.emit_indent("call ${}()\n", c->func_name->text);
@@ -738,7 +745,12 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
     }
     case ExprKind::struct_def: {
         // example: 'return S {.a = 3}'
-        assert(!value && "structs cannot be emitted directly to QBE temporary");
+        assert(value && "can't take address of temporary struct def");
+        auto id = q.emit_stack_alloc(e->type);
+        q.emit_indent("%_{} =l add 0, %A{} # alloced for struct\n",
+                      q.valstack.next_id, id);
+        q.valstack.push();
+        // TODO: actually fill in values
         break;
     }
     case ExprKind::member: {
@@ -922,7 +934,14 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
     }
     case DeclKind::func: {
         auto f = static_cast<FuncDecl *>(d);
-        q.emit("export function w ${}() {{\n", f->name->text);
+        std::string abity_str;
+        if (f->rettype->builtin) {
+            // TODO: "l", "s", "d", ...
+            abity_str = "w";
+        } else {
+            abity_str = std::string{":"} + f->rettype->name->text;
+        }
+        q.emit("export function {} ${}() {{\n", abity_str, f->name->text);
         q.emit("@start\n");
 
         q.context.func_stack.push_back(f);
