@@ -1,7 +1,7 @@
 #ifndef CMP_SEMA_H
 #define CMP_SEMA_H
 
-#include "ast_visitor.h"
+#include "ast.h"
 #include "error.h"
 #include "fmt/core.h"
 #include "scoped_table.h"
@@ -151,74 +151,7 @@ struct Sema {
 
 void setup_builtin_types(Sema &s);
 
-// Name binding pass.
-// Name binding basically is a pass that simply links each Name to a Decl.
-// It handles variable/function/struct declaration, redefinition/undeclared-uses
-// checks, number of function arguments checks, etc.
-// TODO: doc more.
-class NameBinding : public AstVisitor<NameBinding> {
-    Sema &sema;
-
-public:
-    NameBinding(Sema &s) : sema{s} {}
-    bool success() const { return sema.errors.empty(); }
-
-    void visitCompoundStmt(CompoundStmt *cs);
-    void visitDeclRefExpr(DeclRefExpr *d);
-    void visitCallExpr(CallExpr *f);
-    void visitTypeExpr(TypeExpr *t);
-    void visitVarDecl(VarDecl *v);
-    void visitFuncDecl(FuncDecl *f);
-    void visitStructDecl(StructDecl *s);
-    void visitEnumVariantDecl(EnumVariantDecl *e);
-    void visitEnumDecl(EnumDecl *e);
-};
-
 bool typecheck(Sema &sema, AstNode *n);
-
-// Type checking pass.
-class TypeChecker : public AstVisitor<TypeChecker, Type *> {
-    Sema &sema;
-
-public:
-    TypeChecker(Sema &s) : sema{s} {}
-    bool success() const { return sema.errors.empty(); }
-
-    Type *visitAssignStmt(AssignStmt *as);
-    Type *visitReturnStmt(ReturnStmt *rs);
-
-    Type *visitIntegerLiteral(IntegerLiteral *i);
-    Type *visitStringLiteral(StringLiteral *s);
-    Type *visitDeclRefExpr(DeclRefExpr *d);
-    Type *visitCallExpr(CallExpr *f);
-    Type *visitStructDefExpr(StructDefExpr *s);
-    Type *visitCastExpr(CastExpr *c);
-    Type *visitMemberExpr(MemberExpr *m);
-    Type *visitUnaryExpr(UnaryExpr *u);
-    Type *visitBinaryExpr(BinaryExpr *b);
-    Type *visitTypeExpr(TypeExpr *t);
-
-    Type *visitVarDecl(VarDecl *v);
-    Type *visitFuncDecl(FuncDecl *f);
-    Type *visitStructDecl(StructDecl *s);
-    Type *visitEnumVariantDecl(EnumVariantDecl *e);
-    Type *visitEnumDecl(EnumDecl *e);
-};
-
-class ReturnChecker
-    : public AstVisitor<ReturnChecker, BasicBlock *, BasicBlock *> {
-    Sema &sema;
-
-public:
-    ReturnChecker(Sema &s) : sema{s} {}
-    bool success() const { return sema.errors.empty(); }
-
-    BasicBlock *visitStmt(Stmt *s, BasicBlock *bb);
-    BasicBlock *visitCompoundStmt(CompoundStmt *cs, BasicBlock *bb);
-    BasicBlock *visitIfStmt(IfStmt *is, BasicBlock *bb);
-
-    BasicBlock *visitFuncDecl(FuncDecl *f, BasicBlock *bb);
-};
 
 // ValStack is a means for sibling AST nodes to communicate information in the
 // codegen stage.  It caches the handle ID of a value that is produced by a node

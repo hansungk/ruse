@@ -1,6 +1,4 @@
 #include "sema.h"
-#include "ast.h"
-#include "ast_visitor.h"
 #include "fmt/core.h"
 #include "parser.h"
 #include "source.h"
