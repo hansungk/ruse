@@ -451,9 +451,6 @@ struct FuncDecl : public Decl {
     // "Bogus" lifetime that represents the scope of the function body.
     Lifetime *scope_lifetime = nullptr;
 
-    // FIXME: This sounds like this should be in sema.context.
-    long frame_local_id_counter = 0;
-
     FuncDecl(Name *n) : Decl(DeclKind::func, n) {}
     size_t args_count() const { return params.size(); }
 };

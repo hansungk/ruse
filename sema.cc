@@ -708,11 +708,11 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         if (dre->decl->kind == DeclKind::var) {
             auto var = static_cast<VarDecl *>(dre->decl);
             if (value) {
-                q.emit_indent("%_{} =w loadw %A{}\n", q.valstack.next_id,
+                q.emit_indent("%_{} =w loadw %a{}\n", q.valstack.next_id,
                               var->frame_local_id);
                 q.valstack.push_temp();
             } else {
-                q.emit_indent("%a{} =l add 0, %A{}\n", q.valstack.next_id,
+                q.emit_indent("%a{} =l add 0, %a{}\n", q.valstack.next_id,
                               var->frame_local_id);
                 q.valstack.push_address();
             }
@@ -746,7 +746,7 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         // example: 'return S {.a = 3}'
         assert(value && "can't take address of temporary struct def");
         auto id = q.emit_stack_alloc(e->type);
-        q.emit_indent("%_{} =l add 0, %A{} # alloced for struct\n",
+        q.emit_indent("%_{} =l add 0, %a{} # alloced for struct\n",
                       q.valstack.next_id, id);
         q.valstack.push_temp();
         // TODO: actually fill in values
@@ -918,12 +918,16 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
                     // Calculate the right offsetted memory location for each
                     // member.
                     assert(term.field_decl);
-                    q.emit_indent("%A{} =l add %A{}, {}\n",
-                                  child_decl->frame_local_id, v->frame_local_id,
+                    q.emit_indent("%a{} =l add %a{}, {}\n",
+                                  q.valstack.next_id, v->frame_local_id,
                                   term.field_decl->offset);
+                    q.valstack.push_address();
                     q.emit_assignment(child_decl, term.initexpr);
                 }
             } else {
+                q.emit_indent("%a{} =l add 0, %a{}\n", q.valstack.next_id,
+                              v->frame_local_id);
+                q.valstack.push_address();
                 q.emit_assignment(v, v->assign_expr);
             }
         }
@@ -1009,9 +1013,11 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
 // f(S {.a=...})
 void QbeGenerator::emit_assignment(VarDecl *lhs, Expr *rhs) {
     codegen_expr(*this, rhs);
-    assert(rhs->type->size == 4);
-    emit_indent("storew {}, %A{}\n", valstack.pop().format(),
-                lhs->frame_local_id);
+    auto value = valstack.pop();
+    assert(value.kind == ValueKind::value);
+    auto address = valstack.pop();
+    assert(address.kind == ValueKind::address);
+    emit_indent("storew {}, {}\n", value.format(), address.format());
 }
 
 // Emit a value by allocating it on a stack.  That value will be handled with
@@ -1028,7 +1034,7 @@ long QbeGenerator::emit_stack_alloc(const Type *type) {
            "stack allocation for non-value types not implemented");
     assert(type->size);
 
-    emit_indent("%A{} =l ", id);
+    emit_indent("%a{} =l ", id);
     if (type->builtin) {
         emit("alloc4");
     } else {
