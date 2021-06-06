@@ -915,16 +915,10 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
                                   term.field_decl->offset);
                     q.valstack.push();
 
-                    codegen_expr(q, term.initexpr);
-                    // fmt::print("{}: frame_local_id={}\n", term.name->text,
-                    //            child_decl->frame_local_id);
-                    q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(),
-                                  child_decl->frame_local_id);
+                    q.emit_assignment(child_decl, term.initexpr);
                 }
             } else {
-                codegen_expr(q, v->assign_expr);
-                q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(),
-                              v->frame_local_id);
+                q.emit_assignment(v, v->assign_expr);
             }
         }
 
@@ -998,6 +992,12 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
 }
 
 } // namespace
+
+// Emit a value-to-value copy.
+void QbeGenerator::emit_assignment(VarDecl *lhs, Expr *rhs) {
+    codegen_expr(*this, rhs);
+    emit_indent("storew %_{}, %A{}\n", valstack.pop(), lhs->frame_local_id);
+}
 
 // Emit a value by allocating it on a stack.  That value will be handled with
 // its address.

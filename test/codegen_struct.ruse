@@ -18,5 +18,5 @@ func main() -> int {
     // s.b = 4
 
     let s = return_by_value()
-    return 0
+    return s.b
 }
