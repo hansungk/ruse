@@ -12,9 +12,9 @@ func return_by_value() -> S {
     return S {.a = 3, .b = 4, .c = 5, .d = 6}
 }
 
-// func pass_by_value(s: S) -> S {
-//     return s
-// }
+func pass_by_value(s: S) -> S {
+    return s
+}
 
 func main() -> int {
     let s = S {.a = 3, .b = 4, .c = 5, .d = 6}
@@ -24,6 +24,11 @@ func main() -> int {
 
     let copy = s
     if copy.a + copy.d != 9 {
+        return 1
+    }
+
+    let p = pass_by_value(s)
+    if p.a + p.c != 8 {
         return 1
     }
 

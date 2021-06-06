@@ -692,6 +692,7 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         break;
     case ExprKind::decl_ref: {
         auto dre = static_cast<DeclRefExpr *>(e);
+
         // This generates a load on 'a':
         //   ... = a
         // But this does not:
@@ -1086,9 +1087,11 @@ void QbeGenerator::emit_assignment(const Type *lhs_type, Expr *rhs) {
             }
         }
     } else if (lhs_type->size == 8) {
-        emit_indent("storel {}, {}\n", rhs_value.format(), lhs_address.format());
+        emit_indent("storel {}, {}\n", rhs_value.format(),
+                    lhs_address.format());
     } else if (lhs_type->size == 4) {
-        emit_indent("storew {}, {}\n", rhs_value.format(), lhs_address.format());
+        emit_indent("storew {}, {}\n", rhs_value.format(),
+                    lhs_address.format());
     } else {
         assert(!"unknown type size");
     }
