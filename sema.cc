@@ -749,12 +749,36 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
 
         assert(c->callee_decl->kind == DeclKind::func);
         auto func_decl = static_cast<FuncDecl *>(c->callee_decl);
+
+        // codegen arguments first
+        std::vector<Value> generated_args;
+        for (auto arg : c->args) {
+            codegen_expr_explicit(q, arg, true);
+            generated_args.push_back(q.valstack.pop());
+        }
+
         if (func_decl->rettypeexpr) {
-            q.emit_indent("%_{} ={} call ${}()\n", q.valstack.next_id,
+            q.emit_indent("%_{} ={} call ${}(", q.valstack.next_id,
                           abity_str(func_decl->rettype), c->func_name->text);
+
+            for (size_t i = 0; i < c->args.size(); i++) {
+                q.emit("{} {}, ", abity_str(c->args[i]->type),
+                       generated_args[i].format());
+            }
+
+            q.emit(")\n");
+
             q.valstack.push_temp();
         } else {
-            q.emit_indent("call ${}()\n", c->func_name->text);
+            q.emit_indent("call ${}(", c->func_name->text);
+
+            // @Copypaste from above
+            for (size_t i = 0; i < c->args.size(); i++) {
+                q.emit("{} {}, ", abity_str(c->args[i]->type),
+                       generated_args[i].format());
+            }
+
+            q.emit(")\n");
         }
         break;
     }

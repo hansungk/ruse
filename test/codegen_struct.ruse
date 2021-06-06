@@ -32,6 +32,10 @@ func main() -> int {
         return 1
     }
 
+    if pass_by_value().a + pass_by_value().c + pass_by_value().d != 14 {
+        return 1
+    }
+
     let retval = return_by_value()
     if retval.a + retval.c != 8 {
         return 1
