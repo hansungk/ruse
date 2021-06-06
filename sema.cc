@@ -818,7 +818,11 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
             op_str = "add";
             break;
         case Tok::doubleequals:
+            // TODO: not "w"
             op_str = "ceqw";
+            break;
+        case Tok::notequals:
+            op_str = "cnew";
             break;
         default:
             assert(!"unknown binary expr kind");

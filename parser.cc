@@ -727,6 +727,7 @@ int binary_op_precedence(const Token &op) {
     case Tok::minus:
         return 1;
     case Tok::doubleequals:
+    case Tok::notequals:
     case Tok::greaterthan:
     case Tok::lesserthan:
         return 0;
