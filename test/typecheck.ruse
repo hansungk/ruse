@@ -94,7 +94,9 @@ func main() {
     f().engine
     f().engine = 3 //~error: cannot assign to an rvalue
     f().wing //~error: unknown field 'wing' in struct 'Car'
-    h() //~error: 'h' accepts two arguments
+    h() //~error: function 'h' accepts 2 arguments, but 0 are given
+    h(3) //~error: function 'h' accepts 2 arguments, but 1 are given
+    h(3, 4, 5) //~error: function 'h' accepts 2 arguments, but 3 are given
     h(3, 4) //~error: type mismatch for 2nd argument: cannot assign 'int' type to '*int'
     void_ret()
     i = void_ret() //~error: cannot assign 'void' type to 'int'

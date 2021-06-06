@@ -271,6 +271,13 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         auto func_decl = static_cast<FuncDecl *>(c->callee_decl);
         c->type = func_decl->rettype;
 
+        if (c->args.size() != func_decl->params.size()) {
+            return error(c->loc,
+                         "function '{}' accepts {} arguments, but {} are given",
+                         func_decl->name->text, func_decl->params.size(),
+                         c->args.size());
+        }
+
         for (size_t i = 0; i < c->args.size(); i++) {
             if (!typecheck_expr(sema, c->args[i]))
                 return false;
