@@ -707,14 +707,13 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         // advance.
         if (dre->decl->kind == DeclKind::var) {
             auto var = static_cast<VarDecl *>(dre->decl);
+
+            q.valstack.push_address_explicit(var->frame_local_id);
+
             if (value) {
-                q.emit_indent("%_{} =w loadw %a{}\n", q.valstack.next_id,
-                              var->frame_local_id);
+                q.emit_indent("%_{} =w loadw {}\n", q.valstack.next_id,
+                              q.valstack.pop().format());
                 q.valstack.push_temp();
-            } else {
-                q.emit_indent("%a{} =l add 0, %a{}\n", q.valstack.next_id,
-                              var->frame_local_id);
-                q.valstack.push_address();
             }
         } else {
             assert(!"not implemented");
@@ -925,9 +924,7 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
                     q.emit_assignment(child_decl, term.initexpr);
                 }
             } else {
-                q.emit_indent("%a{} =l add 0, %a{}\n", q.valstack.next_id,
-                              v->frame_local_id);
-                q.valstack.push_address();
+                q.valstack.push_address_explicit(v->frame_local_id);
                 q.emit_assignment(v, v->assign_expr);
             }
         }

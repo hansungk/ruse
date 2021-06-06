@@ -198,6 +198,11 @@ struct Valstack {
         next_id++;
     }
 
+    // Explicitly give the id of the value which will be reused.
+    void push_address_explicit(int id) {
+        buf.push_back(Value{ValueKind::address, id});
+    }
+
     Value peek() const { return buf.back(); }
 
     Value pop() {
