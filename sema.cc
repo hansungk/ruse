@@ -1010,8 +1010,10 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
 // f(S {.a=...})
 void QbeGenerator::emit_assignment(const Type *lhs_type, Expr *rhs) {
     codegen_expr(*this, rhs);
+
+    // NOTE: rhs_value might not actually have ValueKind::value, e.g. for
+    // structs allocated on the stack.
     auto rhs_value = valstack.pop();
-    assert(rhs_value.kind == ValueKind::value);
     auto lhs_address = valstack.pop();
     assert(lhs_address.kind == ValueKind::address);
 
