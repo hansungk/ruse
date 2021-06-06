@@ -771,7 +771,6 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
     }
     case ExprKind::member: {
         auto mem = static_cast<MemberExpr *>(e);
-        assert(mem->decl);
 
         // TODO Respect byte alignment of the field.
         //
