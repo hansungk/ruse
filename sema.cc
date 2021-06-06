@@ -674,7 +674,7 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
     case ExprKind::integer_literal:
         q.emit_indent("%_{} =w add 0, {}\n", q.valstack.next_id,
                      static_cast<IntegerLiteral *>(e)->value);
-        q.valstack.push();
+        q.valstack.push_temp();
         break;
     case ExprKind::string_literal:
         assert(!"not implemented");
@@ -710,11 +710,12 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
             if (value) {
                 q.emit_indent("%_{} =w loadw %A{}\n", q.valstack.next_id,
                               var->frame_local_id);
+                q.valstack.push_temp();
             } else {
-                q.emit_indent("%_{} =l add 0, %A{}\n", q.valstack.next_id,
+                q.emit_indent("%a{} =l add 0, %A{}\n", q.valstack.next_id,
                               var->frame_local_id);
+                q.valstack.push_address();
             }
-            q.valstack.push();
         } else {
             assert(!"not implemented");
         }
@@ -735,7 +736,7 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
             }
             q.emit_indent("%_{} ={} call ${}()\n", q.valstack.next_id,
                           abity_str, c->func_name->text);
-            q.valstack.push();
+            q.valstack.push_temp();
         } else {
             q.emit_indent("call ${}()\n", c->func_name->text);
         }
@@ -747,7 +748,7 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         auto id = q.emit_stack_alloc(e->type);
         q.emit_indent("%_{} =l add 0, %A{} # alloced for struct\n",
                       q.valstack.next_id, id);
-        q.valstack.push();
+        q.valstack.push_temp();
         // TODO: actually fill in values
         break;
     }
@@ -772,14 +773,17 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         // emit correct address first
         codegen_expr_explicit(q, mem->parent_expr, false);
 
-        q.emit_indent("%_{} =l add %_{}, {}\n", q.valstack.next_id,
-                      q.valstack.pop(), mem->field_decl->offset);
+        q.emit_indent("%a{} =l add {}, {}\n", q.valstack.next_id,
+                      q.valstack.pop().format(), mem->field_decl->offset);
+        q.valstack.push_address();
+
         if (value) {
-            q.emit_indent("%_{} =w loadw %_{}\n", q.valstack.next_id + 1,
-                          q.valstack.next_id);
-            q.valstack.next_id++;
+            // TODO: for struct values?
+            q.emit_indent("%_{} =w loadw {}\n", q.valstack.next_id,
+                          q.valstack.pop().format());
+            q.valstack.push_temp();
         }
-        q.valstack.push();
+
         break;
     }
     case ExprKind::unary: {
@@ -803,9 +807,9 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         default:
             assert(!"unknown binary expr kind");
         }
-        q.emit_indent("%_{} =w {} %_{}, %_{}\n", q.valstack.next_id, op_str,
-                      q.valstack.pop(), q.valstack.pop());
-        q.valstack.push();
+        q.emit_indent("%_{} =w {} {}, {}\n", q.valstack.next_id, op_str,
+                      q.valstack.pop().format(), q.valstack.pop().format());
+        q.valstack.push_temp();
         break;
     }
     default:
@@ -831,18 +835,21 @@ void codegen_stmt(QbeGenerator &q, Stmt *s) {
         break;
     case StmtKind::assign: {
         auto as = static_cast<AssignStmt *>(s);
+
         codegen_expr(q, as->rhs);
-        auto rhs_val_id = q.valstack.pop();
+        auto rhs_val_id = q.valstack.pop().id;
 
         codegen_expr_addr(q, as->lhs);
-        auto lhs_addr_id = q.valstack.pop();
+        assert(q.valstack.peek().kind == ValueKind::address);
 
-        q.emit_indent("storew %_{}, %_{}\n", rhs_val_id, lhs_addr_id);
+        q.emit_indent("storew %_{}, {}\n", rhs_val_id,
+                      q.valstack.pop().format());
         break;
     }
     case StmtKind::return_:
         codegen_expr(q, static_cast<ReturnStmt *>(s)->expr);
-        q.emit_indent("ret %_{}\n", q.valstack.pop());
+        assert(q.valstack.peek().kind == ValueKind::value);
+        q.emit_indent("ret {}\n", q.valstack.pop().format());
         // This is here only to make QBE not complain.  In practice, no
         // instructions after this point should be reachable.
         q.emit("@L{}\n", q.label_id);
@@ -853,7 +860,8 @@ void codegen_stmt(QbeGenerator &q, Stmt *s) {
         auto id = q.ifelse_label_id;
         q.ifelse_label_id++;
         codegen_expr(q, if_stmt->cond);
-        q.emit_indent("jnz %_{}, @if_{}, @else_{}\n", q.valstack.pop(), id, id);
+        q.emit_indent("jnz {}, @if_{}, @else_{}\n", q.valstack.pop().format(),
+                      id, id);
         q.emit("@if_{}\n", id);
         codegen_stmt(q, if_stmt->if_body);
         q.emit_indent("jmp @fi_{}\n", id);
@@ -907,14 +915,12 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
                     }
                     assert(child_decl);
 
-                    // Don't stack allocate here but just calculate the right
-                    // offsetted memory location.
+                    // Calculate the right offsetted memory location for each
+                    // member.
                     assert(term.field_decl);
                     q.emit_indent("%A{} =l add %A{}, {}\n",
                                   child_decl->frame_local_id, v->frame_local_id,
                                   term.field_decl->offset);
-                    q.valstack.push();
-
                     q.emit_assignment(child_decl, term.initexpr);
                 }
             } else {
@@ -993,19 +999,30 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
 
 } // namespace
 
-// Emit a value-to-value copy.
+// Emit a memory-to-memory value copy.
+// TODO: what about a = 3?
+//
+// a = 3
+// a = b
+// a = S {.a=...}
+// S {.a=...}.a
+// f(S {.a=...})
 void QbeGenerator::emit_assignment(VarDecl *lhs, Expr *rhs) {
     codegen_expr(*this, rhs);
-    emit_indent("storew %_{}, %A{}\n", valstack.pop(), lhs->frame_local_id);
+    assert(rhs->type->size == 4);
+    emit_indent("storew {}, %A{}\n", valstack.pop().format(),
+                lhs->frame_local_id);
 }
 
 // Emit a value by allocating it on a stack.  That value will be handled with
 // its address.
 long QbeGenerator::emit_stack_alloc(const Type *type) {
     assert(!context.func_stack.empty());
-    auto current_func = context.func_stack.back();
-    long id = current_func->frame_local_id_counter;
-    current_func->frame_local_id_counter++;
+    // auto current_func = context.func_stack.back();
+    // long id = current_func->frame_local_id_counter;
+    // current_func->frame_local_id_counter++;
+    long id = valstack.next_id;
+    valstack.next_id++;
 
     assert(type->kind == TypeKind::value &&
            "stack allocation for non-value types not implemented");

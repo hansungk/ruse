@@ -153,24 +153,58 @@ void setup_builtin_types(Sema &s);
 
 bool typecheck(Sema &sema, AstNode *n);
 
-// ValStack is a means for sibling AST nodes to communicate information in the
-// codegen stage.  It caches the handle ID of a value that is produced by a node
-// to a FIFO stack, so that later-traversed nodes can use that value by
-// generating loads or arithmetic instructions with it.  This ID could otherwise
-// be kept in the nodes themselves, but that will make the access expensive.
+enum class ValueKind {
+    value,
+    address,
+};
+
+struct Value {
+    ValueKind kind;
+    int id;
+
+    std::string format() const {
+        switch (kind) {
+        case ValueKind::value:
+            return fmt::format("%_{}", id);
+        case ValueKind::address:
+            return fmt::format("%a{}", id);
+        default:
+            assert(false);
+        }
+    }
+};
+
+// Valstack is a means for AST nodes to communicate information in the codegen
+// stage.  It maintains the handling ID of a value that is produced by a node
+// to a FIFO stack, so that later nodes can use that value by generating loads
+// or arithmetic instructions with it.  This ID could otherwise be kept in the
+// nodes themselves, but that will make the access expensive.
 struct Valstack {
-    std::vector<int> buf;
+    std::vector<Value> buf;
     int next_id{0};
 
-    void push() {
-        buf.push_back(next_id);
+    // Push a value as a temporary variable in QBE.  This will be designated as
+    // "%_0" in the IL.
+    void push_temp() {
+        buf.push_back(Value{ValueKind::value, next_id});
         next_id++;
     }
-    int pop() {
+
+    // Push a value in the form of its memory address.  Larger sized types such
+    // as structs cannot be emitted as a QBE temporary, and this is the only
+    // way to emit its value.  This will be designated as "%a0" in the IL.
+    void push_address() {
+        buf.push_back(Value{ValueKind::address, next_id});
+        next_id++;
+    }
+
+    Value peek() const { return buf.back(); }
+
+    Value pop() {
         assert(!buf.empty());
-        auto d = buf.back();
+        auto v = peek();
         buf.pop_back();
-        return d;
+        return v;
     }
 };
 

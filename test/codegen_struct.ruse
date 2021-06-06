@@ -13,10 +13,9 @@ func return_by_value() -> S {
 }
 
 func main() -> int {
-    // let s = S {.a = 3, .b = 4}
-    // let s: S
-    // s.b = 4
+    let s = S {.a = 3, .b = 4}
+    s.b = 4
 
-    let s = return_by_value()
-    return s.b
+    // let s = return_by_value()
+    // return s.b
 }
