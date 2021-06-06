@@ -35,7 +35,7 @@ def test(binname, filename):
         match = re.search("error:", line)
         splits = line.split(':')
         if not match or len(splits) < 5:
-            print('\033[0;31mfail\033[0m {} ({})'.format(filename, line))
+            print('\033[0;31mcodegen\033[0m {} ({})'.format(filename, line))
             return
         line_number = int(splits[1])
         # strip 'error: '
@@ -76,7 +76,7 @@ def test(binname, filename):
         j = j + 1
 
     if not success:
-        print('\033[0;31mcompile\033[0m {}'.format(filename))
+        print('\033[0;31msema\033[0m {}'.format(filename))
         return
 
     r = subprocess.run('./out')
