@@ -742,13 +742,31 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         break;
     }
     case ExprKind::struct_def: {
-        // example: 'return S {.a = 3}'
+        auto sde = static_cast<StructDefExpr *>(e);
         assert(value && "can't take address of temporary struct def");
-        auto id = q.emit_stack_alloc(e->type);
-        q.emit_indent("%_{} =l add 0, %a{} # alloced for struct\n",
-                      q.valstack.next_id, id);
-        q.valstack.push_temp();
-        // TODO: actually fill in values
+
+        auto id = q.emit_stack_alloc(sde->type);
+
+        // Don't assume anything and just emit all the value copying of each
+        // members here.  This might sound expensive, especially in cases where
+        // only part of the struct is actually used (e.g. `S {...}.a`), but
+        // figuring out those cases is really a job to be done at a higher IR
+        // level, not here.
+
+        for (auto term : sde->terms) {
+            // Calculate the right offsetted memory location for each
+            // member.
+            assert(term.field_decl);
+            q.emit_indent("%a{} =l add %a{}, {}\n", q.valstack.next_id, id,
+                          term.field_decl->offset);
+            q.valstack.push_address();
+            q.emit_assignment(term.field_decl->type, term.initexpr);
+        }
+
+        // Leave the address in the valstack; this is what will be used in lieu
+        // of the actual value in later nodes.
+        q.valstack.push_address_explicit(id);
+
         break;
     }
     case ExprKind::member: {
@@ -847,7 +865,12 @@ void codegen_stmt(QbeGenerator &q, Stmt *s) {
     }
     case StmtKind::return_:
         codegen_expr(q, static_cast<ReturnStmt *>(s)->expr);
-        assert(q.valstack.peek().kind == ValueKind::value);
+
+        // Whether the top of the valstack might contain is a value or an
+        // address, either is fine, because returning a struct by value
+        // (usually) happens by address.
+        // assert(q.valstack.peek().kind == ValueKind::value);
+
         q.emit_indent("ret {}\n", q.valstack.pop().format());
         // This is here only to make QBE not complain.  In practice, no
         // instructions after this point should be reachable.
@@ -899,8 +922,11 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
         v->frame_local_id = q.emit_stack_alloc(v->type);
 
         if (v->assign_expr) {
+
             // FIXME: shouldn't this be done in codegen_expr?
             if (v->assign_expr->kind == ExprKind::struct_def) {
+                assert(!"TODO");
+#if 0
                 auto sde = static_cast<StructDefExpr *>(v->assign_expr);
                 for (auto term : sde->terms) {
                     // find the matching child vardecl
@@ -921,11 +947,12 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
                                   q.valstack.next_id, v->frame_local_id,
                                   term.field_decl->offset);
                     q.valstack.push_address();
-                    q.emit_assignment(child_decl, term.initexpr);
+                    q.emit_assignment(child_decl->type, term.initexpr);
                 }
+#endif
             } else {
                 q.valstack.push_address_explicit(v->frame_local_id);
-                q.emit_assignment(v, v->assign_expr);
+                q.emit_assignment(v->type, v->assign_expr);
             }
         }
 
@@ -1008,7 +1035,7 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
 // a = S {.a=...}
 // S {.a=...}.a
 // f(S {.a=...})
-void QbeGenerator::emit_assignment(VarDecl *lhs, Expr *rhs) {
+void QbeGenerator::emit_assignment(const Type *lhs_type, Expr *rhs) {
     codegen_expr(*this, rhs);
     auto value = valstack.pop();
     assert(value.kind == ValueKind::value);

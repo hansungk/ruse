@@ -239,7 +239,7 @@ struct QbeGenerator {
         ~IndentBlock() { c.indent -= 4; }
     };
 
-    void emit_assignment(VarDecl *lhs, Expr *rhs);
+    void emit_assignment(const Type *lhs_type, Expr *rhs);
     long emit_stack_alloc(const Type *type);
 };
 
