@@ -663,6 +663,17 @@ bool cmp::typecheck(Sema &sema, AstNode *n) {
 
 namespace {
 
+std::string abity_str(const Type *type) {
+    std::string s;
+    if (type->builtin) {
+        // TODO: "l", "s", "d", ...
+        s = "w";
+    } else {
+        s = std::string{":"} + type->name->text;
+    }
+    return s;
+}
+
 void codegen_decl(QbeGenerator &q, Decl *d);
 
 // 'value' denotes whether the caller that contains the use of this expression
@@ -711,9 +722,21 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
             q.valstack.push_address_explicit(var->frame_local_id);
 
             if (value) {
-                q.emit_indent("%_{} =w loadw {}\n", q.valstack.next_id,
-                              q.valstack.pop().format());
-                q.valstack.push_temp();
+                if (dre->type->size > 8) {
+                    // FIXME: assumes this is a stack-allocated struct
+                    assert(!dre->type->builtin);
+                    assert(dre->type->type_decl->kind == DeclKind::struct_);
+                } else if (dre->type->size == 8) {
+                    q.emit_indent("%_{} =l loadl {}\n", q.valstack.next_id,
+                                  q.valstack.pop().format());
+                    q.valstack.push_temp();
+                } else if (dre->type->size == 4) {
+                    q.emit_indent("%_{} =w loadw {}\n", q.valstack.next_id,
+                                  q.valstack.pop().format());
+                    q.valstack.push_temp();
+                } else {
+                    assert(!"unknown alignment");
+                }
             }
         } else {
             assert(!"not implemented");
@@ -726,15 +749,8 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         assert(c->callee_decl->kind == DeclKind::func);
         auto func_decl = static_cast<FuncDecl *>(c->callee_decl);
         if (func_decl->rettypeexpr) {
-            std::string abity_str;
-            if (func_decl->rettype->builtin) {
-                // TODO: "l", "s", "d", ...
-                abity_str = "w";
-            } else {
-                abity_str = std::string{":"} + func_decl->rettype->name->text;
-            }
             q.emit_indent("%_{} ={} call ${}()\n", q.valstack.next_id,
-                          abity_str, c->func_name->text);
+                          abity_str(func_decl->rettype), c->func_name->text);
             q.valstack.push_temp();
         } else {
             q.emit_indent("call ${}()\n", c->func_name->text);
@@ -933,19 +949,29 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
     }
     case DeclKind::func: {
         auto f = static_cast<FuncDecl *>(d);
-        std::string abity_str;
-        if (f->rettype->builtin) {
-            // TODO: "l", "s", "d", ...
-            abity_str = "w";
-        } else {
-            abity_str = std::string{":"} + f->rettype->name->text;
+
+        q.emit("export function {} ${}(", abity_str(f->rettype), f->name->text);
+
+        for (auto param : f->params) {
+            q.emit("{} %{}, ", abity_str(param->type), param->name->text);
         }
-        q.emit("export function {} ${}() {{\n", abity_str, f->name->text);
+
+        q.emit(") {{\n");
         q.emit("@start\n");
 
         q.context.func_stack.push_back(f);
         {
             QbeGenerator::IndentBlock ib{q};
+
+            // emit parameters
+            for (auto param : f->params) {
+                // FIXME: is there a cleaner, centralized way to allocate
+                // frame_local_id?
+                param->frame_local_id = q.valstack.next_id;
+                q.valstack.next_id++;
+                q.emit_indent("%a{} =l add 0, %{}\n", param->frame_local_id,
+                              param->name->text);
+            }
 
             for (auto body_stmt : f->body->stmts) {
                 codegen_stmt(q, body_stmt);
@@ -958,6 +984,7 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
         q.context.func_stack.pop_back();
 
         q.emit("}}\n");
+        q.emit("\n");
         break;
     }
     case DeclKind::struct_: {

@@ -9,21 +9,30 @@ struct S {
 }
 
 func return_by_value() -> S {
-    return S {.a = 3, .b = 4}
+    return S {.a = 3, .b = 4, .c = 5, .d = 6}
 }
 
+// func pass_by_value(s: S) -> S {
+//     return s
+// }
+
 func main() -> int {
-    let s = S {.a = 3, .b = 4}
-    if s.a + s.b != 7 {
+    let s = S {.a = 3, .b = 4, .c = 5, .d = 6}
+    if s.a + s.d != 9 {
+        return 1
+    }
+
+    let copy = s
+    if copy.a + copy.d != 9 {
         return 1
     }
 
     let retval = return_by_value()
-    if retval.a + retval.b != 7 {
+    if retval.a + retval.c != 8 {
         return 1
     }
 
-    if return_by_value().a + return_by_value().b != 7 {
+    if return_by_value().a + return_by_value().c + return_by_value().d != 14 {
         return 1
     }
 
