@@ -922,38 +922,8 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
         v->frame_local_id = q.emit_stack_alloc(v->type);
 
         if (v->assign_expr) {
-
-            // FIXME: shouldn't this be done in codegen_expr?
-            if (v->assign_expr->kind == ExprKind::struct_def) {
-                assert(!"TODO");
-#if 0
-                auto sde = static_cast<StructDefExpr *>(v->assign_expr);
-                for (auto term : sde->terms) {
-                    // find the matching child vardecl
-                    VarDecl *child_decl = nullptr;
-                    // TODO: make this into a function
-                    for (auto child : v->children) {
-                        if (child->name == term.name) {
-                            child_decl = child;
-                            break;
-                        }
-                    }
-                    assert(child_decl);
-
-                    // Calculate the right offsetted memory location for each
-                    // member.
-                    assert(term.field_decl);
-                    q.emit_indent("%a{} =l add %a{}, {}\n",
-                                  q.valstack.next_id, v->frame_local_id,
-                                  term.field_decl->offset);
-                    q.valstack.push_address();
-                    q.emit_assignment(child_decl->type, term.initexpr);
-                }
-#endif
-            } else {
-                q.valstack.push_address_explicit(v->frame_local_id);
-                q.emit_assignment(v->type, v->assign_expr);
-            }
+            q.valstack.push_address_explicit(v->frame_local_id);
+            q.emit_assignment(v->type, v->assign_expr);
         }
 
         break;
@@ -1037,11 +1007,59 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
 // f(S {.a=...})
 void QbeGenerator::emit_assignment(const Type *lhs_type, Expr *rhs) {
     codegen_expr(*this, rhs);
-    auto value = valstack.pop();
-    assert(value.kind == ValueKind::value);
-    auto address = valstack.pop();
-    assert(address.kind == ValueKind::address);
-    emit_indent("storew {}, {}\n", value.format(), address.format());
+    auto rhs_value = valstack.pop();
+    assert(rhs_value.kind == ValueKind::value);
+    auto lhs_address = valstack.pop();
+    assert(lhs_address.kind == ValueKind::address);
+
+    // XXX: This assumes that any LHS type that is larger than an eightbyte
+    // means the top valstack is a pointer.
+    if (lhs_type->size > 8) {
+        assert(lhs_type->kind == TypeKind::value);
+        assert(!lhs_type->builtin);
+        assert(lhs_type->type_decl->kind == DeclKind::struct_);
+        auto struct_decl = static_cast<StructDecl *>(lhs_type->type_decl);
+
+        for (auto field : struct_decl->fields) {
+            // load from source
+            emit_indent("%a{} =l add {}, {}\n", valstack.next_id,
+                        rhs_value.format(), field->offset);
+            valstack.push_address();
+
+            if (struct_decl->alignment == 8) {
+                emit_indent("%_{} =l loadl {}\n", valstack.next_id,
+                            valstack.pop().format());
+            } else if (struct_decl->alignment == 4) {
+                emit_indent("%_{} =w loadw {}\n", valstack.next_id,
+                            valstack.pop().format());
+            } else {
+                assert(!"unknown alignment");
+            }
+            valstack.push_temp();
+
+            // store to dest
+            auto value = valstack.pop();
+            emit_indent("%a{} =l add {}, {}\n", valstack.next_id,
+                        lhs_address.format(), field->offset);
+            valstack.push_address();
+
+            if (struct_decl->alignment == 8) {
+                emit_indent("storel {}, {}\n", value.format(),
+                            valstack.pop().format());
+            } else if (struct_decl->alignment == 4) {
+                emit_indent("storew {}, {}\n", value.format(),
+                            valstack.pop().format());
+            } else {
+                assert(!"unknown alignment");
+            }
+        }
+    } else if (lhs_type->size == 8) {
+        emit_indent("storel {}, {}\n", rhs_value.format(), lhs_address.format());
+    } else if (lhs_type->size == 4) {
+        emit_indent("storew {}, {}\n", rhs_value.format(), lhs_address.format());
+    } else {
+        assert(!"unknown type size");
+    }
 }
 
 // Emit a value by allocating it on a stack.  That value will be handled with
