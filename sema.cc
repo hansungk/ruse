@@ -779,6 +779,9 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
             }
 
             q.emit(")\n");
+
+            // Don't push to valstack here; that the caller doesn't erroneously
+            // pop afterwards should have been checked by the semantic phase.
         }
         break;
     }

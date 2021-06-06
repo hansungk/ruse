@@ -32,7 +32,7 @@ func main() -> int {
         return 1
     }
 
-    if pass_by_value().a + pass_by_value().c + pass_by_value().d != 14 {
+    if pass_by_value(s).a + pass_by_value(s).c + pass_by_value(s).d != 14 {
         return 1
     }
 
