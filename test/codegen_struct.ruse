@@ -22,6 +22,10 @@ func main() -> int {
         return 1
     }
 
+    if (S {.a = 3}.a) + (S {.b = 8}.b) != 11 {
+        return 1
+    }
+
     let copy = s
     if copy.a + copy.d != 9 {
         return 1

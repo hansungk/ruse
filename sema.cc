@@ -794,7 +794,6 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
     }
     case ExprKind::struct_def: {
         auto sde = static_cast<StructDefExpr *>(e);
-        assert(value && "can't take address of temporary struct def");
 
         auto id = q.emit_stack_alloc(sde->type);
 
@@ -823,8 +822,6 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
     case ExprKind::member: {
         auto mem = static_cast<MemberExpr *>(e);
 
-        // TODO Respect byte alignment of the field.
-        //
         // We can't handle all code generation at this end without recursing
         // into the parent expression, because we have cases like these:
         //
