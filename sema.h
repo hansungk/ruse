@@ -222,11 +222,21 @@ struct QbeGenerator {
     int indent = 0;
     FILE *file;
 
-    struct Code {};
+    // Code, Annot: use them like Code{<args to fmt::print>} and pass them to
+    // emitAnnotated.
+    struct Code {
+        std::string str;
+
+        template <typename... Args> Code(Args &&...args) {
+            str = fmt::format(std::forward<Args>(args)...);
+        }
+    };
 
     struct Annot {
+        std::string str;
+
         template <typename... Args> Annot(Args &&...args) {
-            fmt::print(std::forward<Args>(args)...);
+            str = fmt::format(std::forward<Args>(args)...);
         }
     };
 
@@ -238,7 +248,10 @@ struct QbeGenerator {
         fmt::print(file, "{:{}}", "", indent);
         fmt::print(file, std::forward<Args>(args)...);
     }
-    void emitAnnotated(Annot annot) {}
+    void emitAnnotated(Code code, Annot annotation) {
+        emit(code.str);
+        emitCtd("   # {}\n", annotation.str);
+    }
     template <typename... Args> void emitCtd(Args &&...args) {
         fmt::print(file, std::forward<Args>(args)...);
     }

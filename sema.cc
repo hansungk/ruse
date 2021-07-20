@@ -849,7 +849,6 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     case ExprKind::unary: {
         auto ue = static_cast<UnaryExpr *>(e);
         codegenExprExplicit(ue->operand, value);
-        emitAnnotated(QbeGenerator::Annot{"ayy"});
         break;
     }
     case ExprKind::binary: {
@@ -1081,8 +1080,11 @@ void QbeGenerator::emitAssignment(const Type *lhs_type, Expr *rhs) {
 
         for (auto field : struct_decl->fields) {
             // load from source
-            emit("%a{} =l add {}, {}\n", valstack.next_id,
-                        rhs_value.format(), field->offset);
+            // emit("%a{} =l add {}, {}\n", valstack.next_id,
+            //             rhs_value.format(), field->offset);
+            emitAnnotated(Code{"%a{} =l add {}, {}", valstack.next_id,
+                               rhs_value.format(), field->offset},
+                          Annot{"this is annotation"});
             valstack.push_address();
 
             if (struct_decl->alignment == 8) {
