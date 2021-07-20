@@ -118,11 +118,11 @@ Stmt *Parser::parse_return_stmt() {
     if (!is_end_of_stmt()) {
         skip_until_end_of_line();
         expect(Tok::newline);
-        return sema.make_node_pos<BadStmt>(pos);
+        return make_node_range<BadStmt>(pos);
     }
     skip_until_end_of_line();
     expect(Tok::newline);
-    return sema.make_node_pos<ReturnStmt>(pos, expr);
+    return make_node_range<ReturnStmt>(pos, expr);
 }
 
 // Simplest way to represent the if-elseif-else chain is to view the else-if
@@ -159,7 +159,7 @@ IfStmt *Parser::parse_if_stmt() {
         }
     }
 
-    return sema.make_node_pos<IfStmt>(pos, cond, cstmt, elseif, cstmt_false);
+    return make_node_range<IfStmt>(pos, cond, cstmt, elseif, cstmt_false);
 }
 
 // Parse 'let a = ...'
@@ -199,13 +199,13 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
     } else if (!expect(Tok::equals, "expected '=' or '\\n' after expression")) {
         skip_until_end_of_line();
         expect(Tok::newline);
-        return sema.make_node_pos<BadStmt>(pos);
+        return make_node_range<BadStmt>(pos);
     }
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
     auto rhs = parse_expr();
-    return sema.make_node_pos<AssignStmt>(pos, lhs, rhs, move);
+    return make_node_range<AssignStmt>(pos, lhs, rhs, move);
 }
 
 // Compound statement is a scoped block that consists of multiple statements.
@@ -235,7 +235,7 @@ BuiltinStmt *Parser::parse_builtin_stmt() {
     skip_until_end_of_line();
     auto end = tok.pos;
     std::string_view text{lexer.source().buf.data() + start, end - start};
-    return sema.make_node_pos<BuiltinStmt>(start, text);
+    return make_node_range<BuiltinStmt>(start, text);
 }
 
 static Name *push_token(Sema &sema, const Token tok) {
@@ -258,7 +258,7 @@ VarDecl *Parser::parse_var_decl(VarDeclKind kind) {
     if (tok.kind == Tok::colon) {
         next();
         auto type_expr = parse_type_expr();
-        v = sema.make_node_pos<VarDecl>(pos, name, kind, type_expr, nullptr);
+        v = make_node_range<VarDecl>(pos, name, kind, type_expr, nullptr);
     }
     if (tok.kind == Tok::equals) {
         next();
@@ -266,7 +266,7 @@ VarDecl *Parser::parse_var_decl(VarDeclKind kind) {
         if (v)
             static_cast<VarDecl *>(v)->assign_expr = assign_expr;
         else
-            v = sema.make_node_pos<VarDecl>(pos, name, kind, nullptr,
+            v = make_node_range<VarDecl>(pos, name, kind, nullptr,
                                             assign_expr);
     }
     if (!v) {
@@ -325,7 +325,7 @@ FuncDecl *Parser::parse_func_header() {
     expect(Tok::kw_func);
 
     Name *name = push_token(sema, tok);
-    auto func = sema.make_node_pos<FuncDecl>(pos, name);
+    auto func = make_node_range<FuncDecl>(pos, name);
     func->loc = sema.source.locate(tok.pos);
     next();
 
@@ -381,13 +381,13 @@ StructDecl *Parser::parse_struct_decl() {
     auto fields = parse_comma_separated_list<FieldDecl *>([this] {
         // FIXME: Creates a throwaway VarDecl.
         auto var_decl = parse_var_decl(VarDeclKind::struct_);
-        return sema.make_node_pos<FieldDecl>(var_decl->pos, var_decl->name,
+        return make_node_range<FieldDecl>(var_decl->pos, var_decl->name,
                                              var_decl->type_expr);
     });
     expect(Tok::rbrace, "unterminated struct declaration");
     // TODO: recover
 
-    return sema.make_node_pos<StructDecl>(pos, name, fields);
+    return make_node_range<StructDecl>(pos, name, fields);
 }
 
 EnumVariantDecl *Parser::parse_enum_variant() {
@@ -404,7 +404,7 @@ EnumVariantDecl *Parser::parse_enum_variant() {
         expect(Tok::rparen);
     }
 
-    return sema.make_node_pos<EnumVariantDecl>(pos, name, fields);
+    return make_node_range<EnumVariantDecl>(pos, name, fields);
 }
 
 // Doesn't account for the enclosing {}s.
@@ -442,14 +442,14 @@ EnumDecl *Parser::parse_enum_decl() {
     expect(Tok::rbrace, "unterminated enum declaration");
     // TODO: recover
 
-    return sema.make_node_pos<EnumDecl>(pos, name, fields);
+    return make_node_range<EnumDecl>(pos, name, fields);
 }
 
 ExternDecl *Parser::parse_extern_decl() {
     auto pos = tok.pos;
     expect(Tok::kw_extern);
     auto func = parse_func_header();
-    return sema.make_node_pos<ExternDecl>(pos, func);
+    return make_node_range<ExternDecl>(pos, func);
 }
 
 bool Parser::is_start_of_decl() {
@@ -510,15 +510,13 @@ Expr *Parser::parse_literal_expr() {
     case Tok::number: {
         std::string s{tok.start, static_cast<size_t>(tok.end - tok.start)};
         int value = std::stoi(s);
-        expr = sema.make_node_range<IntegerLiteral>({tok.pos, tok.endPos()},
-                                                    value);
+        expr = make_node_range<IntegerLiteral>(tok.pos, value);
         break;
     }
     case Tok::string:
-        expr = sema.make_node_range<StringLiteral>(
-            {tok.pos, tok.endPos()},
-            std::string_view{tok.start,
-                             static_cast<size_t>(tok.end - tok.start)});
+        expr = make_node_range<StringLiteral>(
+            tok.pos, std::string_view{
+                         tok.start, static_cast<size_t>(tok.end - tok.start)});
         break;
     default:
         assert(false && "non-integer literals not implemented");
@@ -652,12 +650,12 @@ Expr *Parser::parse_type_expr() {
         subexpr = nullptr;
     } else {
         error_expected("type name");
-        return sema.make_node_pos<BadExpr>(pos);
+        return make_node_range<BadExpr>(pos);
     }
 
     Name *name = sema.name_table.push(text.c_str());
 
-    return sema.make_node_pos<TypeExpr>(pos, type_kind, name, mut, lt_name,
+    return make_node_range<TypeExpr>(pos, type_kind, name, mut, lt_name,
                                         subexpr);
 }
 

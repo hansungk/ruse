@@ -125,17 +125,19 @@ struct Sema {
     template <typename T, typename... Args>
     T *make_node_pos(size_t pos, Args &&...args) {
         auto node = make_node<T>(std::forward<Args>(args)...);
-        node->pos = pos;
-        node->loc = source.locate(pos);
+        auto ast_node = static_cast<AstNode *>(node);
+        ast_node->pos = pos;
+        ast_node->loc = source.locate(pos);
         return node;
     }
     template <typename T, typename... Args>
     T *make_node_range(std::pair<size_t, size_t> range, Args &&...args) {
         auto node = make_node<T>(std::forward<Args>(args)...);
-        node->pos = range.first;
-        node->endpos = range.second;
-        node->loc = source.locate(range.first);
-        node->endloc = source.locate(range.second);
+        auto ast_node = static_cast<AstNode *>(node);
+        ast_node->pos = range.first;
+        ast_node->endpos = range.second;
+        ast_node->loc = source.locate(range.first);
+        ast_node->endloc = source.locate(range.second);
         return node;
     }
     template <typename... Args> Lifetime *make_lifetime(Args &&...args) {

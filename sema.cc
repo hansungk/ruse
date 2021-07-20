@@ -1078,13 +1078,12 @@ void QbeGenerator::emitAssignment(const Type *lhs_type, Expr *rhs) {
         assert(lhs_type->type_decl->kind == DeclKind::struct_);
         auto struct_decl = static_cast<StructDecl *>(lhs_type->type_decl);
 
+        // source->dest copy
         for (auto field : struct_decl->fields) {
-            // load from source
-            // emit("%a{} =l add {}, {}\n", valstack.next_id,
-            //             rhs_value.format(), field->offset);
+            // load address from source
             emitAnnotated(Code{"%a{} =l add {}, {}", valstack.next_id,
                                rhs_value.format(), field->offset},
-                          Annot{"this is annotation"});
+                          Annot{"assignment"});
             valstack.push_address();
 
             if (struct_decl->alignment == 8) {
