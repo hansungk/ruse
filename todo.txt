@@ -1,9 +1,3 @@
-# TODOs
-
-- remove visitParenExpr
-- Symbol table: 'name' duplicated in 'Symbol' and the value type
-
-
 # Ideas
 
 ## Programmable lifetime
