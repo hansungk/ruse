@@ -799,9 +799,9 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
 
         // Don't assume anything and just emit all the value copying of each
         // members here.  This might sound expensive, especially in cases where
-        // only part of the struct is actually used (e.g. `S {...}.a`), but
-        // figuring out those cases is really a job to be done at a higher IR
-        // level, not here.
+        // only part of the struct is actually used (e.g. `S {...}.a`).  But
+        // figuring out those cases is really a job to be done at a higher IR,
+        // not here.
 
         for (auto term : sde->terms) {
             // Calculate the right offsetted memory location for each
@@ -851,8 +851,8 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         break;
     }
     case ExprKind::unary: {
-        // TODO
-        assert(!"not implemented");
+        auto ue = static_cast<UnaryExpr *>(e);
+        codegen_expr_explicit(q, ue->operand, value);
         break;
     }
     case ExprKind::binary: {
