@@ -115,8 +115,8 @@ struct Sema {
     Sema(Sema &&) = delete;
     ~Sema();
 
-    void scope_open();
-    void scope_close();
+    void scopeOpen();
+    void scopeClose();
 
     template <typename T, typename... Args> T *make_node(Args &&...args) {
         node_pool.emplace_back(new T{std::forward<Args>(args)...});
@@ -226,11 +226,11 @@ struct QbeGenerator {
         file = fopen(filename, "w");
     }
     ~QbeGenerator() { fclose(file); }
-    template <typename... Args> void emit_indent(Args &&...args) {
+    template <typename... Args> void emit(Args &&...args) {
         fmt::print(file, "{:{}}", "", indent);
         fmt::print(file, std::forward<Args>(args)...);
     }
-    template <typename... Args> void emit(Args &&...args) {
+    template <typename... Args> void emitCtd(Args &&...args) {
         fmt::print(file, std::forward<Args>(args)...);
     }
     struct IndentBlock {
@@ -239,8 +239,8 @@ struct QbeGenerator {
         ~IndentBlock() { c.indent -= 4; }
     };
 
-    void emit_assignment(const Type *lhs_type, Expr *rhs);
-    long emit_stack_alloc(const Type *type);
+    void emitAssignment(const Type *lhs_type, Expr *rhs);
+    long emitStackAlloc(const Type *type);
 };
 
 void codegen(QbeGenerator &c, AstNode *n);
