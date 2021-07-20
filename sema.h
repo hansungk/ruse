@@ -222,6 +222,14 @@ struct QbeGenerator {
     int indent = 0;
     FILE *file;
 
+    struct Code {};
+
+    struct Annot {
+        template <typename... Args> Annot(Args &&...args) {
+            fmt::print(std::forward<Args>(args)...);
+        }
+    };
+
     QbeGenerator(Context &c, const char *filename) : context{c} {
         file = fopen(filename, "w");
     }
@@ -230,6 +238,7 @@ struct QbeGenerator {
         fmt::print(file, "{:{}}", "", indent);
         fmt::print(file, std::forward<Args>(args)...);
     }
+    void emitAnnotated(Annot annot) {}
     template <typename... Args> void emitCtd(Args &&...args) {
         fmt::print(file, std::forward<Args>(args)...);
     }
@@ -241,9 +250,14 @@ struct QbeGenerator {
 
     void emitAssignment(const Type *lhs_type, Expr *rhs);
     long emitStackAlloc(const Type *type);
-};
 
-void codegen(QbeGenerator &c, AstNode *n);
+    void codegen(AstNode *n);
+    void codegenDecl(Decl *d);
+    void codegenExpr(Expr *e);
+    void codegenExprAddress(Expr *e);
+    void codegenExprExplicit(Expr *e, bool value);
+    void codegenStmt(Stmt *s);
+};
 
 } // namespace cmp
 
