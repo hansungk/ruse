@@ -8,6 +8,10 @@ namespace cmp {
 
 int AstNode::indent = 0;
 
+std::string AstNode::text(const Sema &sema) {
+    return {sema.source.buf.data() + pos, endpos - pos};
+}
+
 // Return optional of 'type' member of Decl, or None if this Decl kind doesn't
 // have any.
 std::optional<Type *> Decl::typemaybe() const {

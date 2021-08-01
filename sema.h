@@ -216,8 +216,7 @@ struct Valstack {
 };
 
 struct QbeGenerator {
-    // Needed to access declarations in the current scope.
-    Context &context;
+    Sema &sema;
     Valstack valstack;
     int label_id = 0;
     int ifelse_label_id = 0;
@@ -242,7 +241,7 @@ struct QbeGenerator {
         }
     };
 
-    QbeGenerator(Context &c, const char *filename) : context{c} {
+    QbeGenerator(Sema &s, const char *filename) : sema{s} {
         file = fopen(filename, "w");
     }
     ~QbeGenerator() { fclose(file); }

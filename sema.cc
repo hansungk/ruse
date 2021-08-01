@@ -958,7 +958,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
 
-        if (context.func_stack.empty()) {
+        if (sema.context.func_stack.empty()) {
             assert(!"vardecl outside function?");
         }
 
@@ -987,7 +987,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
         emitSameLine(") {{\n");
         emitSameLine("@start\n");
 
-        context.func_stack.push_back(f);
+        sema.context.func_stack.push_back(f);
         {
             QbeGenerator::IndentBlock ib{*this};
 
@@ -1009,7 +1009,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
             // those analyses are not fully implemented yet.
             emit("ret\n");
         }
-        context.func_stack.pop_back();
+        sema.context.func_stack.pop_back();
 
         emitSameLine("}}\n");
         emitSameLine("\n");
@@ -1088,13 +1088,14 @@ void QbeGenerator::emitAssignment(const Type *lhs_type, Expr *rhs) {
             emitAnnotated(
                 Code{"%a{} =l add {}, {}", valstack.next_id, rhs_value.format(),
                      field->offset},
-                Annot{"{}: address of {}", rhs->loc.line, "(lhs)", "(rhs)"});
+                Annot{"{}: address of {}", rhs->loc.line, rhs->text(sema)});
             valstack.pushAddress();
 
             if (struct_decl->alignment == 8) {
                 emitAnnotated(Code{"%_{} =l loadl {}\n", valstack.next_id,
                                    valstack.pop().format()},
-                              Annot{});
+                              Annot{"{}: load value of {}", rhs->loc.line,
+                                    rhs->text(sema)});
             } else if (struct_decl->alignment == 4) {
                 emit("%_{} =w loadw {}\n", valstack.next_id,
                             valstack.pop().format());
@@ -1135,7 +1136,7 @@ void QbeGenerator::emitAssignment(const Type *lhs_type, Expr *rhs) {
 // Emit a value by allocating it on the stack memory.  That value will be
 // handled with its address.
 long QbeGenerator::emitStackAlloc(const Type *type) {
-    assert(!context.func_stack.empty());
+    assert(!sema.context.func_stack.empty());
     // auto current_func = context.func_stack.back();
     // long id = current_func->frame_local_id_counter;
     // current_func->frame_local_id_counter++;
