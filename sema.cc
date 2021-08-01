@@ -1085,20 +1085,22 @@ void QbeGenerator::emitAssignment(const Type *lhs_type, Expr *rhs) {
 
         for (auto field : struct_decl->fields) {
             // load address from source
-            emitAnnotated(
-                Code{"%a{} =l add {}, {}", valstack.next_id, rhs_value.format(),
-                     field->offset},
-                Annot{"{}: address of {}", rhs->loc.line, rhs->text(sema)});
+            emitAnnotated(Code{"%a{} =l add {}, {}", valstack.next_id,
+                               rhs_value.format(), field->offset},
+                          Annot{"{}: address of {}.{}", rhs->loc.line,
+                                rhs->text(sema), field->name->text});
             valstack.pushAddress();
 
             if (struct_decl->alignment == 8) {
-                emitAnnotated(Code{"%_{} =l loadl {}\n", valstack.next_id,
+                emitAnnotated(Code{"%_{} =l loadl {}", valstack.next_id,
                                    valstack.pop().format()},
-                              Annot{"{}: load value of {}", rhs->loc.line,
-                                    rhs->text(sema)});
+                              Annot{"{}: load value of {}.{}", rhs->loc.line,
+                                    rhs->text(sema), field->name->text});
             } else if (struct_decl->alignment == 4) {
-                emit("%_{} =w loadw {}\n", valstack.next_id,
-                            valstack.pop().format());
+                emitAnnotated(Code{"%_{} =w loadw {}", valstack.next_id,
+                                   valstack.pop().format()},
+                              Annot{"{}: load value of {}.{}", rhs->loc.line,
+                                    rhs->text(sema), field->name->text});
             } else {
                 assert(!"unknown alignment");
             }
