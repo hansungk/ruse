@@ -688,7 +688,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     case ExprKind::integer_literal:
         emit("%_{} =w add 0, {}\n", valstack.next_id,
                      static_cast<IntegerLiteral *>(e)->value);
-        valstack.push_temp();
+        valstack.pushTemp();
         break;
     case ExprKind::string_literal:
         assert(!"not implemented");
@@ -723,7 +723,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         if (dre->decl->kind == DeclKind::var) {
             auto var = static_cast<VarDecl *>(dre->decl);
 
-            valstack.push_address_explicit(var->frame_local_id);
+            valstack.pushAddressExplicit(var->frame_local_id);
 
             if (value) {
                 if (dre->type->size > 8) {
@@ -733,11 +733,11 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
                 } else if (dre->type->size == 8) {
                     emit("%_{} =l loadl {}\n", valstack.next_id,
                                   valstack.pop().format());
-                    valstack.push_temp();
+                    valstack.pushTemp();
                 } else if (dre->type->size == 4) {
                     emit("%_{} =w loadw {}\n", valstack.next_id,
                                   valstack.pop().format());
-                    valstack.push_temp();
+                    valstack.pushTemp();
                 } else {
                     assert(!"unknown alignment");
                 }
@@ -765,23 +765,23 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
                           abityStr(func_decl->rettype), c->func_name->text);
 
             for (size_t i = 0; i < c->args.size(); i++) {
-                emitCtd("{} {}, ", abityStr(c->args[i]->type),
+                emitSameLine("{} {}, ", abityStr(c->args[i]->type),
                        generated_args[i].format());
             }
 
-            emitCtd(")\n");
+            emitSameLine(")\n");
 
-            valstack.push_temp();
+            valstack.pushTemp();
         } else {
             emit("call ${}(", c->func_name->text);
 
             // @Copypaste from above
             for (size_t i = 0; i < c->args.size(); i++) {
-                emitCtd("{} {}, ", abityStr(c->args[i]->type),
+                emitSameLine("{} {}, ", abityStr(c->args[i]->type),
                        generated_args[i].format());
             }
 
-            emitCtd(")\n");
+            emitSameLine(")\n");
 
             // Don't push to valstack here; that the caller doesn't erroneously
             // pop afterwards should have been checked by the semantic phase.
@@ -805,13 +805,13 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
             assert(term.field_decl);
             emit("%a{} =l add %a{}, {}\n", valstack.next_id, id,
                           term.field_decl->offset);
-            valstack.push_address();
+            valstack.pushAddress();
             emitAssignment(term.field_decl->type, term.initexpr);
         }
 
         // Leave the address in the valstack; this is what will be used in lieu
         // of the actual value in later nodes.
-        valstack.push_address_explicit(id);
+        valstack.pushAddressExplicit(id);
 
         break;
     }
@@ -835,13 +835,13 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
 
         emit("%a{} =l add {}, {}\n", valstack.next_id,
                       valstack.pop().format(), mem->field_decl->offset);
-        valstack.push_address();
+        valstack.pushAddress();
 
         if (value) {
             // TODO: for struct values?
             emit("%_{} =w loadw {}\n", valstack.next_id,
                           valstack.pop().format());
-            valstack.push_temp();
+            valstack.pushTemp();
         }
 
         break;
@@ -873,7 +873,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         }
         emit("%_{} =w {} {}, {}\n", valstack.next_id, op_str,
                       valstack.pop().format(), valstack.pop().format());
-        valstack.push_temp();
+        valstack.pushTemp();
         break;
     }
     default:
@@ -921,7 +921,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
         emit("ret {}\n", valstack.pop().format());
         // This is here only to make QBE not complain.  In practice, no
         // instructions after this point should be reachable.
-        emitCtd("@L{}\n", label_id);
+        emitSameLine("@L{}\n", label_id);
         label_id++;
         break;
     case StmtKind::if_: {
@@ -931,16 +931,16 @@ void QbeGenerator::codegenStmt(Stmt *s) {
         codegenExpr(if_stmt->cond);
         emit("jnz {}, @if_{}, @else_{}\n", valstack.pop().format(),
                       id, id);
-        emitCtd("@if_{}\n", id);
+        emitSameLine("@if_{}\n", id);
         codegenStmt(if_stmt->if_body);
         emit("jmp @fi_{}\n", id);
-        emitCtd("@else_{}\n", id);
+        emitSameLine("@else_{}\n", id);
         if (if_stmt->else_if_stmt) {
             codegenStmt(if_stmt->else_if_stmt);
         } else if (if_stmt->else_body) {
             codegenStmt(if_stmt->else_body);
         }
-        emitCtd("@fi_{}\n", id);
+        emitSameLine("@fi_{}\n", id);
         break;
     }
     case StmtKind::compound:
@@ -969,7 +969,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
         v->frame_local_id = emitStackAlloc(v->type);
 
         if (v->assign_expr) {
-            valstack.push_address_explicit(v->frame_local_id);
+            valstack.pushAddressExplicit(v->frame_local_id);
             emitAssignment(v->type, v->assign_expr);
         }
 
@@ -978,14 +978,14 @@ void QbeGenerator::codegenDecl(Decl *d) {
     case DeclKind::func: {
         auto f = static_cast<FuncDecl *>(d);
 
-        emitCtd("export function {} ${}(", abityStr(f->rettype), f->name->text);
+        emitSameLine("export function {} ${}(", abityStr(f->rettype), f->name->text);
 
         for (auto param : f->params) {
-            emitCtd("{} %{}, ", abityStr(param->type), param->name->text);
+            emitSameLine("{} %{}, ", abityStr(param->type), param->name->text);
         }
 
-        emitCtd(") {{\n");
-        emitCtd("@start\n");
+        emitSameLine(") {{\n");
+        emitSameLine("@start\n");
 
         context.func_stack.push_back(f);
         {
@@ -1011,8 +1011,8 @@ void QbeGenerator::codegenDecl(Decl *d) {
         }
         context.func_stack.pop_back();
 
-        emitCtd("}}\n");
-        emitCtd("\n");
+        emitSameLine("}}\n");
+        emitSameLine("\n");
         break;
     }
     case DeclKind::struct_: {
@@ -1042,10 +1042,10 @@ void QbeGenerator::codegenDecl(Decl *d) {
         emit("type :{} = {{", s->name->text);
         for (auto field : s->fields) {
             (void)field;
-            emitCtd("w, ");
+            emitSameLine("w, ");
         }
-        emitCtd("}}\n");
-        emitCtd("\n");
+        emitSameLine("}}\n");
+        emitSameLine("\n");
         break;
     }
     default:
@@ -1054,6 +1054,10 @@ void QbeGenerator::codegenDecl(Decl *d) {
 }
 
 // Emit a memory-to-memory value copy.
+// The memory address of the LHS and the value of the RHS are assumed to be
+// already pushed onto the valstack.
+// These memory copies may be reduced to register operations by QBE.
+//
 // TODO: what about a = 3?
 //
 // a = 3
@@ -1070,38 +1074,40 @@ void QbeGenerator::emitAssignment(const Type *lhs_type, Expr *rhs) {
     auto lhs_address = valstack.pop();
     assert(lhs_address.kind == ValueKind::address);
 
-    // XXX: This assumes that any LHS type that is larger than an eightbyte
-    // means the top valstack is a pointer.
+    // For structs, copy every field one by one.
+    // XXX: This assumes that any LHS type that is larger than an eightbyte is
+    // a struct.
     if (lhs_type->size > 8) {
         assert(lhs_type->kind == TypeKind::value);
         assert(!lhs_type->builtin);
         assert(lhs_type->type_decl->kind == DeclKind::struct_);
         auto struct_decl = static_cast<StructDecl *>(lhs_type->type_decl);
 
-        // source->dest copy
         for (auto field : struct_decl->fields) {
             // load address from source
-            emitAnnotated(Code{"%a{} =l add {}, {}", valstack.next_id,
-                               rhs_value.format(), field->offset},
-                          Annot{"assignment"});
-            valstack.push_address();
+            emitAnnotated(
+                Code{"%a{} =l add {}, {}", valstack.next_id, rhs_value.format(),
+                     field->offset},
+                Annot{"{}: address of {}", rhs->loc.line, "(lhs)", "(rhs)"});
+            valstack.pushAddress();
 
             if (struct_decl->alignment == 8) {
-                emit("%_{} =l loadl {}\n", valstack.next_id,
-                            valstack.pop().format());
+                emitAnnotated(Code{"%_{} =l loadl {}\n", valstack.next_id,
+                                   valstack.pop().format()},
+                              Annot{});
             } else if (struct_decl->alignment == 4) {
                 emit("%_{} =w loadw {}\n", valstack.next_id,
                             valstack.pop().format());
             } else {
                 assert(!"unknown alignment");
             }
-            valstack.push_temp();
+            valstack.pushTemp();
 
             // store to dest
             auto value = valstack.pop();
             emit("%a{} =l add {}, {}\n", valstack.next_id,
                         lhs_address.format(), field->offset);
-            valstack.push_address();
+            valstack.pushAddress();
 
             if (struct_decl->alignment == 8) {
                 emit("storel {}, {}\n", value.format(),
@@ -1113,7 +1119,9 @@ void QbeGenerator::emitAssignment(const Type *lhs_type, Expr *rhs) {
                 assert(!"unknown alignment");
             }
         }
-    } else if (lhs_type->size == 8) {
+    }
+    // For non-struct types, a simple store is enough.
+    else if (lhs_type->size == 8) {
         emit("storel {}, {}\n", rhs_value.format(),
                     lhs_address.format());
     } else if (lhs_type->size == 4) {
@@ -1124,8 +1132,8 @@ void QbeGenerator::emitAssignment(const Type *lhs_type, Expr *rhs) {
     }
 }
 
-// Emit a value by allocating it on a stack.  That value will be handled with
-// its address.
+// Emit a value by allocating it on the stack memory.  That value will be
+// handled with its address.
 long QbeGenerator::emitStackAlloc(const Type *type) {
     assert(!context.func_stack.empty());
     // auto current_func = context.func_stack.back();
@@ -1140,17 +1148,17 @@ long QbeGenerator::emitStackAlloc(const Type *type) {
 
     emit("%a{} =l ", id);
     if (type->builtin) {
-        emitCtd("alloc4");
+        emitSameLine("alloc4");
     } else {
         assert(type->type_decl->kind == DeclKind::struct_ &&
                "non-struct value type?");
         if (static_cast<StructDecl *>(type->type_decl)->alignment == 4) {
-            emitCtd("alloc4");
+            emitSameLine("alloc4");
         } else {
-            emitCtd("alloc8");
+            emitSameLine("alloc8");
         }
     }
-    emitCtd(" {}\n", type->size);
+    emitSameLine(" {}\n", type->size);
 
     return id;
 }
