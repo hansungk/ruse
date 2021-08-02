@@ -791,7 +791,8 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     case ExprKind::struct_def: {
         auto sde = static_cast<StructDefExpr *>(e);
 
-        auto id = emitStackAlloc(sde->type);
+        // TODO: document why we alloc here
+        auto id = emitStackAlloc(sde->type, sde->loc.line, sde->text(sema));
 
         // Don't assume anything and just emit all the value copying of each
         // members here.  This might sound expensive, especially in cases where
@@ -966,7 +967,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
         // generation. This is because there are other cases that allocate on
         // the stack (such as returning a large struct by-value) that are not
         // emitted by a vardecl.
-        v->frame_local_id = emitStackAlloc(v->type);
+        v->frame_local_id = emitStackAlloc(v->type, v->loc.line, v->name->text);
 
         if (v->assign_expr) {
             valstack.pushAddressExplicit(v->frame_local_id);
@@ -1091,7 +1092,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
             // load address from source; calculate address of the field
             emitAnnotated(Code{"%a{} =l add {}, {}", valstack.next_id,
                                rhs_value.format(), field->offset},
-                          Annot{"{}: address of {}", rhs->loc.line, rhs_text});
+                          Annot{"{}: &{}", rhs->loc.line, rhs_text});
             valstack.pushAddress();
 
             // load value of the field
@@ -1116,7 +1117,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
             auto value = valstack.pop();
             emitAnnotated(Code{"%a{} =l add {}, {}", valstack.next_id,
                                lhs_address.format(), field->offset},
-                          Annot{"{}: address of {}", rhs->loc.line, lhs_text});
+                          Annot{"{}: &{}", rhs->loc.line, lhs_text});
             valstack.pushAddress();
 
             // store value to dest address of LHS
@@ -1148,8 +1149,10 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
 }
 
 // Emit a value by allocating it on the stack memory.  That value will be
-// handled with its address.
-long QbeGenerator::emitStackAlloc(const Type *type) {
+// handled with its address.  `line` and `text` are used for outputting
+// annotations in the QBE code.
+long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
+                                  const std::string &text) {
     assert(!sema.context.func_stack.empty());
     // auto current_func = context.func_stack.back();
     // long id = current_func->frame_local_id_counter;
@@ -1173,7 +1176,8 @@ long QbeGenerator::emitStackAlloc(const Type *type) {
             emitSameLine("alloc8");
         }
     }
-    emitSameLine(" {}\n", type->size);
+    emitSameLineAnnotated(Code{" {}", type->size},
+                          Annot{"{}: alloc {}", line, text});
 
     return id;
 }

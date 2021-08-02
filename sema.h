@@ -227,7 +227,6 @@ struct QbeGenerator {
     // emitAnnotated.
     struct Code {
         std::string str;
-
         template <typename... Args> Code(Args &&...args) {
             str = fmt::format(std::forward<Args>(args)...);
         }
@@ -235,7 +234,6 @@ struct QbeGenerator {
 
     struct Annot {
         std::string str;
-
         template <typename... Args> Annot(Args &&...args) {
             str = fmt::format(std::forward<Args>(args)...);
         }
@@ -256,6 +254,10 @@ struct QbeGenerator {
     template <typename... Args> void emitSameLine(Args &&...args) {
         fmt::print(file, std::forward<Args>(args)...);
     }
+    void emitSameLineAnnotated(Code code, Annot annotation) {
+        emitSameLine(code.str);
+        emitSameLine("   # {}\n", annotation.str);
+    }
     struct IndentBlock {
         QbeGenerator &c;
         IndentBlock(QbeGenerator &c) : c{c} { c.indent += 4; }
@@ -263,7 +265,7 @@ struct QbeGenerator {
     };
 
     void emitAssignment(const Decl *lhs, Expr *rhs);
-    long emitStackAlloc(const Type *type);
+    long emitStackAlloc(const Type *type, size_t line, const std::string &text);
 
     void codegen(AstNode *n);
     void codegenDecl(Decl *d);
