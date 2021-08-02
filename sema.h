@@ -187,7 +187,7 @@ struct Valstack {
 
     // Push a value as a temporary variable in QBE.  This will be designated as
     // "%_0" in the IL.
-    void pushTemp() {
+    void pushTempValue() {
         buf.push_back(Value{ValueKind::value, next_id});
         next_id++;
     }
@@ -262,7 +262,7 @@ struct QbeGenerator {
         ~IndentBlock() { c.indent -= 4; }
     };
 
-    void emitAssignment(const Type *lhs_type, Expr *rhs);
+    void emitAssignment(const Decl *lhs, Expr *rhs);
     long emitStackAlloc(const Type *type);
 
     void codegen(AstNode *n);
