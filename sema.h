@@ -262,6 +262,10 @@ struct QbeGenerator {
         emitSameLine(code.str);
         emitSameLine("   # {}", annotation.str);
     }
+    template <typename... Args> void emitAnnotateLast(Args &&...args) {
+        fmt::print(file, "   # ");
+        fmt::print(file, std::forward<Args>(args)...);
+    }
     struct IndentBlock {
         QbeGenerator &c;
         IndentBlock(QbeGenerator &c) : c{c} { c.indent += 4; }
