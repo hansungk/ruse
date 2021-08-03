@@ -187,6 +187,8 @@ struct Valstack {
 
     // Push a value as a temporary variable in QBE.  This will be designated as
     // "%_0" in the IL.
+    // This does not take any argument because the actual value is emitted to
+    // the code.
     void pushTempValue() {
         buf.push_back(Value{ValueKind::value, next_id});
         next_id++;
@@ -195,6 +197,8 @@ struct Valstack {
     // Push a value in the form of its memory address.  Larger sized types such
     // as structs cannot be emitted as a QBE temporary, and this is the only
     // way to emit its value.  This will be designated as "%a0" in the IL.
+    // This does not take any argument because the actual address is emitted to
+    // the code.
     void pushAddress() {
         buf.push_back(Value{ValueKind::address, next_id});
         next_id++;
@@ -244,19 +248,19 @@ struct QbeGenerator {
     }
     ~QbeGenerator() { fclose(file); }
     template <typename... Args> void emit(Args &&...args) {
-        fmt::print(file, "{:{}}", "", indent);
+        fmt::print(file, "\n{:{}}", "", indent);
         fmt::print(file, std::forward<Args>(args)...);
     }
     void emitAnnotated(Code code, Annot annotation) {
         emit(code.str);
-        emitSameLine("   # {}\n", annotation.str);
+        emitSameLine("   # {}", annotation.str);
     }
     template <typename... Args> void emitSameLine(Args &&...args) {
         fmt::print(file, std::forward<Args>(args)...);
     }
     void emitSameLineAnnotated(Code code, Annot annotation) {
         emitSameLine(code.str);
-        emitSameLine("   # {}\n", annotation.str);
+        emitSameLine("   # {}", annotation.str);
     }
     struct IndentBlock {
         QbeGenerator &c;

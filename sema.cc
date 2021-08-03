@@ -686,7 +686,7 @@ std::string abityStr(const Type *type) {
 void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     switch (e->kind) {
     case ExprKind::integer_literal:
-        emit("%_{} =w add 0, {}\n", valstack.next_id,
+        emit("%_{} =w add 0, {}", valstack.next_id,
                      static_cast<IntegerLiteral *>(e)->value);
         valstack.pushTempValue();
         break;
@@ -731,12 +731,17 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
                     assert(!dre->type->builtin);
                     assert(dre->type->type_decl->kind == DeclKind::struct_);
                 } else if (dre->type->size == 8) {
-                    emit("%_{} =l loadl {}\n", valstack.next_id,
-                                  valstack.pop().format());
+                    // TODO: start here
+                    emitAnnotated(
+                        Code{"%_{} =l loadl {}", valstack.next_id,
+                             valstack.pop().format()},
+                        Annot{"{}: load value of {}", dre->loc.line, dre->text(sema)});
                     valstack.pushTempValue();
                 } else if (dre->type->size == 4) {
-                    emit("%_{} =w loadw {}\n", valstack.next_id,
-                                  valstack.pop().format());
+                    emitAnnotated(Code{"%_{} =w loadw {}", valstack.next_id,
+                                       valstack.pop().format()},
+                                  Annot{"{}: load value of {}", dre->loc.line,
+                                        dre->text(sema)});
                     valstack.pushTempValue();
                 } else {
                     assert(!"unknown alignment");
@@ -769,7 +774,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
                        generated_args[i].format());
             }
 
-            emitSameLine(")\n");
+            emitSameLine(")");
 
             valstack.pushTempValue();
         } else {
@@ -781,7 +786,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
                        generated_args[i].format());
             }
 
-            emitSameLine(")\n");
+            emitSameLine(")");
 
             // Don't push to valstack here; that the caller doesn't erroneously
             // pop afterwards should have been checked by the semantic phase.
@@ -804,7 +809,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
             // Calculate the right offsetted memory location for each
             // member.
             assert(term.field_decl);
-            emit("%a{} =l add %a{}, {}\n", valstack.next_id, id,
+            emit("%a{} =l add %a{}, {}", valstack.next_id, id,
                           term.field_decl->offset);
             valstack.pushAddress();
             emitAssignment(term.field_decl, term.initexpr);
@@ -834,13 +839,13 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         // emit correct address first
         codegenExprExplicit(mem->parent_expr, false);
 
-        emit("%a{} =l add {}, {}\n", valstack.next_id,
+        emit("%a{} =l add {}, {}", valstack.next_id,
                       valstack.pop().format(), mem->field_decl->offset);
         valstack.pushAddress();
 
         if (value) {
             // TODO: for struct values?
-            emit("%_{} =w loadw {}\n", valstack.next_id,
+            emit("%_{} =w loadw {}", valstack.next_id,
                           valstack.pop().format());
             valstack.pushTempValue();
         }
@@ -872,7 +877,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         default:
             assert(!"unknown binary expr kind");
         }
-        emit("%_{} =w {} {}, {}\n", valstack.next_id, op_str,
+        emit("%_{} =w {} {}, {}", valstack.next_id, op_str,
                       valstack.pop().format(), valstack.pop().format());
         valstack.pushTempValue();
         break;
@@ -907,7 +912,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
         codegenExprAddress(as->lhs);
         assert(valstack.peek().kind == ValueKind::address);
 
-        emit("storew %_{}, {}\n", rhs_val_id,
+        emit("storew %_{}, {}", rhs_val_id,
                       valstack.pop().format());
         break;
     }
@@ -919,10 +924,10 @@ void QbeGenerator::codegenStmt(Stmt *s) {
         // (usually) happens by address.
         // assert(valstack.peek().kind == ValueKind::value);
 
-        emit("ret {}\n", valstack.pop().format());
+        emit("ret {}", valstack.pop().format());
         // This is here only to make QBE not complain.  In practice, no
         // instructions after this point should be reachable.
-        emitSameLine("@L{}\n", label_id);
+        emitSameLine("\n@L{}", label_id);
         label_id++;
         break;
     case StmtKind::if_: {
@@ -930,18 +935,18 @@ void QbeGenerator::codegenStmt(Stmt *s) {
         auto id = ifelse_label_id;
         ifelse_label_id++;
         codegenExpr(if_stmt->cond);
-        emit("jnz {}, @if_{}, @else_{}\n", valstack.pop().format(),
+        emit("jnz {}, @if_{}, @else_{}", valstack.pop().format(),
                       id, id);
-        emitSameLine("@if_{}\n", id);
+        emitSameLine("\n@if_{}", id);
         codegenStmt(if_stmt->if_body);
-        emit("jmp @fi_{}\n", id);
-        emitSameLine("@else_{}\n", id);
+        emit("jmp @fi_{}", id);
+        emitSameLine("\n@else_{}", id);
         if (if_stmt->else_if_stmt) {
             codegenStmt(if_stmt->else_if_stmt);
         } else if (if_stmt->else_body) {
             codegenStmt(if_stmt->else_body);
         }
-        emitSameLine("@fi_{}\n", id);
+        emitSameLine("\n@fi_{}", id);
         break;
     }
     case StmtKind::compound:
@@ -979,14 +984,14 @@ void QbeGenerator::codegenDecl(Decl *d) {
     case DeclKind::func: {
         auto f = static_cast<FuncDecl *>(d);
 
-        emitSameLine("export function {} ${}(", abityStr(f->rettype), f->name->text);
+        emitSameLine("\nexport function {} ${}(", abityStr(f->rettype), f->name->text);
 
         for (auto param : f->params) {
             emitSameLine("{} %{}, ", abityStr(param->type), param->name->text);
         }
 
-        emitSameLine(") {{\n");
-        emitSameLine("@start\n");
+        emitSameLine(") {{");
+        emitSameLine("\n@start");
 
         sema.context.func_stack.push_back(f);
         {
@@ -998,7 +1003,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
                 // frame_local_id?
                 param->frame_local_id = valstack.next_id;
                 valstack.next_id++;
-                emit("%a{} =l add 0, %{}\n", param->frame_local_id,
+                emit("%a{} =l add 0, %{}", param->frame_local_id,
                               param->name->text);
             }
 
@@ -1008,11 +1013,11 @@ void QbeGenerator::codegenDecl(Decl *d) {
             // Analyses in the earlier passes should make sure that this ret is
             // not reachable.  This is only here to make QBE work meanwhile
             // those analyses are not fully implemented yet.
-            emit("ret\n");
+            emit("ret");
         }
         sema.context.func_stack.pop_back();
 
-        emitSameLine("}}\n");
+        emitSameLine("\n}}");
         emitSameLine("\n");
         break;
     }
@@ -1045,8 +1050,8 @@ void QbeGenerator::codegenDecl(Decl *d) {
             (void)field;
             emitSameLine("w, ");
         }
-        emitSameLine("}}\n");
-        emitSameLine("\n");
+        emitSameLine("}}");
+        emitSameLine("");
         break;
     }
     default:
@@ -1137,11 +1142,11 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
     // For non-struct types, a simple store is enough.
     else if (lhs_type->size == 8) {
         emitAnnotated(
-            Code{"storel {}, {}\n", rhs_value.format(), lhs_address.format()},
+            Code{"storel {}, {}", rhs_value.format(), lhs_address.format()},
             Annot{"{}: store to {}", rhs->loc.line, lhs->name->text});
     } else if (lhs_type->size == 4) {
         emitAnnotated(
-            Code{"storew {}, {}\n", rhs_value.format(), lhs_address.format()},
+            Code{"storew {}, {}", rhs_value.format(), lhs_address.format()},
             Annot{"{}: store to {}", rhs->loc.line, lhs->name->text});
     } else {
         assert(!"unknown type size");
