@@ -733,15 +733,16 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
                 } else if (dre->type->size == 8) {
                     emit("%_{} =l loadl {}", valstack.next_id,
                          valstack.pop().format());
+                    emitAnnotateLast("{}: load {}", dre->loc.line, dre->text(sema));
                     valstack.pushTempValue();
                 } else if (dre->type->size == 4) {
                     emit("%_{} =w loadw {}", valstack.next_id,
                          valstack.pop().format());
+                    emitAnnotateLast("{}: load {}", dre->loc.line, dre->text(sema));
                     valstack.pushTempValue();
                 } else {
                     assert(!"unknown alignment");
                 }
-                emitAnnotateLast("{}: load {}", dre->loc.line, dre->text(sema));
             }
         } else {
             assert(!"not implemented");
