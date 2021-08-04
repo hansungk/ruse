@@ -688,7 +688,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     case ExprKind::integer_literal:
         emit("%_{} =w add 0, {}", valstack.next_id,
                      static_cast<IntegerLiteral *>(e)->value);
-        emitAnnotateLast("{}: make integer literal", e->loc.line);
+        emitAnnotateLast("{}: integer literal", e->loc.line);
         valstack.pushTempValue();
         break;
     case ExprKind::string_literal:
@@ -841,13 +841,13 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
 
         emit("%a{} =l add {}, {}", valstack.next_id,
                       valstack.pop().format(), mem->field_decl->offset);
-        emitAnnotateLast("{}: ", mem->loc.line);
+        emitAnnotateLast("{}: offset of {}", mem->loc.line, mem->text(sema));
         valstack.pushAddress();
 
         if (value) {
             // TODO: for struct values?
-            emit("%_{} =w loadw {}", valstack.next_id,
-                          valstack.pop().format());
+            emit("%_{} =w loadw {}", valstack.next_id, valstack.pop().format());
+            emitAnnotateLast("{}: load {}", mem->loc.line, mem->text(sema));
             valstack.pushTempValue();
         }
 
