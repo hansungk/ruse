@@ -273,7 +273,7 @@ struct QbeGenerator {
     };
 
     void emitAssignment(const Decl *lhs, Expr *rhs);
-    long emitStackAlloc(const Type *type, size_t line, const std::string &text);
+    long emitStackAlloc(const Type *type, size_t line, std::string_view text);
 
     void codegen(AstNode *n);
     void codegenDecl(Decl *d);

@@ -688,6 +688,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     case ExprKind::integer_literal:
         emit("%_{} =w add 0, {}", valstack.next_id,
                      static_cast<IntegerLiteral *>(e)->value);
+        emitAnnotateLast("{}: make integer literal", e->loc.line);
         valstack.pushTempValue();
         break;
     case ExprKind::string_literal:
@@ -808,6 +809,8 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
             assert(term.field_decl);
             emit("%a{} =l add %a{}, {}", valstack.next_id, id,
                           term.field_decl->offset);
+            emitAnnotateLast("{}: offset of {}.{}", sde->loc.line,
+                             sde->text(sema), term.name->text);
             valstack.pushAddress();
             emitAssignment(term.field_decl, term.initexpr);
         }
@@ -838,6 +841,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
 
         emit("%a{} =l add {}, {}", valstack.next_id,
                       valstack.pop().format(), mem->field_decl->offset);
+        emitAnnotateLast("{}: ", mem->loc.line);
         valstack.pushAddress();
 
         if (value) {
@@ -1154,7 +1158,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
 // handled with its address.  `line` and `text` are used for outputting
 // annotations in the QBE code.
 long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
-                                  const std::string &text) {
+                                  std::string_view text) {
     assert(!sema.context.func_stack.empty());
     // auto current_func = context.func_stack.back();
     // long id = current_func->frame_local_id_counter;

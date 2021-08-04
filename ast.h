@@ -50,7 +50,7 @@ struct AstNode {
         return static_cast<const T *>(this);
     }
 
-    std::string text(const Sema &sema);
+    std::string_view text(const Sema &sema);
 
     // RAII trick to handle indentation.
     static int indent;
