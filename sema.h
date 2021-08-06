@@ -251,18 +251,10 @@ struct QbeGenerator {
         fmt::print(file, "\n{:{}}", "", indent);
         fmt::print(file, std::forward<Args>(args)...);
     }
-    void emitAnnotated(Code code, Annot annotation) {
-        emit(code.str);
-        emitSameLine("   # {}", annotation.str);
-    }
     template <typename... Args> void emitSameLine(Args &&...args) {
         fmt::print(file, std::forward<Args>(args)...);
     }
-    void emitSameLineAnnotated(Code code, Annot annotation) {
-        emitSameLine(code.str);
-        emitSameLine("   # {}", annotation.str);
-    }
-    template <typename... Args> void emitAnnotateLast(Args &&...args) {
+    template <typename... Args> void emitAnnotation(Args &&...args) {
         fmt::print(file, "   # ");
         fmt::print(file, std::forward<Args>(args)...);
     }

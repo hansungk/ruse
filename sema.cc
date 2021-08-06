@@ -688,7 +688,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     case ExprKind::integer_literal:
         emit("%_{} =w add 0, {}", valstack.next_id,
                      static_cast<IntegerLiteral *>(e)->value);
-        emitAnnotateLast("{}: integer literal", e->loc.line);
+        emitAnnotation("{}: integer literal", e->loc.line);
         valstack.pushTempValue();
         break;
     case ExprKind::string_literal:
@@ -734,12 +734,12 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
                 } else if (dre->type->size == 8) {
                     emit("%_{} =l loadl {}", valstack.next_id,
                          valstack.pop().format());
-                    emitAnnotateLast("{}: load {}", dre->loc.line, dre->text(sema));
+                    emitAnnotation("{}: load {}", dre->loc.line, dre->text(sema));
                     valstack.pushTempValue();
                 } else if (dre->type->size == 4) {
                     emit("%_{} =w loadw {}", valstack.next_id,
                          valstack.pop().format());
-                    emitAnnotateLast("{}: load {}", dre->loc.line, dre->text(sema));
+                    emitAnnotation("{}: load {}", dre->loc.line, dre->text(sema));
                     valstack.pushTempValue();
                 } else {
                     assert(!"unknown alignment");
@@ -809,7 +809,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
             assert(term.field_decl);
             emit("%a{} =l add %a{}, {}", valstack.next_id, id,
                           term.field_decl->offset);
-            emitAnnotateLast("{}: offset of {}.{}", sde->loc.line,
+            emitAnnotation("{}: offset of {}.{}", sde->loc.line,
                              sde->text(sema), term.name->text);
             valstack.pushAddress();
             emitAssignment(term.field_decl, term.initexpr);
@@ -841,13 +841,13 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
 
         emit("%a{} =l add {}, {}", valstack.next_id,
                       valstack.pop().format(), mem->field_decl->offset);
-        emitAnnotateLast("{}: offset of {}", mem->loc.line, mem->text(sema));
+        emitAnnotation("{}: offset of {}", mem->loc.line, mem->text(sema));
         valstack.pushAddress();
 
         if (value) {
             // TODO: for struct values?
             emit("%_{} =w loadw {}", valstack.next_id, valstack.pop().format());
-            emitAnnotateLast("{}: load {}", mem->loc.line, mem->text(sema));
+            emitAnnotation("{}: load {}", mem->loc.line, mem->text(sema));
             valstack.pushTempValue();
         }
 
@@ -880,7 +880,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         }
         emit("%_{} =w {} {}, {}", valstack.next_id, op_str,
              valstack.pop().format(), valstack.pop().format());
-        emitAnnotateLast("{}: binary op '{}'", binary->loc.line, binary->op.str());
+        emitAnnotation("{}: binary op '{}'", binary->loc.line, binary->op.str());
         valstack.pushTempValue();
         break;
     }
@@ -986,7 +986,8 @@ void QbeGenerator::codegenDecl(Decl *d) {
     case DeclKind::func: {
         auto f = static_cast<FuncDecl *>(d);
 
-        emitSameLine("\nexport function {} ${}(", abityStr(f->rettype), f->name->text);
+        emitSameLine("\nexport function {} ${}(", abityStr(f->rettype),
+                     f->name->text);
 
         for (auto param : f->params) {
             emitSameLine("{} %{}, ", abityStr(param->type), param->name->text);
@@ -1097,62 +1098,53 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
                 fmt::format("{}.{}", rhs->text(sema), field->name->text);
 
             // load address from source; calculate address of the field
-            emitAnnotated(Code{"%a{} =l add {}, {}", valstack.next_id,
-                               rhs_value.format(), field->offset},
-                          Annot{"{}: address of {}", rhs->loc.line, rhs_text});
+            emit("%a{} =l add {}, {}", valstack.next_id, rhs_value.format(),
+                 field->offset);
+            emitAnnotation("{}: address of {}", rhs->loc.line, rhs_text);
             valstack.pushAddress();
 
             // load value of the field
             if (struct_decl->alignment == 8) {
-                emitAnnotated(
-                    Code{"%_{} =l loadl {}", valstack.next_id,
-                         valstack.pop().format()},
-                    Annot{"{}: load {}", rhs->loc.line, rhs_text});
+                emit("%_{} =l loadl {}", valstack.next_id,
+                     valstack.pop().format());
             } else if (struct_decl->alignment == 4) {
-                emitAnnotated(
-                    Code{"%_{} =w loadw {}", valstack.next_id,
-                         valstack.pop().format()},
-                    Annot{"{}: load {}", rhs->loc.line, rhs_text});
+                emit("%_{} =w loadw {}", valstack.next_id,
+                     valstack.pop().format());
             } else {
                 assert(!"unknown alignment");
             }
+            emitAnnotation("{}: load {}", rhs->loc.line, rhs_text);
             valstack.pushTempValue();
 
             // calculate the address of the LHS field first
             auto lhs_text =
                 fmt::format("{}.{}", lhs->name->text, field->name->text);
             auto value = valstack.pop();
-            emitAnnotated(Code{"%a{} =l add {}, {}", valstack.next_id,
-                               lhs_address.format(), field->offset},
-                          Annot{"{}: address of {}", rhs->loc.line, lhs_text});
+            emit("%a{} =l add {}, {}", valstack.next_id, lhs_address.format(),
+                 field->offset);
+            emitAnnotation("{}: address of {}", rhs->loc.line, lhs_text);
             valstack.pushAddress();
 
             // store value to dest address of LHS
             if (struct_decl->alignment == 8) {
-                emitAnnotated(Code{"storel {}, {}", value.format(),
-                                   valstack.pop().format()},
-                              Annot{"{}: store to {}", rhs->loc.line, lhs_text});
+                emit("storel {}, {}", value.format(), valstack.pop().format());
             } else if (struct_decl->alignment == 4) {
-                emitAnnotated(Code{"storew {}, {}", value.format(),
-                                   valstack.pop().format()},
-                              Annot{"{}: store to {}", rhs->loc.line, lhs_text});
+                emit("storew {}, {}", value.format(), valstack.pop().format());
             } else {
                 assert(!"unknown alignment");
             }
+            emitAnnotation("{}: store to {}", rhs->loc.line, lhs_text);
         }
     }
     // For non-struct types, a simple store is enough.
     else if (lhs_type->size == 8) {
-        emitAnnotated(
-            Code{"storel {}, {}", rhs_value.format(), lhs_address.format()},
-            Annot{"{}: store to {}", rhs->loc.line, lhs->name->text});
+        emit("storel {}, {}", rhs_value.format(), lhs_address.format());
     } else if (lhs_type->size == 4) {
-        emitAnnotated(
-            Code{"storew {}, {}", rhs_value.format(), lhs_address.format()},
-            Annot{"{}: store to {}", rhs->loc.line, lhs->name->text});
+        emit("storew {}, {}", rhs_value.format(), lhs_address.format());
     } else {
         assert(!"unknown type size");
     }
+    emitAnnotation("{}: store to {}", rhs->loc.line, lhs->name->text);
 }
 
 // Emit a value by allocating it on the stack memory.  That value will be
@@ -1183,8 +1175,8 @@ long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
             emitSameLine("alloc8");
         }
     }
-    emitSameLineAnnotated(Code{" {}", type->size},
-                          Annot{"{}: alloc {}", line, text});
+    emitSameLine(" {}", type->size);
+    emitAnnotation("{}: alloc {}", line, text);
 
     return id;
 }
