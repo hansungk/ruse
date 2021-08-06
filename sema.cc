@@ -879,7 +879,8 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
             assert(!"unknown binary expr kind");
         }
         emit("%_{} =w {} {}, {}", valstack.next_id, op_str,
-                      valstack.pop().format(), valstack.pop().format());
+             valstack.pop().format(), valstack.pop().format());
+        emitAnnotateLast("{}: binary op '{}'", binary->loc.line, binary->op.str());
         valstack.pushTempValue();
         break;
     }

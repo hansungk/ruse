@@ -775,7 +775,7 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
 
         // Create a new root with the old root as its LHS, and the recursion
         // result as RHS.  This implements left associativity.
-        root = sema.make_node<BinaryExpr>(root, op, rhs);
+        root = make_node_range<BinaryExpr>(root->pos, root, op, rhs);
     }
 
     return root;
