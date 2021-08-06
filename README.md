@@ -21,5 +21,6 @@ $ ./check.py
 
 ## todo
 
-* comment QBE code with what's going on
+* pointers
+* methods
 * inner struct (struct2.ruse)
