@@ -1,0 +1,11 @@
+// exit 0
+
+func main() -> int {
+  let data = 3
+  let p = &data
+  *p = 4
+  if data != 4 {
+    return 1
+  }
+  return 0
+}
