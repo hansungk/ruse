@@ -822,17 +822,14 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     case ExprKind::member: {
         auto mem = static_cast<MemberExpr *>(e);
 
-        // We can't handle all code generation at this end without recursing
-        // into the parent expression, because we have cases like these:
+        // We can't do complete code generation at this end without recursing
+        // into the child LHS expression because of cases like these:
         //
         //   ... = (*p).memb
         //   ... = f().memb
         //
-        // So we have to recurse into things, at which point the question of
-        // whether to generate values or addresses still stands.
-        //
-        // TODO: what about this case:
-        //   ... = S {.a = 1}.memb
+        // So we have to recurse into things and let the children decide
+        // whether they want to emit value or address.
 
         // emit correct address first
         codegenExprExplicit(mem->parent_expr, false);
