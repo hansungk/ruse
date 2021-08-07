@@ -853,7 +853,15 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     }
     case ExprKind::unary: {
         auto ue = static_cast<UnaryExpr *>(e);
-        codegenExprExplicit(ue->operand, value);
+
+        if (ue->kind == UnaryExprKind::ref) {
+            codegenExprExplicit(ue->operand, false);
+        } else if (ue->kind == UnaryExprKind::deref) {
+            assert(!"TODO: start here");
+        } else {
+            // FIXME: assumes paren expr
+            codegenExprExplicit(ue->operand, value);
+        }
         break;
     }
     case ExprKind::binary: {
@@ -914,7 +922,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
         auto lhs_address = valstack.pop();
 
         emit("storew %_{}, {}", rhs_val_id, lhs_address.format());
-        emitAnnotation("{}: assign stmt", as->loc.line);
+        emitAnnotation("{}: assign to {}", as->loc.line, as->lhs->text(sema));
         break;
     }
     case StmtKind::return_:
