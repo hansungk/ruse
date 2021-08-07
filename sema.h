@@ -254,7 +254,7 @@ struct QbeGenerator {
     template <typename... Args> void emitSameLine(Args &&...args) {
         fmt::print(file, std::forward<Args>(args)...);
     }
-    template <typename... Args> void emitAnnotation(Args &&...args) {
+    template <typename... Args> void annotate(Args &&...args) {
         fmt::print(file, "   # ");
         fmt::print(file, std::forward<Args>(args)...);
     }
