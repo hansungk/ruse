@@ -110,7 +110,9 @@ struct Type {
     Type(TypeKind k, Name *n, Decl *td) : kind(k), name(n), type_decl(td) {}
     // Reference types.
     // TODO: copyable?
-    Type(Name *n, TypeKind ptr_kind, Type *referee_type);
+    Type(Name *n, TypeKind k, Type *rt) : kind(k), name(n), referee_type(rt) {
+        copyable = k == TypeKind::ref;
+    }
 };
 
 } // namespace cmp

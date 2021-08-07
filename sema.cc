@@ -20,10 +20,6 @@ template <typename... Args> static bool error(SourceLoc loc, Args &&...args) {
     // exit(EXIT_FAILURE);
 }
 
-Type::Type(Name *n, TypeKind k, Type *rt) : kind(k), name(n), referee_type(rt) {
-    copyable = k == TypeKind::ref;
-}
-
 Type *make_builtin_type(Sema &sema, Name *n) {
     Type *t = new Type(n);
     sema.type_pool.push_back(t);
@@ -39,6 +35,8 @@ Type *make_value_type(Sema &sema, Name *n, Decl *decl) {
 Type *make_ref_type(Sema &sema, Name *name, TypeKind ptr_kind,
                     Type *referee_type) {
     Type *t = new Type(name, ptr_kind, referee_type);
+    // assumes pointers are always 8 bytes
+    t->size = 8;
     sema.type_pool.push_back(t);
     return t;
 }
@@ -913,9 +911,10 @@ void QbeGenerator::codegenStmt(Stmt *s) {
 
         codegenExprAddress(as->lhs);
         assert(valstack.peek().kind == ValueKind::address);
+        auto lhs_address = valstack.pop();
 
-        emit("storew %_{}, {}", rhs_val_id,
-                      valstack.pop().format());
+        emit("storew %_{}, {}", rhs_val_id, lhs_address.format());
+        emitAnnotation("{}: assign stmt", as->loc.line);
         break;
     }
     case StmtKind::return_:
@@ -1119,17 +1118,20 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
             // calculate the address of the LHS field first
             auto lhs_text =
                 fmt::format("{}.{}", lhs->name->text, field->name->text);
-            auto value = valstack.pop();
+            auto value_to_be_copied = valstack.pop();
             emit("%a{} =l add {}, {}", valstack.next_id, lhs_address.format(),
                  field->offset);
             emitAnnotation("{}: address of {}", rhs->loc.line, lhs_text);
             valstack.pushAddress();
 
             // store value to dest address of LHS
+            auto lhs_address = valstack.pop();
             if (struct_decl->alignment == 8) {
-                emit("storel {}, {}", value.format(), valstack.pop().format());
+                emit("storel {}, {}", value_to_be_copied.format(),
+                     lhs_address.format());
             } else if (struct_decl->alignment == 4) {
-                emit("storew {}, {}", value.format(), valstack.pop().format());
+                emit("storew {}, {}", value_to_be_copied.format(),
+                     lhs_address.format());
             } else {
                 assert(!"unknown alignment");
             }
@@ -1148,8 +1150,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
 }
 
 // Emit a value by allocating it on the stack memory.  That value will be
-// handled with its address.  `line` and `text` are used for outputting
-// annotations in the QBE code.
+// handled via its address.  `line` and `text` are used for annotations.
 long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
                                   std::string_view text) {
     assert(!sema.context.func_stack.empty());
@@ -1159,14 +1160,19 @@ long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
     long id = valstack.next_id;
     valstack.next_id++;
 
-    assert(type->kind == TypeKind::value &&
-           "stack allocation for non-value types not implemented");
-    assert(type->size);
+    assert(type->size > 0);
 
     emit("%a{} =l ", id);
-    if (type->builtin) {
+    // FIXME: unify 'ptr' and 'ref'
+    if (type->kind == TypeKind::ptr || type->kind == TypeKind::ref) {
+        // assumes pointers are always 8 bytes
+        emitSameLine("alloc8");
+    } else if (type->builtin) {
+        assert(type->kind != TypeKind::ptr &&
+               "ptr & builtin for Types is possible?");
         emitSameLine("alloc4");
     } else {
+        assert(type->kind == TypeKind::value);
         assert(type->type_decl->kind == DeclKind::struct_ &&
                "non-struct value type?");
         if (static_cast<StructDecl *>(type->type_decl)->alignment == 4) {
