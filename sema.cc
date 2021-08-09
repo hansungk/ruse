@@ -687,7 +687,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         emit("%_{} =w add 0, {}", valstack.next_id,
                      static_cast<IntegerLiteral *>(e)->value);
         annotate("{}: integer literal", e->loc.line);
-        valstack.pushTempValue();
+        valstack.push_temp_value();
         break;
     case ExprKind::string_literal:
         assert(!"not implemented");
@@ -722,7 +722,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         if (dre->decl->kind == DeclKind::var) {
             auto var = static_cast<VarDecl *>(dre->decl);
 
-            valstack.pushAddressExplicit(var->frame_local_id);
+            valstack.push_address_explicit(var->frame_local_id);
 
             if (value) {
                 if (dre->type->size > 8) {
@@ -733,12 +733,12 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
                     emit("%_{} =l loadl {}", valstack.next_id,
                          valstack.pop().format());
                     annotate("{}: load {}", dre->loc.line, dre->text(sema));
-                    valstack.pushTempValue();
+                    valstack.push_temp_value();
                 } else if (dre->type->size == 4) {
                     emit("%_{} =w loadw {}", valstack.next_id,
                          valstack.pop().format());
                     annotate("{}: load {}", dre->loc.line, dre->text(sema));
-                    valstack.pushTempValue();
+                    valstack.push_temp_value();
                 } else {
                     assert(!"unknown alignment");
                 }
@@ -772,7 +772,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
 
             emitSameLine(")");
 
-            valstack.pushTempValue();
+            valstack.push_temp_value();
         } else {
             emit("call ${}(", c->func_name->text);
 
@@ -806,16 +806,16 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
             // member.
             assert(term.field_decl);
             emit("%a{} =l add %a{}, {}", valstack.next_id, id,
-                          term.field_decl->offset);
-            annotate("{}: offset of {}.{}", sde->loc.line,
-                             sde->text(sema), term.name->text);
-            valstack.pushAddress();
+                 term.field_decl->offset);
+            annotate("{}: offset of {}.{}", sde->loc.line, sde->text(sema),
+                     term.name->text);
+            valstack.push_address();
             emitAssignment(term.field_decl, term.initexpr);
         }
 
         // Leave the address in the valstack; this is what will be used in lieu
         // of the actual value in later nodes.
-        valstack.pushAddressExplicit(id);
+        valstack.push_address_explicit(id);
 
         break;
     }
@@ -837,13 +837,13 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         emit("%a{} =l add {}, {}", valstack.next_id,
                       valstack.pop().format(), mem->field_decl->offset);
         annotate("{}: offset of {}", mem->loc.line, mem->text(sema));
-        valstack.pushAddress();
+        valstack.push_address();
 
         if (value) {
             // TODO: for struct values?
             emit("%_{} =w loadw {}", valstack.next_id, valstack.pop().format());
             annotate("{}: load {}", mem->loc.line, mem->text(sema));
-            valstack.pushTempValue();
+            valstack.push_temp_value();
         }
 
         break;
@@ -884,7 +884,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         emit("%_{} =w {} {}, {}", valstack.next_id, op_str,
              valstack.pop().format(), valstack.pop().format());
         annotate("{}: binary op '{}'", binary->loc.line, binary->op.str());
-        valstack.pushTempValue();
+        valstack.push_temp_value();
         break;
     }
     default:
@@ -981,7 +981,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
         v->frame_local_id = emitStackAlloc(v->type, v->loc.line, v->name->text);
 
         if (v->assign_expr) {
-            valstack.pushAddressExplicit(v->frame_local_id);
+            valstack.push_address_explicit(v->frame_local_id);
             emitAssignment(v, v->assign_expr);
         }
 
@@ -1105,7 +1105,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
             emit("%a{} =l add {}, {}", valstack.next_id, rhs_value.format(),
                  field->offset);
             annotate("{}: address of {}", rhs->loc.line, rhs_text);
-            valstack.pushAddress();
+            valstack.push_address();
 
             // load value of the field
             if (struct_decl->alignment == 8) {
@@ -1118,7 +1118,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
                 assert(!"unknown alignment");
             }
             annotate("{}: load {}", rhs->loc.line, rhs_text);
-            valstack.pushTempValue();
+            valstack.push_temp_value();
 
             // calculate the address of the LHS field first
             auto lhs_text =
@@ -1127,7 +1127,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
             emit("%a{} =l add {}, {}", valstack.next_id, lhs_address.format(),
                  field->offset);
             annotate("{}: address of {}", rhs->loc.line, lhs_text);
-            valstack.pushAddress();
+            valstack.push_address();
 
             // store value to dest address of LHS
             auto lhs_address = valstack.pop();

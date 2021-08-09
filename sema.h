@@ -189,7 +189,7 @@ struct Valstack {
     // "%_0" in the IL.
     // This does not take any argument because the actual value is emitted to
     // the code.
-    void pushTempValue() {
+    void push_temp_value() {
         buf.push_back(Value{ValueKind::value, next_id});
         next_id++;
     }
@@ -199,13 +199,13 @@ struct Valstack {
     // way to emit its value.  This will be designated as "%a0" in the IL.
     // This does not take any argument because the actual address is emitted to
     // the code.
-    void pushAddress() {
+    void push_address() {
         buf.push_back(Value{ValueKind::address, next_id});
         next_id++;
     }
 
     // Explicitly give the id of the value which will be reused.
-    void pushAddressExplicit(int id) {
+    void push_address_explicit(int id) {
         buf.push_back(Value{ValueKind::address, id});
     }
 
