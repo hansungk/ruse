@@ -866,9 +866,9 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
                          ue->operand->text(sema));
                 valstack.push_temp_value();
             }
-            // Otherwise, the address is on the valstack and we're done.
+            // Otherwise, the address that the pointer contains is on the
+            // valstack and we're done.
         } else {
-            // FIXME: assumes paren expr
             codegen_expr_explicit(ue->operand, value);
         }
         break;
