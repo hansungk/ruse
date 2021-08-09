@@ -681,7 +681,7 @@ std::string abityStr(const Type *type) {
 // requires the actual value of it, or just the address (for lvalues).  If
 // 'value' is true, a handle for the generated value is placed on the valstack
 // top.
-void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
+void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
     switch (e->kind) {
     case ExprKind::integer_literal:
         emit("%_{} =w add 0, {}", valstack.next_id,
@@ -757,7 +757,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         // codegen arguments first
         std::vector<Value> generated_args;
         for (auto arg : c->args) {
-            codegenExprExplicit(arg, true);
+            codegen_expr_explicit(arg, true);
             generated_args.push_back(valstack.pop());
         }
 
@@ -832,7 +832,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         // whether they want to emit value or address.
 
         // emit correct address first
-        codegenExprExplicit(mem->parent_expr, false);
+        codegen_expr_explicit(mem->parent_expr, false);
 
         emit("%a{} =l add {}, {}", valstack.next_id,
                       valstack.pop().format(), mem->field_decl->offset);
@@ -852,19 +852,31 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         auto ue = static_cast<UnaryExpr *>(e);
 
         if (ue->kind == UnaryExprKind::ref) {
-            codegenExprExplicit(ue->operand, false);
+            codegen_expr_explicit(ue->operand, false);
         } else if (ue->kind == UnaryExprKind::deref) {
-            assert(!"TODO: start here");
+            // Output its value first, which is an address.
+            codegen_expr_explicit(ue->operand, true);
+            if (value) {
+                // If `value` is true, emit another load to get the
+                // dereferenced value.
+                // FIXME: size?
+                emit("%_{} =w loadw {}", valstack.next_id,
+                     valstack.pop().format());
+                annotate("{}: dereference {}", ue->loc.line,
+                         ue->operand->text(sema));
+                valstack.push_temp_value();
+            }
+            // Otherwise, the address is on the valstack and we're done.
         } else {
             // FIXME: assumes paren expr
-            codegenExprExplicit(ue->operand, value);
+            codegen_expr_explicit(ue->operand, value);
         }
         break;
     }
     case ExprKind::binary: {
         auto binary = static_cast<BinaryExpr *>(e);
-        codegenExprExplicit(binary->lhs, true);
-        codegenExprExplicit(binary->rhs, true);
+        codegen_expr_explicit(binary->lhs, true);
+        codegen_expr_explicit(binary->rhs, true);
 
         const char *op_str = NULL;
         switch (binary->op.kind) {
@@ -892,18 +904,18 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     }
 }
 
-void QbeGenerator::codegenExpr(Expr *e) {
-    codegenExprExplicit(e, true);
+void QbeGenerator::codegen_expr(Expr *e) {
+    codegen_expr_explicit(e, true);
 }
 
-void QbeGenerator::codegenExprAddress(Expr *e) {
-    codegenExprExplicit(e, false);
+void QbeGenerator::codegen_expr_address(Expr *e) {
+    codegen_expr_explicit(e, false);
 }
 
 void QbeGenerator::codegenStmt(Stmt *s) {
     switch (s->kind) {
     case StmtKind::expr:
-        codegenExpr(static_cast<ExprStmt *>(s)->expr);
+        codegen_expr(static_cast<ExprStmt *>(s)->expr);
         break;
     case StmtKind::decl:
         codegenDecl(static_cast<DeclStmt *>(s)->decl);
@@ -911,11 +923,14 @@ void QbeGenerator::codegenStmt(Stmt *s) {
     case StmtKind::assign: {
         auto as = static_cast<AssignStmt *>(s);
 
-        codegenExpr(as->rhs);
+        codegen_expr(as->rhs);
         auto rhs_val_id = valstack.pop().id;
 
-        codegenExprAddress(as->lhs);
-        assert(valstack.peek().kind == ValueKind::address);
+        codegen_expr_address(as->lhs);
+        // This assert doesn't work for pointer dereferences: their value is
+        // the target address of this assignment, but they are designated as
+        // ValueKind::value.
+        // assert(valstack.peek().kind == ValueKind::address);
         auto lhs_address = valstack.pop();
 
         emit("storew %_{}, {}", rhs_val_id, lhs_address.format());
@@ -923,7 +938,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
         break;
     }
     case StmtKind::return_:
-        codegenExpr(static_cast<ReturnStmt *>(s)->expr);
+        codegen_expr(static_cast<ReturnStmt *>(s)->expr);
 
         // Whether the top of the valstack might contain is a value or an
         // address, either is fine, because returning a struct by value
@@ -940,7 +955,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
         auto if_stmt = static_cast<IfStmt *>(s);
         auto id = ifelse_label_id;
         ifelse_label_id++;
-        codegenExpr(if_stmt->cond);
+        codegen_expr(if_stmt->cond);
         emit("jnz {}, @if_{}, @else_{}", valstack.pop().format(),
                       id, id);
         emitSameLine("\n@if_{}", id);
@@ -1079,7 +1094,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
 // S {.a=...}.a
 // f(S {.a=...})
 void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
-    codegenExpr(rhs);
+    codegen_expr(rhs);
 
     // NOTE: rhs_value might not actually have ValueKind::value, e.g. for
     // structs allocated on the stack.

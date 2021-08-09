@@ -270,9 +270,9 @@ struct QbeGenerator {
 
     void codegen(AstNode *n);
     void codegenDecl(Decl *d);
-    void codegenExpr(Expr *e);
-    void codegenExprAddress(Expr *e);
-    void codegenExprExplicit(Expr *e, bool value);
+    void codegen_expr(Expr *e);
+    void codegen_expr_address(Expr *e);
+    void codegen_expr_explicit(Expr *e, bool value);
     void codegenStmt(Stmt *s);
 };
 
