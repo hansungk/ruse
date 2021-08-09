@@ -87,21 +87,21 @@ void Sema::scopeClose() {
     borrow_table.scopeClose();
 }
 
+bool Type::is_struct() const {
+    return kind == TypeKind::value && type_decl &&
+           type_decl->kind == DeclKind::struct_;
+}
+
+bool Type::is_pointer() const {
+    return kind == TypeKind::ref || kind == TypeKind::var_ref;
+}
+
+bool Type::is_builtin(Sema &sema) const {
+    return this == sema.context.int_type || this == sema.context.char_type ||
+           this == sema.context.void_type || this == sema.context.string_type;
+}
+
 namespace {
-
-bool is_pointer_type(const Type *ty) {
-    return ty->kind == TypeKind::ref || ty->kind == TypeKind::var_ref;
-}
-
-bool is_struct_type(const Type *ty) {
-    return ty->kind == TypeKind::value && ty->type_decl &&
-           ty->type_decl->kind == DeclKind::struct_;
-}
-
-bool is_builtin_type(const Type *ty, Sema &sema) {
-    return ty == sema.context.int_type || ty == sema.context.char_type ||
-        ty == sema.context.void_type || ty == sema.context.string_type;
-}
 
 bool is_lvalue(const Expr *e) {
     // Determine lvalue-ness by the expression kind.
@@ -155,7 +155,7 @@ bool typecheck_assignable(const Type *to, const Type *from) {
     // 2. Exact same match.
 
     // Allow promotion from mutable to immutable pointer.
-    if (to->kind == TypeKind::ref && is_pointer_type(from)) {
+    if (to->kind == TypeKind::ref && from->is_pointer()) {
         // NOTE: this may be related to 'unification'. Ref:
         // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
         return typecheck_assignable(to->referee_type, from->referee_type);
@@ -178,7 +178,7 @@ bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
         if (!typecheck_expr(sema, u->operand))
             return false;
 
-        if (!is_pointer_type(u->operand->type)) {
+        if (!u->operand->type->is_pointer()) {
             return error(u->loc, "dereferenced a non-pointer type '{}'",
                   u->operand->type->name->text);
         }
@@ -308,7 +308,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
             return false;
 
         Type *struct_type = sde->name_expr->decl->type;
-        if (!is_struct_type(struct_type)) {
+        if (!struct_type->is_struct()) {
             return error(sde->name_expr->loc, "type '{}' is not a struct",
                          struct_type->name->text);
         }
@@ -348,7 +348,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
             return false;
 
         auto parent_type = mem->parent_expr->type;
-        if (!is_struct_type(parent_type)) {
+        if (!parent_type->is_struct()) {
             return error(mem->parent_expr->loc, "type '{}' is not a struct",
                          parent_type->name->text);
         }
@@ -563,7 +563,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
         }
 
         // For struct types, instantiate all of its fields.
-        if (is_struct_type(v->type)) {
+        if (v->type->is_struct()) {
             auto struct_decl = static_cast<StructDecl *>(v->type->type_decl);
             for (auto field : struct_decl->fields) {
                 instantiate_field(sema, v, field->name, field->type);

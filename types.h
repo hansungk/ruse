@@ -113,6 +113,10 @@ struct Type {
     Type(Name *n, TypeKind k, Type *rt) : kind(k), name(n), referee_type(rt) {
         copyable = k == TypeKind::ref;
     }
+
+    bool is_struct() const;
+    bool is_pointer() const;
+    bool is_builtin(Sema &sema) const;
 };
 
 } // namespace cmp
