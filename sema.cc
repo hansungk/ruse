@@ -88,8 +88,8 @@ void Sema::scopeClose() {
 }
 
 bool Type::is_struct() const {
-    return kind == TypeKind::value && type_decl &&
-           type_decl->kind == DeclKind::struct_;
+    return kind == TypeKind::value && decl &&
+           decl->kind == DeclKind::struct_;
 }
 
 bool Type::is_pointer() const {
@@ -184,9 +184,8 @@ bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
         }
         u->type = u->operand->type->referee_type;
 
-        // Also bind a temporary VarDecl to this expression that respects
-        // the mutability of the reference type (TODO).  This way we know if
-        // this lvalue is assignable or not. For example,
+        // Bind a temporary VarDecl to this deref expression that respects the
+        // mutability of the reference type.  For example,
         //
         //     let v: var &int = ...
         //     *v = 3
@@ -195,10 +194,10 @@ bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
         bool mut = (u->operand->type->kind == TypeKind::var_ref);
         u->decl = sema.make_node<VarDecl>(nullptr, u->type, mut);
 
-        // Temporary VarDecls are not pushed to the scoped decl table,
-        // because they are not meant to be accessed later from another
-        // source location.  And therefore they also don't have a name that
-        // can be used to query them.
+        // Temporary VarDecls are not pushed to the scoped decl table, because
+        // they are not meant to be accessible from other source locations.
+        // Therefore they don't need to have a name.
+
         break;
     }
     case UnaryExprKind::var_ref:
@@ -348,14 +347,32 @@ bool typecheck_expr(Sema &sema, Expr *e) {
             return false;
 
         auto parent_type = mem->parent_expr->type;
-        if (!parent_type->is_struct()) {
+        Decl *parent_type_decl = nullptr;
+        VarDecl *parent_var_decl = nullptr;
+        Name *reported_name = nullptr;
+        if (parent_type->is_pointer()) {
+            reported_name = parent_type->referee_type->name;
+            if (parent_type->referee_type->is_struct()) {
+                parent_type_decl = parent_type->referee_type->decl;
+                // TODO start here: how do I get the VarDecl of the target of
+                // the pointer?
+                // Best way to do this would be to change the AST to (*p).mem
+                // -- then the sema pass would bind a temporary VarDecl to (*p)
+                // without any further modification.
+            }
+        } else if (parent_type->is_struct()) {
+            reported_name = parent_type->name;
+            parent_type_decl = parent_type->decl;
+            parent_var_decl = mem->parent_expr->decl;
+        }
+        if (!parent_type_decl) {
+            assert(reported_name);
             return error(mem->parent_expr->loc, "type '{}' is not a struct",
-                         parent_type->name->text);
+                         reported_name->text);
         }
 
         FieldDecl *matched_field = nullptr;
-        for (auto field :
-             static_cast<StructDecl *>(parent_type->type_decl)->fields) {
+        for (auto field : static_cast<StructDecl *>(parent_type_decl)->fields) {
             if (mem->member_name == field->name) {
                 matched_field = field;
                 break;
@@ -365,23 +382,28 @@ bool typecheck_expr(Sema &sema, Expr *e) {
             return error(mem->loc, "unknown field '{}' in struct '{}'",
                          mem->member_name->text, parent_type->name->text);
         }
-        // For querying offsets in struct later.
+
+        // For querying offsets in the struct later.
         mem->field_decl = matched_field;
 
-        // If parent is an lvalue, bind a VarDecl to this MemberExpr as well.
-        // @Review: We could also name the field vardecls by constructing its
-        // name, e.g. "s.mem", but I suspect this would be cleaner.
+        // If parent is an lvalue, its child is also an lvalue.  So bind a new
+        // VarDecl to this MemberExpr as well.
+
+        // At this point, parent_expr is either a struct or a pointer to
+        // struct.
+
         if (mem->parent_expr->decl) {
             assert(mem->parent_expr->decl->kind == DeclKind::var);
             auto parent_var_decl =
                 static_cast<VarDecl *>(mem->parent_expr->decl);
+            assert(!parent_var_decl->children.empty());
             for (auto child : parent_var_decl->children) {
+                fmt::print("checking child {}\n", child->name->text);
                 if (child->name == mem->member_name) {
                     mem->decl = child;
                     break;
                 }
             }
-            // Field match is already checked above so this shouldn't fail.
             assert(mem->decl && "struct member failed to namebind");
         }
 
@@ -564,7 +586,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 
         // For struct types, instantiate all of its fields.
         if (v->type->is_struct()) {
-            auto struct_decl = static_cast<StructDecl *>(v->type->type_decl);
+            auto struct_decl = static_cast<StructDecl *>(v->type->decl);
             for (auto field : struct_decl->fields) {
                 instantiate_field(sema, v, field->name, field->type);
                 // FIXME: should we typecheck_decl() children here?
@@ -728,7 +750,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
                 if (dre->type->size > 8) {
                     // FIXME: assumes this is a stack-allocated struct
                     assert(!dre->type->builtin);
-                    assert(dre->type->type_decl->kind == DeclKind::struct_);
+                    assert(dre->type->decl->kind == DeclKind::struct_);
                 } else if (dre->type->size == 8) {
                     emit("%_{} =l loadl {}", valstack.next_id,
                          valstack.pop().format());
@@ -1109,8 +1131,8 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
     if (lhs_type->size > 8) {
         assert(lhs_type->kind == TypeKind::value);
         assert(!lhs_type->builtin);
-        assert(lhs_type->type_decl->kind == DeclKind::struct_);
-        auto struct_decl = static_cast<StructDecl *>(lhs_type->type_decl);
+        assert(lhs_type->decl->kind == DeclKind::struct_);
+        auto struct_decl = static_cast<StructDecl *>(lhs_type->decl);
 
         for (auto field : struct_decl->fields) {
             auto rhs_text =
@@ -1193,9 +1215,9 @@ long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
         emitSameLine("alloc4");
     } else {
         assert(type->kind == TypeKind::value);
-        assert(type->type_decl->kind == DeclKind::struct_ &&
+        assert(type->decl->kind == DeclKind::struct_ &&
                "non-struct value type?");
-        if (static_cast<StructDecl *>(type->type_decl)->alignment == 4) {
+        if (static_cast<StructDecl *>(type->decl)->alignment == 4) {
             emitSameLine("alloc4");
         } else {
             emitSameLine("alloc8");
