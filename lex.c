@@ -68,7 +68,7 @@ static char lookn(struct Lexer *l, long n) {
 
 int lexer_from_file(struct Lexer *l, const char *filename) {
     memset(l, 0, sizeof(struct Lexer));
-    memcpy(l->src.filename, filename, 255);
+    strncpy(l->src.filename, filename, 255);
     l->src.src = readfile(filename, &l->src.srclen);
     step(l);
     return 1;
