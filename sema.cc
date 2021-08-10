@@ -439,7 +439,9 @@ bool typecheck_expr(Sema &sema, Expr *e) {
                          "incompatible binary op with type '{}' and '{}'",
                          lhs_type->name->text, rhs_type->name->text);
         }
+
         b->type = lhs_type;
+
         break;
     }
     case ExprKind::type: {
