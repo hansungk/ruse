@@ -2,22 +2,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int main(void) {
-	struct Parser p;
-	struct Context ctx;
-	parser_from_file(&p, "test/test.ruse");
-	context_init(&ctx, &p.l.src);
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        fprintf(stderr, "usage: %s filename\n", argv[0]);
+        return 1;
+    }
 
-	struct Node *n = parse(&p);
-	if (p.tok.type != TOK_EOF) {
-		fprintf(stderr, "terminated abnormally\n");
-		return 1;
-	}
+    struct Parser p;
+    struct Context ctx;
+    parser_from_file(&p, argv[1]);
+    context_init(&ctx, &p.l.src);
 
-	eval(&ctx, n);
-	codegen(&ctx, n);
+    struct Node *n = parse(&p);
+    if (p.tok.type != TOK_EOF) {
+        fprintf(stderr, "terminated abnormally\n");
+        return 1;
+    }
 
-	context_free(&ctx);
-	parser_cleanup(&p);
-	return 0;
+    eval(&ctx, n);
+    codegen(&ctx, n);
+
+    context_free(&ctx);
+    parser_cleanup(&p);
+    return 0;
 }
