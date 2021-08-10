@@ -194,6 +194,10 @@ bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
         bool mut = (u->operand->type->kind == TypeKind::var_ref);
         u->decl = sema.make_node<VarDecl>(nullptr, u->type, mut);
 
+        // We still need to do typecheck on this temporary decl to e.g. bind
+        // new decls for all struct children.
+        typecheck_decl(sema, u->decl);
+
         // Temporary VarDecls are not pushed to the scoped decl table, because
         // they are not meant to be accessible from other source locations.
         // Therefore they don't need to have a name.
@@ -348,22 +352,29 @@ bool typecheck_expr(Sema &sema, Expr *e) {
 
         auto parent_type = mem->parent_expr->type;
         Decl *parent_type_decl = nullptr;
-        VarDecl *parent_var_decl = nullptr;
         Name *reported_name = nullptr;
         if (parent_type->is_pointer()) {
             reported_name = parent_type->referee_type->name;
             if (parent_type->referee_type->is_struct()) {
                 parent_type_decl = parent_type->referee_type->decl;
-                // TODO start here: how do I get the VarDecl of the target of
-                // the pointer?
-                // Best way to do this would be to change the AST to (*p).mem
-                // -- then the sema pass would bind a temporary VarDecl to (*p)
-                // without any further modification.
+
+                // How do we get the VarDecl of the target of the pointer?
+                // Best way to do this would be to rewrite the AST to (*p).mem.
+                // Then, a second sema pass would bind a temporary VarDecl to
+                // (*p) without any further modification.
+                auto new_parent = sema.make_node_range<UnaryExpr>(
+                    {mem->parent_expr->pos, mem->parent_expr->endpos},
+                    UnaryExprKind::deref, mem->parent_expr);
+                mem->parent_expr = new_parent;
+
+                // Redo with the rewritten node.
+                return typecheck_expr(sema, mem);
             }
         } else if (parent_type->is_struct()) {
             reported_name = parent_type->name;
             parent_type_decl = parent_type->decl;
-            parent_var_decl = mem->parent_expr->decl;
+        } else {
+            assert(!"unhandled parent type");
         }
         if (!parent_type_decl) {
             assert(reported_name);
@@ -398,7 +409,6 @@ bool typecheck_expr(Sema &sema, Expr *e) {
                 static_cast<VarDecl *>(mem->parent_expr->decl);
             assert(!parent_var_decl->children.empty());
             for (auto child : parent_var_decl->children) {
-                fmt::print("checking child {}\n", child->name->text);
                 if (child->name == mem->member_name) {
                     mem->decl = child;
                     break;
@@ -584,7 +594,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
             v->type = v->type_expr->type;
         }
 
-        // For struct types, instantiate all of its fields.
+        // For struct-typed VarDecls, instantiate all of its fields.
         if (v->type->is_struct()) {
             auto struct_decl = static_cast<StructDecl *>(v->type->decl);
             for (auto field : struct_decl->fields) {
