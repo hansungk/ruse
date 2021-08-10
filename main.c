@@ -5,7 +5,7 @@
 int main(void) {
 	struct Parser p;
 	struct Context ctx;
-	parser_from_file(&p, "test.ruse");
+	parser_from_file(&p, "test/test.ruse");
 	context_init(&ctx, &p.l.src);
 
 	struct Node *n = parse(&p);
