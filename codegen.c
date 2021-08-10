@@ -8,12 +8,45 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void emit(const char *fmt, ...) {
+static void emit(char *c, ...) {
     va_list args;
 
-    va_start(args, fmt);
-    vprintf(fmt, args);
+    va_start(args, c);
+    vprintf(c, args);
     va_end(args);
+
+#if 0
+    char *s;
+    va_list lst;
+    va_start(lst, c);
+    while (*c != '\0') {
+        if (*c != '%') {
+            putchar(*c);
+            c++;
+            continue;
+        }
+
+        c++;
+
+        if (*c == '\0') {
+            break;
+        }
+
+        switch (*c) {
+        case 's':
+            fputs(va_arg(lst, char *), stdout);
+            break;
+        case 'c':
+            putchar(va_arg(lst, int));
+            break;
+	default:
+	    // TODO: start here
+	    break;
+        }
+	c++;
+    }
+    va_end(lst);
+#endif
 }
 
 static int valstack_push_and_incr(struct Context *ctx) {

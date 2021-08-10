@@ -328,42 +328,42 @@ static struct Node *parse_stmt(struct Parser *p) {
 	return s;
 }
 
-static struct Node *parse_func(struct Parser *p) {
-	expect(p, TOK_PROC);
+static struct Node *parse_function(struct Parser *p) {
+    expect(p, TOK_PROC);
 
-	struct Node *func = makefunc(p, p->tok);
-	next(p);
+    struct Node *func = makefunc(p, p->tok);
+    next(p);
 
-	// argument list
-	expect(p, TOK_LPAREN);
-	// func->paramdecls = parse_paramdecllist(p);
-	expect(p, TOK_RPAREN);
+    // argument list
+    expect(p, TOK_LPAREN);
+    // func->paramdecls = parse_paramdecllist(p);
+    expect(p, TOK_RPAREN);
 
-	// return type
-	func->rettypeexpr = NULL;
-	expect_end_of_line(p);
+    // return type
+    func->rettypeexpr = NULL;
+    expect_end_of_line(p);
 
-	while (p->tok.type != TOK_END) {
-		struct Node *s = parse_stmt(p);
-		if (s) {
-			sb_push(func->stmts, s);
-		}
-	}
-	expect(p, TOK_END);
+    while (p->tok.type != TOK_END) {
+        struct Node *s = parse_stmt(p);
+        if (s) {
+            sb_push(func->stmts, s);
+        }
+    }
+    expect(p, TOK_END);
 
-	return func;
+    return func;
 }
 
 static struct Node *parse_toplevel(struct Parser *p) {
-	skip_newlines(p);
+    skip_newlines(p);
 
-	switch (p->tok.type) {
-	case TOK_PROC:
-		return parse_func(p);
-	default:
-		assert(0 && "unreachable");
-		return NULL;
-	}
+    switch (p->tok.type) {
+    case TOK_PROC:
+        return parse_function(p);
+    default:
+        assert(0 && "unreachable");
+        return NULL;
+    }
 }
 
 struct Node *parse(struct Parser *p) {
