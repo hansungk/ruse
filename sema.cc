@@ -370,12 +370,13 @@ bool typecheck_expr(Sema &sema, Expr *e) {
                 // Redo with the rewritten node.
                 return typecheck_expr(sema, mem);
             }
-        } else if (parent_type->is_struct()) {
-            reported_name = parent_type->name;
-            parent_type_decl = parent_type->decl;
-        } else {
-            assert(!"unhandled parent type");
         }
+
+        reported_name = parent_type->name;
+        if (parent_type->is_struct()) {
+            parent_type_decl = parent_type->decl;
+        }
+
         if (!parent_type_decl) {
             assert(reported_name);
             return error(mem->parent_expr->loc, "type '{}' is not a struct",
