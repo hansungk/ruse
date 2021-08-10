@@ -12,6 +12,13 @@ func use_struct() -> int {
     if (s.a != 42) {
         return 1
     }
+
+    let p2 = &s.b
+    *p2 = 53
+    if (s.b != 53) {
+        return 1
+    }
+
     return 0
 }
 
