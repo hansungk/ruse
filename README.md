@@ -21,6 +21,7 @@ $ ./check.py
 
 ## todo
 
-* pointers
+* strings
+* interop with C
 * methods
 * inner struct (struct2.ruse)
