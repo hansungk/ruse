@@ -549,7 +549,7 @@ Expr *Parser::parse_funccall_or_declref_expr() {
                 next();
         }
         expect(Tok::rparen);
-        return make_node_range<CallExpr>(pos, CallExprKind::func, name, args);
+        return make_node_range<CallExpr>(pos, CallExpr::func, name, args);
     } else {
         // Whether this is a variable or a struct/enum name can only be decided
         // in the type checking stage.
@@ -684,14 +684,14 @@ Expr *Parser::parse_unary_expr() {
     case Tok::star: {
         next();
         auto expr = parse_unary_expr();
-        return make_node_range<UnaryExpr>(pos, UnaryExprKind::deref, expr);
+        return make_node_range<UnaryExpr>(pos, UnaryExpr::deref, expr);
     }
     case Tok::kw_var:
     case Tok::ampersand: {
-        auto kind = UnaryExprKind::ref;
+        auto kind = UnaryExpr::ref;
         if (tok.kind == Tok::kw_var) {
             expect(Tok::kw_var);
-            kind = UnaryExprKind::var_ref;
+            kind = UnaryExpr::var_ref;
         }
         expect(Tok::ampersand);
         auto expr = parse_unary_expr();
@@ -701,7 +701,7 @@ Expr *Parser::parse_unary_expr() {
         expect(Tok::lparen);
         auto inside_expr = parse_expr();
         expect(Tok::rparen);
-        return make_node_range<UnaryExpr>(pos, UnaryExprKind::paren, inside_expr);
+        return make_node_range<UnaryExpr>(pos, UnaryExpr::paren, inside_expr);
     }
     // TODO: prefix (++), postfix, sign (+/-)
     default: {

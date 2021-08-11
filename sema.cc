@@ -169,12 +169,12 @@ bool typecheck_decl(Sema &sema, Decl *d);
 
 bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
     switch (u->kind) {
-    case UnaryExprKind::paren:
+    case UnaryExpr::paren:
         if (!typecheck_expr(sema, u->operand))
             return false;
         u->type = u->operand->type;
         break;
-    case UnaryExprKind::deref: {
+    case UnaryExpr::deref: {
         if (!typecheck_expr(sema, u->operand))
             return false;
 
@@ -204,8 +204,8 @@ bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
 
         break;
     }
-    case UnaryExprKind::var_ref:
-    case UnaryExprKind::ref: {
+    case UnaryExpr::var_ref:
+    case UnaryExpr::ref: {
         if (!typecheck_expr(sema, u->operand))
             return false;
 
@@ -216,7 +216,7 @@ bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
 
         // TODO: Prohibit mutable reference of an immutable variable.
 
-        auto type_kind = (u->kind == UnaryExprKind::var_ref) ? TypeKind::var_ref
+        auto type_kind = (u->kind == UnaryExpr::var_ref) ? TypeKind::var_ref
                                                              : TypeKind::ref;
         u->type = get_derived_type(sema, type_kind, u->operand->type);
         break;
@@ -257,7 +257,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
     }
     case Expr::call: {
         auto c = static_cast<CallExpr *>(e);
-        if (c->kind != CallExprKind::func) {
+        if (c->kind != CallExpr::func) {
             assert(!"not implemented");
         }
 
@@ -364,7 +364,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
                 // (*p) without any further modification.
                 auto new_parent = sema.make_node_range<UnaryExpr>(
                     {mem->parent_expr->pos, mem->parent_expr->endpos},
-                    UnaryExprKind::deref, mem->parent_expr);
+                    UnaryExpr::deref, mem->parent_expr);
                 mem->parent_expr = new_parent;
 
                 // Redo with the rewritten node.
@@ -886,9 +886,9 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
     case Expr::unary: {
         auto ue = static_cast<UnaryExpr *>(e);
 
-        if (ue->kind == UnaryExprKind::ref) {
+        if (ue->kind == UnaryExpr::ref) {
             codegen_expr_explicit(ue->operand, false);
-        } else if (ue->kind == UnaryExprKind::deref) {
+        } else if (ue->kind == UnaryExpr::deref) {
             // Output its value first, which is an address.
             codegen_expr_explicit(ue->operand, true);
             if (value) {

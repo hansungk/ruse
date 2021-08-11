@@ -203,13 +203,11 @@ struct DeclRefExpr : public Expr {
     DeclRefExpr(Name *n) : Expr(Expr::decl_ref), name(n) {}
 };
 
-enum class CallExprKind {
-    func,
-};
-
 // Also includes typecasts.
 struct CallExpr : public Expr {
-    CallExprKind kind;
+    enum CallExprKind {
+        func,
+    } kind;
     Name *func_name = nullptr;
     std::vector<Expr *> args;
     // Decl of the called function or the destination type.
@@ -266,17 +264,16 @@ struct CastExpr : public Expr {
         : Expr(Expr::cast), type_expr(type), target_expr(target) {}
 };
 
-enum class UnaryExprKind {
-    paren,
-    ref,
-    var_ref,
-    deref,
-    plus,  // TODO
-    minus, // TODO
-};
-
 struct UnaryExpr : public Expr {
-    const UnaryExprKind kind;
+    const enum UnaryExprKind {
+        paren,
+        ref,
+        var_ref,
+        deref,
+        plus,  // TODO
+        minus, // TODO
+    } kind;
+
     Expr *operand;
 
     UnaryExpr(UnaryExprKind k, Expr *oper)
