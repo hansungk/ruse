@@ -265,15 +265,15 @@ struct QbeGenerator {
         ~IndentBlock() { c.indent -= 4; }
     };
 
-    void emitAssignment(const Decl *lhs, Expr *rhs);
-    long emitStackAlloc(const Type *type, size_t line, std::string_view text);
+    void emit_assignment(const Decl *lhs, Expr *rhs);
+    long emit_stack_alloc(const Type *type, size_t line, std::string_view text);
 
     void codegen(AstNode *n);
-    void codegenDecl(Decl *d);
+    void codegen_decl(Decl *d);
     void codegen_expr(Expr *e);
     void codegen_expr_address(Expr *e);
     void codegen_expr_explicit(Expr *e, bool value);
-    void codegenStmt(Stmt *s);
+    void codegen_stmt(Stmt *s);
 };
 
 } // namespace cmp

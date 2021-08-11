@@ -829,7 +829,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
         auto sde = static_cast<StructDefExpr *>(e);
 
         // TODO: document why we alloc here
-        auto id = emitStackAlloc(sde->type, sde->loc.line, sde->text(sema));
+        auto id = emit_stack_alloc(sde->type, sde->loc.line, sde->text(sema));
 
         // Don't assume anything and just emit all the value copying of each
         // members here.  This might sound expensive, especially in cases where
@@ -846,7 +846,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
             annotate("{}: offset of {}.{}", sde->loc.line, sde->text(sema),
                      term.name->text);
             valstack.push_address();
-            emitAssignment(term.field_decl, term.initexpr);
+            emit_assignment(term.field_decl, term.initexpr);
         }
 
         // Leave the address in the valstack; this is what will be used in lieu
@@ -948,13 +948,13 @@ void QbeGenerator::codegen_expr_address(Expr *e) {
     codegen_expr_explicit(e, false);
 }
 
-void QbeGenerator::codegenStmt(Stmt *s) {
+void QbeGenerator::codegen_stmt(Stmt *s) {
     switch (s->kind) {
     case Stmt::expr:
         codegen_expr(static_cast<ExprStmt *>(s)->expr);
         break;
     case Stmt::decl:
-        codegenDecl(static_cast<DeclStmt *>(s)->decl);
+        codegen_decl(static_cast<DeclStmt *>(s)->decl);
         break;
     case Stmt::assign: {
         auto as = static_cast<AssignStmt *>(s);
@@ -995,20 +995,20 @@ void QbeGenerator::codegenStmt(Stmt *s) {
         emit("jnz {}, @if_{}, @else_{}", valstack.pop().format(),
                       id, id);
         emitSameLine("\n@if_{}", id);
-        codegenStmt(if_stmt->if_body);
+        codegen_stmt(if_stmt->if_body);
         emit("jmp @fi_{}", id);
         emitSameLine("\n@else_{}", id);
         if (if_stmt->else_if_stmt) {
-            codegenStmt(if_stmt->else_if_stmt);
+            codegen_stmt(if_stmt->else_if_stmt);
         } else if (if_stmt->else_body) {
-            codegenStmt(if_stmt->else_body);
+            codegen_stmt(if_stmt->else_body);
         }
         emitSameLine("\n@fi_{}", id);
         break;
     }
     case Stmt::compound:
         for (auto s : static_cast<CompoundStmt *>(s)->stmts) {
-            codegenStmt(s);
+            codegen_stmt(s);
         }
         break;
     default:
@@ -1016,7 +1016,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
     }
 }
 
-void QbeGenerator::codegenDecl(Decl *d) {
+void QbeGenerator::codegen_decl(Decl *d) {
     switch (d->kind) {
     case Decl::var: {
         auto v = static_cast<VarDecl *>(d);
@@ -1029,11 +1029,11 @@ void QbeGenerator::codegenDecl(Decl *d) {
         // generation. This is because there are other cases that allocate on
         // the stack (such as returning a large struct by-value) that are not
         // emitted by a vardecl.
-        v->frame_local_id = emitStackAlloc(v->type, v->loc.line, v->name->text);
+        v->frame_local_id = emit_stack_alloc(v->type, v->loc.line, v->name->text);
 
         if (v->assign_expr) {
             valstack.push_address_explicit(v->frame_local_id);
-            emitAssignment(v, v->assign_expr);
+            emit_assignment(v, v->assign_expr);
         }
 
         break;
@@ -1066,7 +1066,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
             }
 
             for (auto body_stmt : f->body->stmts) {
-                codegenStmt(body_stmt);
+                codegen_stmt(body_stmt);
             }
             // Analyses in the earlier passes should make sure that this ret is
             // not reachable.  This is only here to make QBE work meanwhile
@@ -1129,7 +1129,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
 // a = S {.a=...}
 // S {.a=...}.a
 // f(S {.a=...})
-void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
+void QbeGenerator::emit_assignment(const Decl *lhs, Expr *rhs) {
     codegen_expr(rhs);
 
     // NOTE: rhs_value might not actually have ValueKind::value, e.g. for
@@ -1207,7 +1207,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
 
 // Emit a value by allocating it on the stack memory.  That value will be
 // handled via its address.  `line` and `text` are used for annotations.
-long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
+long QbeGenerator::emit_stack_alloc(const Type *type, size_t line,
                                   std::string_view text) {
     assert(!sema.context.func_stack.empty());
     // auto current_func = context.func_stack.back();
@@ -1252,10 +1252,10 @@ void QbeGenerator::codegen(AstNode *n) {
         break;
     }
     case AstNode::stmt:
-        codegenStmt(static_cast<Stmt *>(n));
+        codegen_stmt(static_cast<Stmt *>(n));
         break;
     case AstNode::decl:
-        codegenDecl(static_cast<Decl *>(n));
+        codegen_decl(static_cast<Decl *>(n));
         break;
     default:
         assert(!"unknown ast kind");
