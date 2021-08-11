@@ -626,7 +626,7 @@ Expr *Parser::parse_type_expr() {
         // Base type name.
         subexpr = parse_type_expr();
         // FIXME: unnatural
-        if (subexpr->kind == ExprKind::type) {
+        if (subexpr->kind == Expr::type_) {
             text = name_of_derived_type(sema.name_table,
                                         mut ? TypeKind::var_ref : TypeKind::ref,
                                         subexpr->as<TypeExpr>()->name)
@@ -636,7 +636,7 @@ Expr *Parser::parse_type_expr() {
         next();
         type_kind = TypeKind::ptr;
         subexpr = parse_type_expr();
-        if (subexpr->kind == ExprKind::type) {
+        if (subexpr->kind == Expr::type_) {
             text = name_of_derived_type(sema.name_table, TypeKind::ptr,
                                         subexpr->as<TypeExpr>()->name)
                        ->text;
@@ -848,7 +848,7 @@ std::optional<StructDefTerm> Parser::parse_structdef_field() {
 Expr *Parser::parse_structdef_maybe(Expr *expr) {
     auto pos = tok.pos;
 
-    if (expr->kind != ExprKind::decl_ref) {
+    if (expr->kind != Expr::decl_ref) {
         error("qualified struct names are not yet supported");
     }
     auto declrefexpr = static_cast<DeclRefExpr *>(expr);

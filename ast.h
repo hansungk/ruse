@@ -152,24 +152,22 @@ struct BadStmt : public Stmt {
 // Expressions
 // ===========
 
-enum class ExprKind {
-    integer_literal,
-    string_literal,
-    decl_ref,
-    call,
-    struct_def,
-    cast,
-    member,
-    unary,
-    binary,
-    type,
-    bad,
-};
-
 struct Type;
 
 struct Expr : public AstNode {
-    ExprKind kind;
+    enum ExprKind {
+        integer_literal,
+        string_literal,
+        decl_ref,
+        call,
+        struct_def,
+        cast,
+        member,
+        unary,
+        binary,
+        type_,
+        bad,
+    } kind;
 
     // Type of the expression.
     //
@@ -187,14 +185,14 @@ struct Expr : public AstNode {
 struct IntegerLiteral : public Expr {
     int64_t value;
 
-    IntegerLiteral(int64_t v) : Expr(ExprKind::integer_literal), value(v) {}
+    IntegerLiteral(int64_t v) : Expr(Expr::integer_literal), value(v) {}
 };
 
 struct StringLiteral : public Expr {
     std::string_view value;
 
     StringLiteral(std::string_view sv)
-        : Expr(ExprKind::string_literal), value(sv) {}
+        : Expr(Expr::string_literal), value(sv) {}
 };
 
 // A unary expression that references a declaration object, e.g. a variable or
@@ -202,7 +200,7 @@ struct StringLiteral : public Expr {
 struct DeclRefExpr : public Expr {
     Name *name = nullptr;
 
-    DeclRefExpr(Name *n) : Expr(ExprKind::decl_ref), name(n) {}
+    DeclRefExpr(Name *n) : Expr(Expr::decl_ref), name(n) {}
 };
 
 enum class CallExprKind {
@@ -218,7 +216,7 @@ struct CallExpr : public Expr {
     Decl *callee_decl = nullptr;
 
     CallExpr(CallExprKind kind, Name *name, const std::vector<Expr *> &args)
-        : Expr(ExprKind::call), kind(kind), func_name(name), args(args) {}
+        : Expr(Expr::call), kind(kind), func_name(name), args(args) {}
 };
 
 // '.memb = expr' part in Struct { ... }.
@@ -239,7 +237,7 @@ struct StructDefExpr : public Expr {
 
     StructDefExpr(DeclRefExpr *dre,
                   const std::vector<StructDefTerm> &t)
-        : Expr(ExprKind::struct_def), name_expr(dre), terms(t) {}
+        : Expr(Expr::struct_def), name_expr(dre), terms(t) {}
 };
 
 // 'struct.mem'
@@ -256,7 +254,7 @@ struct MemberExpr : public Expr {
     // 'struct_expr' being l-value or r-value.
 
     MemberExpr(Expr *e, Name *m)
-        : Expr(ExprKind::member), parent_expr(e), member_name(m) {}
+        : Expr(Expr::member), parent_expr(e), member_name(m) {}
 };
 
 // '[type](expr)'
@@ -265,7 +263,7 @@ struct CastExpr : public Expr {
     Expr *target_expr = nullptr;
 
     CastExpr(Expr *type, Expr *target)
-        : Expr(ExprKind::cast), type_expr(type), target_expr(target) {}
+        : Expr(Expr::cast), type_expr(type), target_expr(target) {}
 };
 
 enum class UnaryExprKind {
@@ -282,7 +280,7 @@ struct UnaryExpr : public Expr {
     Expr *operand;
 
     UnaryExpr(UnaryExprKind k, Expr *oper)
-        : Expr(ExprKind::unary), kind(k), operand(oper) {}
+        : Expr(Expr::unary), kind(k), operand(oper) {}
 };
 
 struct BinaryExpr : public Expr {
@@ -291,7 +289,7 @@ struct BinaryExpr : public Expr {
     Expr *rhs;
 
     BinaryExpr(Expr *lhs_, Token op_, Expr *rhs_)
-        : Expr(ExprKind::binary), lhs(lhs_), op(op_), rhs(rhs_) {
+        : Expr(Expr::binary), lhs(lhs_), op(op_), rhs(rhs_) {
         loc = lhs->loc;
     }
 };
@@ -312,12 +310,12 @@ struct TypeExpr : public Expr {
 
     // TODO: incomplete.
     TypeExpr(TypeKind k, Name *n, bool m, Name *lt, Expr *se)
-        : Expr(ExprKind::type), kind(k), name(n), mut(m), lifetime_annot(lt),
+        : Expr(Expr::type_), kind(k), name(n), mut(m), lifetime_annot(lt),
           subexpr(se) {}
 };
 
 struct BadExpr : public Expr {
-    BadExpr() : Expr(ExprKind::bad) {}
+    BadExpr() : Expr(Expr::bad) {}
 };
 
 // Declarations

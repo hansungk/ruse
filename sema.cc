@@ -106,9 +106,9 @@ namespace {
 bool is_lvalue(const Expr *e) {
     // Determine lvalue-ness by the expression kind.
     switch (e->kind) {
-    case ExprKind::decl_ref:
-    case ExprKind::member:
-    case ExprKind::unary:
+    case Expr::decl_ref:
+    case Expr::member:
+    case Expr::unary:
         if (e->decl && e->decl->kind == DeclKind::var) {
             return true;
         }
@@ -236,15 +236,15 @@ Name *name_of_member_expr(Sema &sema, MemberExpr *mem) {
 
 bool typecheck_expr(Sema &sema, Expr *e) {
     switch (e->kind) {
-    case ExprKind::integer_literal: {
+    case Expr::integer_literal: {
         static_cast<IntegerLiteral *>(e)->type = sema.context.int_type;
         break;
     }
-    case ExprKind::string_literal: {
+    case Expr::string_literal: {
         static_cast<StringLiteral *>(e)->type = sema.context.string_type;
         break;
     }
-    case ExprKind::decl_ref: {
+    case Expr::decl_ref: {
         auto de = static_cast<DeclRefExpr *>(e);
         auto sym = sema.decl_table.find(de->name);
         if (!sym) {
@@ -255,7 +255,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         de->type = de->decl->type;
         break;
     }
-    case ExprKind::call: {
+    case Expr::call: {
         auto c = static_cast<CallExpr *>(e);
         if (c->kind != CallExprKind::func) {
             assert(!"not implemented");
@@ -299,7 +299,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
 
         break;
     }
-    case ExprKind::struct_def: {
+    case Expr::struct_def: {
         auto sde = static_cast<StructDefExpr *>(e);
         if (!typecheck_expr(sema, sde->name_expr))
             return false;
@@ -345,7 +345,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         sde->type = struct_type;
         break;
     }
-    case ExprKind::member: {
+    case Expr::member: {
         auto mem = static_cast<MemberExpr *>(e);
         if (!typecheck_expr(sema, mem->parent_expr))
             return false;
@@ -422,9 +422,9 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         mem->type = matched_field->type;
         break;
     }
-    case ExprKind::unary:
+    case Expr::unary:
         return typecheck_unary_expr(sema, static_cast<UnaryExpr *>(e));
-    case ExprKind::binary: {
+    case Expr::binary: {
         auto b = static_cast<BinaryExpr *>(e);
         if (!typecheck_expr(sema, b->lhs))
             return false;
@@ -444,7 +444,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
 
         break;
     }
-    case ExprKind::type: {
+    case Expr::type_: {
         auto t = static_cast<TypeExpr *>(e);
 
         // Namebinding for TypeExprs only include linking existing Decls to the
@@ -718,16 +718,16 @@ std::string abityStr(const Type *type) {
 // top.
 void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
     switch (e->kind) {
-    case ExprKind::integer_literal:
+    case Expr::integer_literal:
         emit("%_{} =w add 0, {}", valstack.next_id,
                      static_cast<IntegerLiteral *>(e)->value);
         annotate("{}: integer literal", e->loc.line);
         valstack.push_temp_value();
         break;
-    case ExprKind::string_literal:
+    case Expr::string_literal:
         assert(!"not implemented");
         break;
-    case ExprKind::decl_ref: {
+    case Expr::decl_ref: {
         auto dre = static_cast<DeclRefExpr *>(e);
 
         // This generates a load on 'a':
@@ -783,7 +783,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
         }
         break;
     }
-    case ExprKind::call: {
+    case Expr::call: {
         auto c = static_cast<CallExpr *>(e);
 
         assert(c->callee_decl->kind == DeclKind::func);
@@ -824,7 +824,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
         }
         break;
     }
-    case ExprKind::struct_def: {
+    case Expr::struct_def: {
         auto sde = static_cast<StructDefExpr *>(e);
 
         // TODO: document why we alloc here
@@ -854,7 +854,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
 
         break;
     }
-    case ExprKind::member: {
+    case Expr::member: {
         auto mem = static_cast<MemberExpr *>(e);
 
         // We can't do complete code generation at this end without recursing
@@ -883,7 +883,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
 
         break;
     }
-    case ExprKind::unary: {
+    case Expr::unary: {
         auto ue = static_cast<UnaryExpr *>(e);
 
         if (ue->kind == UnaryExprKind::ref) {
@@ -908,7 +908,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
         }
         break;
     }
-    case ExprKind::binary: {
+    case Expr::binary: {
         auto binary = static_cast<BinaryExpr *>(e);
         codegen_expr_explicit(binary->lhs, true);
         codegen_expr_explicit(binary->rhs, true);
