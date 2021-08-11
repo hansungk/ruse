@@ -167,7 +167,7 @@ DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parseDecl();
     if (!is_end_of_stmt()) {
         // XXX: remove bad check
-        if (decl && !decl->kind == Decl::bad) {
+        if (decl && decl->kind != Decl::bad) {
             expect(Tok::newline);
         }
         // try to recover
@@ -243,7 +243,7 @@ static Name *push_token(Sema &sema, const Token tok) {
 }
 
 // Doesn't include 'let' or 'var'.
-VarDecl *Parser::parse_var_decl(VarDeclKind kind) {
+VarDecl *Parser::parse_var_decl(VarDecl::Kind kind) {
     auto pos = tok.pos;
 
     if (tok.kind != Tok::ident) {
@@ -332,7 +332,7 @@ FuncDecl *Parser::parse_func_header() {
     // argument list
     expect(Tok::lparen);
     func->params = parse_comma_separated_list<VarDecl *>(
-        [this] { return parse_var_decl(VarDeclKind::param); });
+        [this] { return parse_var_decl(VarDecl::param); });
     if (!expect(Tok::rparen)) {
         skip_until(Tok::rparen);
         expect(Tok::rparen);
@@ -380,7 +380,7 @@ StructDecl *Parser::parse_struct_decl() {
 
     auto fields = parse_comma_separated_list<FieldDecl *>([this] {
         // FIXME: Creates a throwaway VarDecl.
-        auto var_decl = parse_var_decl(VarDeclKind::struct_);
+        auto var_decl = parse_var_decl(VarDecl::struct_);
         return make_node_range<FieldDecl>(var_decl->pos, var_decl->name,
                                              var_decl->type_expr);
     });
@@ -483,12 +483,12 @@ Decl *Parser::parseDecl() {
     switch (tok.kind) {
     case Tok::kw_let: {
         next();
-        auto v = parse_var_decl(VarDeclKind::local);
+        auto v = parse_var_decl(VarDecl::local_);
         return v;
     }
     case Tok::kw_var: {
         next();
-        auto v = parse_var_decl(VarDeclKind::local);
+        auto v = parse_var_decl(VarDecl::local_);
         v->mut = true;
         return v;
     }

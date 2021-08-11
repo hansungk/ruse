@@ -63,7 +63,7 @@ private:
 
     // Declaration parsers
     Decl *parseDecl();
-    VarDecl *parse_var_decl(VarDeclKind kind);
+    VarDecl *parse_var_decl(VarDecl::Kind kind);
     template <typename T, typename F>
     std::vector<T> parse_comma_separated_list(F &&parseFn);
     FuncDecl *parse_func_header();

@@ -347,18 +347,16 @@ struct Decl : public AstNode {
     std::optional<Type *> typemaybe() const;
 };
 
-enum class VarDeclKind {
-    local,
-    struct_,
-    param,
-};
-
 // Variable declaration.
 struct VarDecl : public Decl {
     // Whether this VarDecl has been declared as a local variable, as a field
     // inside a struct, or as a parameter for a function.
     // TODO: necessary?
-    const VarDeclKind kind = VarDeclKind::local;
+    const enum Kind {
+        local_,
+        struct_,
+        param,
+    } kind = local_;
 
     // TypeExpr of the variable.  Declared as Expr to accommodate for BadExpr.
     // TODO: Ugly.
@@ -401,7 +399,7 @@ struct VarDecl : public Decl {
     // memory.
     std::vector<VarDecl *> children;
 
-    VarDecl(Name *n, VarDeclKind k, Expr *t, Expr *expr)
+    VarDecl(Name *n, Kind k, Expr *t, Expr *expr)
         : Decl(Decl::var, n), kind(k), type_expr(t), assign_expr(expr) {}
     VarDecl(Name *n, Type *t, bool m) : Decl(Decl::var, n, t), mut(m) {}
 };
