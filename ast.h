@@ -155,7 +155,7 @@ struct BadStmt : public Stmt {
 struct Type;
 
 struct Expr : public AstNode {
-    enum ExprKind {
+    enum Kind {
         integer_literal,
         string_literal,
         decl_ref,
@@ -179,7 +179,7 @@ struct Expr : public AstNode {
 
     Decl *decl = nullptr;
 
-    Expr(ExprKind e) : AstNode(AstKind::expr), kind(e), type(nullptr) {}
+    Expr(Kind e) : AstNode(AstKind::expr), kind(e), type(nullptr) {}
 };
 
 struct IntegerLiteral : public Expr {
@@ -205,7 +205,7 @@ struct DeclRefExpr : public Expr {
 
 // Also includes typecasts.
 struct CallExpr : public Expr {
-    enum CallExprKind {
+    enum Kind {
         func,
     } kind;
     Name *func_name = nullptr;
@@ -213,7 +213,7 @@ struct CallExpr : public Expr {
     // Decl of the called function or the destination type.
     Decl *callee_decl = nullptr;
 
-    CallExpr(CallExprKind kind, Name *name, const std::vector<Expr *> &args)
+    CallExpr(Kind kind, Name *name, const std::vector<Expr *> &args)
         : Expr(Expr::call), kind(kind), func_name(name), args(args) {}
 };
 
@@ -265,7 +265,7 @@ struct CastExpr : public Expr {
 };
 
 struct UnaryExpr : public Expr {
-    const enum UnaryExprKind {
+    const enum Kind {
         paren,
         ref,
         var_ref,
@@ -276,7 +276,7 @@ struct UnaryExpr : public Expr {
 
     Expr *operand;
 
-    UnaryExpr(UnaryExprKind k, Expr *oper)
+    UnaryExpr(Kind k, Expr *oper)
         : Expr(Expr::unary), kind(k), operand(oper) {}
 };
 
@@ -327,7 +327,7 @@ struct BadExpr : public Expr {
 // of this pointer serves as a unique integer ID used as the key the symbol
 // table.
 struct Decl : public AstNode {
-    const enum DeclKind {
+    const enum Kind {
         var,
         func,
         field,
@@ -342,9 +342,9 @@ struct Decl : public AstNode {
     // functions.
     Type *type = nullptr;
 
-    Decl(DeclKind d) : Decl(d, nullptr, nullptr) {}
-    Decl(DeclKind d, Name *n) : Decl(d, n, nullptr) {}
-    Decl(DeclKind d, Name *n, Type *t)
+    Decl(Kind d) : Decl(d, nullptr, nullptr) {}
+    Decl(Kind d, Name *n) : Decl(d, n, nullptr) {}
+    Decl(Kind d, Name *n, Type *t)
         : AstNode(AstKind::decl), kind(d), name(n), type(t) {}
     std::optional<Type *> typemaybe() const;
 };

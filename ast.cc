@@ -16,15 +16,15 @@ std::string_view AstNode::text(const Sema &sema) {
 // Return optional of 'type' member of Decl, or None if this Decl kind doesn't
 // have any.
 std::optional<Type *> Decl::typemaybe() const {
-    if (kind == DeclKind::var) {
+    if (kind == Decl::var) {
         return as<VarDecl>()->type;
-    } else if (kind == DeclKind::struct_) {
+    } else if (kind == Decl::struct_) {
         return as<StructDecl>()->type;
-    } else if (kind == DeclKind::enum_) {
+    } else if (kind == Decl::enum_) {
         return as<EnumDecl>()->type;
-    } else if (kind == DeclKind::enum_variant) {
+    } else if (kind == Decl::enum_variant) {
         return as<EnumVariantDecl>()->type;
-    } else if (kind == DeclKind::func) {
+    } else if (kind == Decl::func) {
         return {};
     }
     assert(false && "not all decl kinds handled");
