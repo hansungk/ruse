@@ -89,7 +89,7 @@ void Sema::scopeClose() {
 
 bool Type::is_struct() const {
     return kind == TypeKind::value && decl &&
-           decl->kind == DeclKind::struct_;
+           decl->kind == Decl::struct_;
 }
 
 bool Type::is_pointer() const {
@@ -109,7 +109,7 @@ bool is_lvalue(const Expr *e) {
     case Expr::decl_ref:
     case Expr::member:
     case Expr::unary:
-        if (e->decl && e->decl->kind == DeclKind::var) {
+        if (e->decl && e->decl->kind == Decl::var) {
             return true;
         }
         break;
@@ -405,7 +405,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         // struct.
 
         if (mem->parent_expr->decl) {
-            assert(mem->parent_expr->decl->kind == DeclKind::var);
+            assert(mem->parent_expr->decl->kind == Decl::var);
             auto parent_var_decl =
                 static_cast<VarDecl *>(mem->parent_expr->decl);
             assert(!parent_var_decl->children.empty());
@@ -583,7 +583,7 @@ VarDecl *instantiate_field(Sema &sema, VarDecl *parent, Name *name,
 
 bool typecheck_decl(Sema &sema, Decl *d) {
     switch (d->kind) {
-    case DeclKind::var: {
+    case Decl::var: {
         auto v = static_cast<VarDecl *>(d);
         if (!declare(sema, v->name, v))
             return false;
@@ -608,7 +608,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 
         break;
     }
-    case DeclKind::func: {
+    case Decl::func: {
         auto f = static_cast<FuncDecl *>(d);
 
         if (!declare(sema, f->name, f))
@@ -642,7 +642,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 
         return success;
     }
-    case DeclKind::field: {
+    case Decl::field: {
         auto f = static_cast<FieldDecl *>(d);
         // field redeclaration check
         if (!declare(sema, f->name, f))
@@ -653,7 +653,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
         f->type = f->type_expr->type;
         break;
     }
-    case DeclKind::struct_: {
+    case Decl::struct_: {
         auto s = static_cast<StructDecl *>(d);
         if (!declare(sema, s->name, s))
             return false;
@@ -730,9 +730,10 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
     case Expr::decl_ref: {
         auto dre = static_cast<DeclRefExpr *>(e);
 
-        // This generates a load on 'a':
+        // The 'a' in this expression generates a memory load from a stack
+        // address:
         //   ... = a
-        // But this does not:
+        // But these do not:
         //   ... = a.mem
         //   ... = *a
         //   ... = a[3]
@@ -754,7 +755,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
         // an rvalue also sounds good, but this doesn't work considering that
         // expressions may be used without being converted to rvalues in
         // advance.
-        if (dre->decl->kind == DeclKind::var) {
+        if (dre->decl->kind == Decl::var) {
             auto var = static_cast<VarDecl *>(dre->decl);
 
             valstack.push_address_explicit(var->frame_local_id);
@@ -763,7 +764,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
                 if (dre->type->size > 8) {
                     // FIXME: assumes this is a stack-allocated struct
                     assert(!dre->type->builtin);
-                    assert(dre->type->decl->kind == DeclKind::struct_);
+                    assert(dre->type->decl->kind == Decl::struct_);
                 } else if (dre->type->size == 8) {
                     emit("%_{} =l loadl {}", valstack.next_id,
                          valstack.pop().format());
@@ -786,7 +787,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
     case Expr::call: {
         auto c = static_cast<CallExpr *>(e);
 
-        assert(c->callee_decl->kind == DeclKind::func);
+        assert(c->callee_decl->kind == Decl::func);
         auto func_decl = static_cast<FuncDecl *>(c->callee_decl);
 
         // codegen arguments first
@@ -1017,7 +1018,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
 
 void QbeGenerator::codegenDecl(Decl *d) {
     switch (d->kind) {
-    case DeclKind::var: {
+    case Decl::var: {
         auto v = static_cast<VarDecl *>(d);
 
         if (sema.context.func_stack.empty()) {
@@ -1037,7 +1038,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
 
         break;
     }
-    case DeclKind::func: {
+    case Decl::func: {
         auto f = static_cast<FuncDecl *>(d);
 
         emitSameLine("\nexport function {} ${}(", abityStr(f->rettype),
@@ -1078,7 +1079,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
         emitSameLine("\n");
         break;
     }
-    case DeclKind::struct_: {
+    case Decl::struct_: {
         auto s = static_cast<StructDecl *>(d);
 
         long max_field_size = 0;
@@ -1144,7 +1145,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
     if (lhs_type->size > 8) {
         assert(lhs_type->kind == TypeKind::value);
         assert(!lhs_type->builtin);
-        assert(lhs_type->decl->kind == DeclKind::struct_);
+        assert(lhs_type->decl->kind == Decl::struct_);
         auto struct_decl = static_cast<StructDecl *>(lhs_type->decl);
 
         for (auto field : struct_decl->fields) {
@@ -1228,7 +1229,7 @@ long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
         emitSameLine("alloc4");
     } else {
         assert(type->kind == TypeKind::value);
-        assert(type->decl->kind == DeclKind::struct_ &&
+        assert(type->decl->kind == Decl::struct_ &&
                "non-struct value type?");
         if (static_cast<StructDecl *>(type->decl)->alignment == 4) {
             emitSameLine("alloc4");

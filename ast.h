@@ -318,42 +318,6 @@ struct BadExpr : public Expr {
 // Declarations
 // ============
 
-enum class DeclKind {
-    var,
-    func,
-    field,
-    struct_,
-    enum_variant,
-    enum_,
-    extern_,
-    bad,
-};
-
-template <typename T> bool decl_is(const DeclKind kind) {
-    assert(false && "unhandled DeclNode type");
-}
-template <> inline bool decl_is<VarDecl>(const DeclKind kind) {
-    return kind == DeclKind::var;
-}
-template <> inline bool decl_is<FuncDecl>(const DeclKind kind) {
-    return kind == DeclKind::func;
-}
-template <> inline bool decl_is<StructDecl>(const DeclKind kind) {
-    return kind == DeclKind::struct_;
-}
-template <> inline bool decl_is<EnumVariantDecl>(const DeclKind kind) {
-    return kind == DeclKind::enum_variant;
-}
-template <> inline bool decl_is<EnumDecl>(const DeclKind kind) {
-    return kind == DeclKind::enum_;
-}
-template <> inline bool decl_is<ExternDecl>(const DeclKind kind) {
-    return kind == DeclKind::extern_;
-}
-template <> inline bool decl_is<BadDecl>(const DeclKind kind) {
-    return kind == DeclKind::bad;
-}
-
 // A declaration node.
 //
 // Decl is different from Type in that it stores metadatas that are unique to
@@ -363,7 +327,16 @@ template <> inline bool decl_is<BadDecl>(const DeclKind kind) {
 // of this pointer serves as a unique integer ID used as the key the symbol
 // table.
 struct Decl : public AstNode {
-    const DeclKind kind;
+    const enum DeclKind {
+        var,
+        func,
+        field,
+        struct_,
+        enum_variant,
+        enum_,
+        extern_,
+        bad,
+    } kind;
     Name *name = nullptr;
     // Might be null for symbols that do not have an associated Type like
     // functions.
@@ -373,7 +346,6 @@ struct Decl : public AstNode {
     Decl(DeclKind d, Name *n) : Decl(d, n, nullptr) {}
     Decl(DeclKind d, Name *n, Type *t)
         : AstNode(AstKind::decl), kind(d), name(n), type(t) {}
-    template <typename T> bool is() const { return decl_is<T>(kind); }
     std::optional<Type *> typemaybe() const;
 };
 
@@ -432,8 +404,8 @@ struct VarDecl : public Decl {
     std::vector<VarDecl *> children;
 
     VarDecl(Name *n, VarDeclKind k, Expr *t, Expr *expr)
-        : Decl(DeclKind::var, n), kind(k), type_expr(t), assign_expr(expr) {}
-    VarDecl(Name *n, Type *t, bool m) : Decl(DeclKind::var, n, t), mut(m) {}
+        : Decl(Decl::var, n), kind(k), type_expr(t), assign_expr(expr) {}
+    VarDecl(Name *n, Type *t, bool m) : Decl(Decl::var, n, t), mut(m) {}
 };
 
 // Function declaration.  There is no separate function definition: functions
@@ -448,7 +420,7 @@ struct FuncDecl : public Decl {
     // "Bogus" lifetime that represents the scope of the function body.
     Lifetime *scope_lifetime = nullptr;
 
-    FuncDecl(Name *n) : Decl(DeclKind::func, n) {}
+    FuncDecl(Name *n) : Decl(Decl::func, n) {}
     size_t args_count() const { return params.size(); }
 };
 
@@ -459,7 +431,7 @@ struct FieldDecl : public Decl {
     long offset = 0;
 
     FieldDecl(Name *n, Expr *texpr)
-        : Decl(DeclKind::field, n), type_expr(texpr) {}
+        : Decl(Decl::field, n), type_expr(texpr) {}
 };
 
 // Struct declaration.
@@ -471,7 +443,7 @@ struct StructDecl : public Decl {
     uint64_t alignment;
 
     StructDecl(Name *n, std::vector<FieldDecl *> m)
-        : Decl(DeclKind::struct_, n), fields(m) {}
+        : Decl(Decl::struct_, n), fields(m) {}
 };
 
 // A variant type in an enum.
@@ -479,7 +451,7 @@ struct EnumVariantDecl : public Decl {
     std::vector<Expr *> fields; // type of the fields
 
     EnumVariantDecl(Name *n, std::vector<Expr *> f)
-        : Decl(DeclKind::enum_variant, n), fields(f) {}
+        : Decl(Decl::enum_variant, n), fields(f) {}
 };
 
 // Enum declaration.
@@ -487,18 +459,18 @@ struct EnumDecl : public Decl {
     std::vector<EnumVariantDecl *> variants; // variants
 
     EnumDecl(Name *n, std::vector<EnumVariantDecl *> m)
-        : Decl(DeclKind::enum_, n), variants(m) {}
+        : Decl(Decl::enum_, n), variants(m) {}
 };
 
 // Extern declaration.
 struct ExternDecl : public Decl {
     Decl *decl;
 
-    ExternDecl(Decl *d) : Decl(DeclKind::extern_), decl(d) {}
+    ExternDecl(Decl *d) : Decl(Decl::extern_), decl(d) {}
 };
 
 struct BadDecl : public Decl {
-    BadDecl() : Decl(DeclKind::bad) {}
+    BadDecl() : Decl(Decl::bad) {}
 };
 
 } // namespace cmp

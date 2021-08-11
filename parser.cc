@@ -167,7 +167,7 @@ DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parseDecl();
     if (!is_end_of_stmt()) {
         // XXX: remove bad check
-        if (decl && !decl->is<BadDecl>()) {
+        if (decl && !decl->kind == Decl::bad) {
             expect(Tok::newline);
         }
         // try to recover
