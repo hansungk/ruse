@@ -25,15 +25,13 @@ class Lifetime;
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
-enum class AstKind {
-    file,
-    stmt,
-    decl,
-    expr,
-};
-
 struct AstNode {
-    const AstKind kind = AstKind::decl; // node kind
+    const enum AstKind {
+        file,
+        stmt,
+        decl,
+        expr,
+    } kind = AstKind::decl; // node kind
     // TODO: deprecate pos/endpos
     size_t pos = 0;             // start pos of this AST in the source text
     size_t endpos = 0;          // end pos of this AST in the source text
@@ -62,7 +60,7 @@ struct AstNode {
 
 // File is simply a group of Toplevels.
 struct File : public AstNode {
-    File() : AstNode(AstKind::file) {}
+    File() : AstNode(AstNode::file) {}
 
     std::vector<AstNode *> toplevels;
 };
@@ -83,7 +81,7 @@ struct Stmt : public AstNode {
         bad,
     } kind;
 
-    Stmt(Kind s) : AstNode(AstKind::stmt), kind(s) {}
+    Stmt(Kind s) : AstNode(AstNode::stmt), kind(s) {}
 };
 
 struct DeclStmt : public Stmt {
@@ -177,7 +175,7 @@ struct Expr : public AstNode {
 
     Decl *decl = nullptr;
 
-    Expr(Kind e) : AstNode(AstKind::expr), kind(e), type(nullptr) {}
+    Expr(Kind e) : AstNode(AstNode::expr), kind(e), type(nullptr) {}
 };
 
 struct IntegerLiteral : public Expr {
@@ -343,7 +341,7 @@ struct Decl : public AstNode {
     Decl(Kind d) : Decl(d, nullptr, nullptr) {}
     Decl(Kind d, Name *n) : Decl(d, n, nullptr) {}
     Decl(Kind d, Name *n, Type *t)
-        : AstNode(AstKind::decl), kind(d), name(n), type(t) {}
+        : AstNode(AstNode::decl), kind(d), name(n), type(t) {}
     std::optional<Type *> typemaybe() const;
 };
 

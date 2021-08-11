@@ -681,7 +681,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 
 bool cmp::typecheck(Sema &sema, AstNode *n) {
     switch (n->kind) {
-    case AstKind::file: {
+    case AstNode::file: {
         bool success = true;
         for (auto toplevel : static_cast<File *>(n)->toplevels) {
             if (!typecheck(sema, toplevel)) {
@@ -690,9 +690,9 @@ bool cmp::typecheck(Sema &sema, AstNode *n) {
         }
         return success;
     }
-    case AstKind::stmt:
+    case AstNode::stmt:
         return typecheck_stmt(sema, static_cast<Stmt *>(n));
-    case AstKind::decl:
+    case AstNode::decl:
         return typecheck_decl(sema, static_cast<Decl *>(n));
     default:
         assert(!"unknown ast kind");
@@ -1245,16 +1245,16 @@ long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
 
 void QbeGenerator::codegen(AstNode *n) {
     switch (n->kind) {
-    case AstKind::file: {
+    case AstNode::file: {
         for (auto toplevel : static_cast<File *>(n)->toplevels) {
             codegen(toplevel);
         }
         break;
     }
-    case AstKind::stmt:
+    case AstNode::stmt:
         codegenStmt(static_cast<Stmt *>(n));
         break;
-    case AstKind::decl:
+    case AstNode::decl:
         codegenDecl(static_cast<Decl *>(n));
         break;
     default:
