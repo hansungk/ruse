@@ -489,11 +489,11 @@ bool typecheck_expr(Sema &sema, Expr *e) {
 
 bool typecheck_stmt(Sema &sema, Stmt *s) {
     switch (s->kind) {
-    case StmtKind::expr:
+    case Stmt::expr:
         return typecheck_expr(sema, static_cast<ExprStmt *>(s)->expr);
-    case StmtKind::decl:
+    case Stmt::decl:
         return typecheck_decl(sema, static_cast<DeclStmt *>(s)->decl);
-    case StmtKind::assign: {
+    case Stmt::assign: {
         auto as = static_cast<AssignStmt *>(s);
         if (!typecheck_expr(sema, as->rhs))
             return false;
@@ -514,7 +514,7 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
 
         break;
     }
-    case StmtKind::if_: {
+    case Stmt::if_: {
         auto if_stmt = static_cast<IfStmt *>(s);
         if (!typecheck_expr(sema, if_stmt->cond))
             return false;
@@ -530,7 +530,7 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
         }
         break;
     }
-    case StmtKind::return_: {
+    case Stmt::return_: {
         auto r = static_cast<ReturnStmt *>(s);
         if (!r->expr)
             break;
@@ -555,7 +555,7 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
 
         break;
     }
-    case StmtKind::compound: {
+    case Stmt::compound: {
         bool success = true;
         sema.scopeOpen();
         for (auto stmt : static_cast<CompoundStmt *>(s)->stmts) {
@@ -950,13 +950,13 @@ void QbeGenerator::codegen_expr_address(Expr *e) {
 
 void QbeGenerator::codegenStmt(Stmt *s) {
     switch (s->kind) {
-    case StmtKind::expr:
+    case Stmt::expr:
         codegen_expr(static_cast<ExprStmt *>(s)->expr);
         break;
-    case StmtKind::decl:
+    case Stmt::decl:
         codegenDecl(static_cast<DeclStmt *>(s)->decl);
         break;
-    case StmtKind::assign: {
+    case Stmt::assign: {
         auto as = static_cast<AssignStmt *>(s);
 
         codegen_expr(as->rhs);
@@ -973,7 +973,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
         annotate("{}: assign to {}", as->loc.line, as->lhs->text(sema));
         break;
     }
-    case StmtKind::return_:
+    case Stmt::return_:
         codegen_expr(static_cast<ReturnStmt *>(s)->expr);
 
         // Whether the top of the valstack might contain is a value or an
@@ -987,7 +987,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
         emitSameLine("\n@L{}", label_id);
         label_id++;
         break;
-    case StmtKind::if_: {
+    case Stmt::if_: {
         auto if_stmt = static_cast<IfStmt *>(s);
         auto id = ifelse_label_id;
         ifelse_label_id++;
@@ -1006,7 +1006,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
         emitSameLine("\n@fi_{}", id);
         break;
     }
-    case StmtKind::compound:
+    case Stmt::compound:
         for (auto s : static_cast<CompoundStmt *>(s)->stmts) {
             codegenStmt(s);
         }

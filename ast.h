@@ -71,31 +71,29 @@ struct File : public AstNode {
 // Statements
 // ==========
 
-enum class StmtKind {
-    decl,
-    expr,
-    assign,
-    return_,
-    compound,
-    if_,
-    builtin,
-    bad,
-};
-
 struct Stmt : public AstNode {
-    Stmt(StmtKind s) : AstNode(AstKind::stmt), kind(s) {}
+    const enum Kind {
+        decl,
+        expr,
+        assign,
+        return_,
+        compound,
+        if_,
+        builtin,
+        bad,
+    } kind;
 
-    const StmtKind kind;
+    Stmt(Kind s) : AstNode(AstKind::stmt), kind(s) {}
 };
 
 struct DeclStmt : public Stmt {
-    DeclStmt(Decl *d) : Stmt(StmtKind::decl), decl(d) {}
+    DeclStmt(Decl *d) : Stmt(Stmt::decl), decl(d) {}
 
     Decl *decl;
 };
 
 struct ExprStmt : public Stmt {
-    ExprStmt(Expr *e) : Stmt(StmtKind::expr), expr(e) {}
+    ExprStmt(Expr *e) : Stmt(Stmt::expr), expr(e) {}
 
     Expr *expr;
 };
@@ -106,7 +104,7 @@ struct ExprStmt : public Stmt {
 // will be checked at the semantic stage.
 struct AssignStmt : public Stmt {
     AssignStmt(Expr *l, Expr *r, bool m)
-        : Stmt(StmtKind::assign), lhs(l), rhs(r), move(m) {}
+        : Stmt(Stmt::assign), lhs(l), rhs(r), move(m) {}
 
     Expr *lhs;
     Expr *rhs;
@@ -116,13 +114,13 @@ struct AssignStmt : public Stmt {
 struct ReturnStmt : public Stmt {
     Expr *expr;
 
-    ReturnStmt(Expr *e) : Stmt(StmtKind::return_), expr(e) {}
+    ReturnStmt(Expr *e) : Stmt(Stmt::return_), expr(e) {}
 };
 
 struct CompoundStmt : public Stmt {
     std::vector<Stmt *> stmts;
 
-    CompoundStmt() : Stmt(StmtKind::compound) {}
+    CompoundStmt() : Stmt(Stmt::compound) {}
 };
 
 struct IfStmt : public Stmt {
@@ -135,18 +133,18 @@ struct IfStmt : public Stmt {
     CompoundStmt *else_body = nullptr;
 
     IfStmt(Expr *e, CompoundStmt *is, IfStmt *ei, CompoundStmt *es)
-        : Stmt(StmtKind::if_), cond(e), if_body(is), else_if_stmt(ei),
+        : Stmt(Stmt::if_), cond(e), if_body(is), else_if_stmt(ei),
           else_body(es) {}
 };
 
 struct BuiltinStmt : public Stmt {
     std::string_view text;
 
-    BuiltinStmt(std::string_view sv) : Stmt(StmtKind::builtin), text(sv) {}
+    BuiltinStmt(std::string_view sv) : Stmt(Stmt::builtin), text(sv) {}
 };
 
 struct BadStmt : public Stmt {
-    BadStmt() : Stmt(StmtKind::bad) {}
+    BadStmt() : Stmt(Stmt::bad) {}
 };
 
 // Expressions
