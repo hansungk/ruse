@@ -73,14 +73,14 @@ Sema::~Sema() {
     }
 }
 
-void Sema::scopeOpen() {
+void Sema::scope_open() {
     decl_table.scopeOpen();
     type_table.scopeOpen();
     lifetime_table.scopeOpen();
     borrow_table.scopeOpen();
 }
 
-void Sema::scopeClose() {
+void Sema::scope_close() {
     decl_table.scopeClose();
     type_table.scopeClose();
     lifetime_table.scopeClose();
@@ -557,13 +557,13 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
     }
     case Stmt::compound: {
         bool success = true;
-        sema.scopeOpen();
+        sema.scope_open();
         for (auto stmt : static_cast<CompoundStmt *>(s)->stmts) {
             if (!typecheck_stmt(sema, stmt)) {
                 success = false;
             }
         }
-        sema.scopeClose();
+        sema.scope_close();
         return success;
     }
     default:

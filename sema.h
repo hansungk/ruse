@@ -115,8 +115,8 @@ struct Sema {
     Sema(Sema &&) = delete;
     ~Sema();
 
-    void scopeOpen();
-    void scopeClose();
+    void scope_open();
+    void scope_close();
 
     template <typename T, typename... Args> T *make_node(Args &&...args) {
         node_pool.emplace_back(new T{std::forward<Args>(args)...});
@@ -139,15 +139,6 @@ struct Sema {
         ast_node->loc = source.locate(range.first);
         ast_node->endloc = source.locate(range.second);
         return node;
-    }
-    template <typename... Args> Lifetime *make_lifetime(Args &&...args) {
-        lifetime_pool.emplace_back(new Lifetime{std::forward<Args>(args)...});
-        return lifetime_pool.back();
-    }
-    BasicBlock *makeBasicBlock() {
-        BasicBlock *bb = new BasicBlock;
-        basic_block_pool.push_back(bb);
-        return bb;
     }
 };
 
