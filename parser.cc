@@ -324,9 +324,19 @@ FuncDecl *Parser::parse_func_header() {
 
     expect(Tok::kw_func);
 
+    // struct for methods
+    VarDecl *method_struct = nullptr;
+    if (tok.kind == Tok::lparen) {
+        next();
+        method_struct = parse_var_decl(VarDecl::param);
+        expect(Tok::rparen);
+    }
+
+    // name
     Name *name = push_token(sema, tok);
     auto func = make_node_range<FuncDecl>(pos, name);
     func->loc = sema.source.locate(tok.pos);
+    func->method_struct = method_struct;
     next();
 
     // argument list

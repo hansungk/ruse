@@ -4,6 +4,9 @@ struct S {
     hi: int
 }
 
+func (s: *S) get_hi() -> int {
+}
+
 func main() {
     var not_a_struct: int
     not_a_struct.lol //~error: type 'int' is not a struct
