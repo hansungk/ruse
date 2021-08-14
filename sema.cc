@@ -74,17 +74,17 @@ Sema::~Sema() {
 }
 
 void Sema::scope_open() {
-    decl_table.scopeOpen();
-    type_table.scopeOpen();
-    lifetime_table.scopeOpen();
-    borrow_table.scopeOpen();
+    decl_table.scope_open();
+    type_table.scope_open();
+    lifetime_table.scope_open();
+    borrow_table.scope_open();
 }
 
 void Sema::scope_close() {
-    decl_table.scopeClose();
-    type_table.scopeClose();
-    lifetime_table.scopeClose();
-    borrow_table.scopeClose();
+    decl_table.scope_close();
+    type_table.scope_close();
+    lifetime_table.scope_close();
+    borrow_table.scope_close();
 }
 
 bool Type::is_struct() const {
@@ -611,6 +611,12 @@ bool typecheck_decl(Sema &sema, Decl *d) {
     case Decl::func: {
         auto f = static_cast<FuncDecl *>(d);
 
+        // TODO: start here: namespace of methods of a struct
+        if (f->method_struct) {
+            if (!typecheck_decl(sema, f->method_struct))
+                return false;
+        }
+
         if (!declare(sema, f->name, f))
             return false;
 
@@ -628,7 +634,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
         }
 
         sema.context.func_stack.push_back(f);
-        sema.decl_table.scopeOpen();
+        sema.decl_table.scope_open();
 
         bool success = true;
         for (auto stmt : f->body->stmts) {
@@ -637,7 +643,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
             }
         }
 
-        sema.decl_table.scopeClose();
+        sema.decl_table.scope_close();
         sema.context.func_stack.pop_back();
 
         return success;
@@ -660,14 +666,14 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 
         s->type = make_value_type(sema, s->name, s);
 
-        sema.decl_table.scopeOpen();
+        sema.decl_table.scope_open();
         bool success = true;
         for (auto field : s->fields) {
             if (!typecheck_decl(sema, field)) {
                 success = false;
             }
         }
-        sema.decl_table.scopeClose();
+        sema.decl_table.scope_close();
         return success;
     }
     default:

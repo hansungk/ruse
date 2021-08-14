@@ -29,9 +29,9 @@ template <typename Key, typename T> struct ScopedTable {
     void print() const;
 
     // Start a new scope.
-    void scopeOpen();
+    void scope_open();
     // Close current cope.
-    void scopeClose();
+    void scope_close();
 
     std::array<Symbol *, SYMBOL_TABLE_BUCKET_COUNT> keys;
     std::vector<Symbol *> scope_stack = {};
@@ -107,12 +107,12 @@ ScopedTable<Key, T>::find(const Key key) const {
     return nullptr;
 }
 
-template <typename Key, typename T> void ScopedTable<Key, T>::scopeOpen() {
+template <typename Key, typename T> void ScopedTable<Key, T>::scope_open() {
     scope_stack.push_back(nullptr);
     curr_scope_level++;
 }
 
-template <typename Key, typename T> void ScopedTable<Key, T>::scopeClose() {
+template <typename Key, typename T> void ScopedTable<Key, T>::scope_close() {
     Symbol *p = scope_stack.back();
     while (p) {
         // XXX: does this work with p->key = nullptr?
