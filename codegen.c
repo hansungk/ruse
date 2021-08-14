@@ -17,8 +17,30 @@ static void emit(char *c, ...) {
 
 #if 0
     char *s;
+    char fmt_buf[1024];
     va_list lst;
     va_start(lst, c);
+
+    char *found = NULL;
+    while ((found = strstr(c, "%v")) != NULL) {
+        size_t len = found - c;
+        memset(fmt_buf, 0, sizeof(fmt_buf));
+        strncpy(fmt_buf, c, len);
+
+        printf("before %%v: [%s]\n", fmt_buf);
+
+        fputs(va_arg(lst, char *), stdout);
+
+        c = found + strlen("%v");
+    }
+
+    // process trailing fmt string
+    printf("trailing: [%s]\n", c);
+
+    va_end(lst);
+#endif
+
+#if 0
     while (*c != '\0') {
         if (*c != '%') {
             putchar(*c);
@@ -45,6 +67,7 @@ static void emit(char *c, ...) {
         }
 	c++;
     }
+
     va_end(lst);
 #endif
 }
