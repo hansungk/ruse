@@ -802,11 +802,11 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
                           abityStr(func_decl->rettype), c->func_name->text);
 
             for (size_t i = 0; i < c->args.size(); i++) {
-                emitSameLine("{} {}, ", abityStr(c->args[i]->type),
+                emit_same_line("{} {}, ", abityStr(c->args[i]->type),
                        generated_args[i].format());
             }
 
-            emitSameLine(")");
+            emit_same_line(")");
 
             valstack.push_temp_value();
         } else {
@@ -814,11 +814,11 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
 
             // @Copypaste from above
             for (size_t i = 0; i < c->args.size(); i++) {
-                emitSameLine("{} {}, ", abityStr(c->args[i]->type),
+                emit_same_line("{} {}, ", abityStr(c->args[i]->type),
                        generated_args[i].format());
             }
 
-            emitSameLine(")");
+            emit_same_line(")");
 
             // Don't push to valstack here; that the caller doesn't erroneously
             // pop afterwards should have been checked by the semantic phase.
@@ -984,7 +984,7 @@ void QbeGenerator::codegen_stmt(Stmt *s) {
         emit("ret {}", valstack.pop().format());
         // This is here only to make QBE not complain.  In practice, no
         // instructions after this point should be reachable.
-        emitSameLine("\n@L{}", label_id);
+        emit_same_line("\n@L{}", label_id);
         label_id++;
         break;
     case Stmt::if_: {
@@ -994,16 +994,16 @@ void QbeGenerator::codegen_stmt(Stmt *s) {
         codegen_expr(if_stmt->cond);
         emit("jnz {}, @if_{}, @else_{}", valstack.pop().format(),
                       id, id);
-        emitSameLine("\n@if_{}", id);
+        emit_same_line("\n@if_{}", id);
         codegen_stmt(if_stmt->if_body);
         emit("jmp @fi_{}", id);
-        emitSameLine("\n@else_{}", id);
+        emit_same_line("\n@else_{}", id);
         if (if_stmt->else_if_stmt) {
             codegen_stmt(if_stmt->else_if_stmt);
         } else if (if_stmt->else_body) {
             codegen_stmt(if_stmt->else_body);
         }
-        emitSameLine("\n@fi_{}", id);
+        emit_same_line("\n@fi_{}", id);
         break;
     }
     case Stmt::compound:
@@ -1041,15 +1041,15 @@ void QbeGenerator::codegen_decl(Decl *d) {
     case Decl::func: {
         auto f = static_cast<FuncDecl *>(d);
 
-        emitSameLine("\nexport function {} ${}(", abityStr(f->rettype),
+        emit_same_line("\nexport function {} ${}(", abityStr(f->rettype),
                      f->name->text);
 
         for (auto param : f->params) {
-            emitSameLine("{} %{}, ", abityStr(param->type), param->name->text);
+            emit_same_line("{} %{}, ", abityStr(param->type), param->name->text);
         }
 
-        emitSameLine(") {{");
-        emitSameLine("\n@start");
+        emit_same_line(") {{");
+        emit_same_line("\n@start");
 
         sema.context.func_stack.push_back(f);
         {
@@ -1075,8 +1075,8 @@ void QbeGenerator::codegen_decl(Decl *d) {
         }
         sema.context.func_stack.pop_back();
 
-        emitSameLine("\n}}");
-        emitSameLine("\n");
+        emit_same_line("\n}}");
+        emit_same_line("\n");
         break;
     }
     case Decl::struct_: {
@@ -1106,10 +1106,10 @@ void QbeGenerator::codegen_decl(Decl *d) {
         emit("type :{} = {{", s->name->text);
         for (auto field : s->fields) {
             (void)field;
-            emitSameLine("w, ");
+            emit_same_line("w, ");
         }
-        emitSameLine("}}");
-        emitSameLine("");
+        emit_same_line("}}");
+        emit_same_line("");
         break;
     }
     default:
@@ -1222,22 +1222,22 @@ long QbeGenerator::emit_stack_alloc(const Type *type, size_t line,
     // FIXME: unify 'ptr' and 'ref'
     if (type->kind == TypeKind::ptr || type->kind == TypeKind::ref) {
         // assumes pointers are always 8 bytes
-        emitSameLine("alloc8");
+        emit_same_line("alloc8");
     } else if (type->builtin) {
         assert(type->kind != TypeKind::ptr &&
                "ptr & builtin for Types is possible?");
-        emitSameLine("alloc4");
+        emit_same_line("alloc4");
     } else {
         assert(type->kind == TypeKind::value);
         assert(type->decl->kind == Decl::struct_ &&
                "non-struct value type?");
         if (static_cast<StructDecl *>(type->decl)->alignment == 4) {
-            emitSameLine("alloc4");
+            emit_same_line("alloc4");
         } else {
-            emitSameLine("alloc8");
+            emit_same_line("alloc8");
         }
     }
-    emitSameLine(" {}", type->size);
+    emit_same_line(" {}", type->size);
     annotate("{}: alloc {}", line, text);
 
     return id;

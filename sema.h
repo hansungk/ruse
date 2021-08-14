@@ -242,7 +242,7 @@ struct QbeGenerator {
         fmt::print(file, "\n{:{}}", "", indent);
         fmt::print(file, std::forward<Args>(args)...);
     }
-    template <typename... Args> void emitSameLine(Args &&...args) {
+    template <typename... Args> void emit_same_line(Args &&...args) {
         fmt::print(file, std::forward<Args>(args)...);
     }
     // Annotate the last emitted QBE line.
