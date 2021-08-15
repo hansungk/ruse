@@ -598,6 +598,8 @@ VarDecl *instantiate_field(Sema &sema, VarDecl *parent, Name *name,
     return field;
 }
 
+// Note that this function will also do declare() for new symbols, so the
+// caller would have to set new scopes accordingly.
 bool typecheck_decl(Sema &sema, Decl *d) {
     switch (d->kind) {
     case Decl::var: {
@@ -636,13 +638,28 @@ bool typecheck_decl(Sema &sema, Decl *d) {
             // scope before to prevent all methods from conflicting each other.
             guard(typecheck_decl(sema, f->struct_param));
 
-            if (!f->struct_param->type->is_struct()) {
+            StructDecl *target_struct_decl = nullptr;
+            // By-pointer methods
+            if (f->struct_param->type->is_pointer()) {
+                if (!f->struct_param->type->referee_type->is_struct()) {
+                    auto type_expr = static_cast<TypeExpr *>(f->struct_param->type_expr);
+                    return error(type_expr->subexpr->loc,
+                                 "cannot declare a method for '{}' which is not a struct",
+                                 f->struct_param->type->referee_type->name->text);
+                }
+                target_struct_decl =
+                    static_cast<StructDecl *>(f->struct_param->type->referee_type->origin_decl);
+            }
+            // By-value methods
+            else if (!f->struct_param->type->is_struct()) {
                 return error(f->struct_param->type_expr->loc,
                              "cannot declare a method for '{}' which is not a struct",
                              f->struct_param->type->name->text);
+            } else {
+                // all is good
+                target_struct_decl = static_cast<StructDecl *>(f->struct_param->type->origin_decl);
             }
-            // TODO: declare the param as well
-            auto target_struct_decl = static_cast<StructDecl *>(f->struct_param->type->origin_decl);
+
             guard(declare_in_struct(target_struct_decl, f->name, f));
         }
         // Freestanding functions.
