@@ -669,10 +669,10 @@ bool typecheck_decl(Sema &sema, Decl *d) {
             guard(declare(sema, f->name, f));
         }
 
-        if (f->rettypeexpr) {
-            if (!typecheck_expr(sema, f->rettypeexpr))
+        if (f->ret_type_expr) {
+            if (!typecheck_expr(sema, f->ret_type_expr))
                 return false;
-            f->rettype = f->rettypeexpr->type;
+            f->rettype = f->ret_type_expr->type;
         } else {
             f->rettype = sema.context.void_type;
         }
@@ -853,7 +853,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
             generated_args.push_back(valstack.pop());
         }
 
-        if (func_decl->rettypeexpr) {
+        if (func_decl->ret_type_expr) {
             emit("%_{} ={} call ${}(", valstack.next_id,
                           abityStr(func_decl->rettype), c->func_name->text);
 

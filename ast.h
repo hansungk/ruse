@@ -410,7 +410,7 @@ struct FuncDecl : public Decl {
     VarDecl *struct_param = nullptr;   // target struct that this method is implemented in
     std::vector<VarDecl *> params;      // list of parameters
     CompoundStmt *body = nullptr;       // body statements
-    Expr *rettypeexpr = nullptr;        // return type expression
+    Expr *ret_type_expr = nullptr;        // return type expression
     Name *ret_lifetime_annot = nullptr; // lifetime annotation of the return value
     // "Bogus" lifetime that represents the scope of the function body.
     Lifetime *scope_lifetime = nullptr;
