@@ -336,7 +336,7 @@ FuncDecl *Parser::parse_func_header() {
     Name *name = push_token(sema, tok);
     auto func = make_node_range<FuncDecl>(pos, name);
     func->loc = sema.source.locate(tok.pos);
-    func->method_struct = method_struct;
+    func->struct_param = method_struct;
     next();
 
     // argument list

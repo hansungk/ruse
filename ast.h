@@ -2,6 +2,7 @@
 #define CMP_AST_H
 
 #include "lexer.h"
+#include "scoped_table.h"
 #include "types.h"
 #include <type_traits>
 
@@ -406,7 +407,7 @@ struct VarDecl : public Decl {
 // should always be defined whenever they are declared.
 struct FuncDecl : public Decl {
     Type *rettype = nullptr;            // return type of the function
-    VarDecl *method_struct = nullptr;   // target struct that this method is implemented in
+    VarDecl *struct_param = nullptr;   // target struct that this method is implemented in
     std::vector<VarDecl *> params;      // list of parameters
     CompoundStmt *body = nullptr;       // body statements
     Expr *rettypeexpr = nullptr;        // return type expression
@@ -430,7 +431,9 @@ struct FieldDecl : public Decl {
 
 // Struct declaration.
 struct StructDecl : public Decl {
-    std::vector<FieldDecl *> fields;
+    std::vector<FieldDecl *> fields; // FIXME: unneeded with decl_table.
+    // Decl table that stores methods, fields(TODO), etc.
+    ScopedTable<Name *, Decl *> decl_table;
 
     // By a multiple of how much the start address for this struct should be
     // aligned to.

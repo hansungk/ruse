@@ -120,7 +120,9 @@ bool is_lvalue(const Expr *e) {
     return false;
 }
 
-// Returns true if success and otherwise (e.g. redeclaration) do error handling.
+// Declare a `decl` that has `name` in the current scope.
+// Returns true if success; otherwise (e.g.  redeclaration), return false and
+// do error handling.
 bool declare(Sema &sema, Name *name, Decl *decl) {
     auto found = sema.decl_table.find(name);
     if (found && found->value->kind == decl->kind &&
@@ -132,6 +134,17 @@ bool declare(Sema &sema, Name *name, Decl *decl) {
     return true;
 }
 
+bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl) {
+    auto found = struct_decl->decl_table.find(name);
+    if (found && found->value->kind == decl->kind &&
+        found->scope_level == struct_decl->decl_table.curr_scope_level) {
+        return error(decl->loc, "redefinition of '{}' inside struct {}", name->text,
+                     struct_decl->name->text);
+    }
+
+    struct_decl->decl_table.insert(name, decl);
+    return true;
+}
 
 // Get or construct a derived type with kind `kind`, from a given type.
 //
@@ -611,14 +624,20 @@ bool typecheck_decl(Sema &sema, Decl *d) {
     case Decl::func: {
         auto f = static_cast<FuncDecl *>(d);
 
-        // TODO: start here: namespace of methods of a struct
-        if (f->method_struct) {
-            if (!typecheck_decl(sema, f->method_struct))
+        if (f->struct_param) {
+            if (!typecheck_decl(sema, f->struct_param))
+                return false;
+            if (!f->struct_param->type->is_struct()) {
+                return error(f->struct_param->type_expr->loc,
+                             "cannot declare a method for '{}' which is not a struct",
+                             f->struct_param->type->name->text);
+            }
+            // if (!declare_in_struct(f->struct_param, ...))
+            //     return false;
+        } else {
+            if (!declare(sema, f->name, f))
                 return false;
         }
-
-        if (!declare(sema, f->name, f))
-            return false;
 
         if (f->rettypeexpr) {
             if (!typecheck_expr(sema, f->rettypeexpr))

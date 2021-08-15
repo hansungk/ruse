@@ -91,8 +91,7 @@ T *ScopedTable<Key, T>::insert(const Key key, const T &value) {
 }
 
 template <typename Key, typename T>
-typename ScopedTable<Key, T>::Symbol *
-ScopedTable<Key, T>::find(const Key key) const {
+typename ScopedTable<Key, T>::Symbol *ScopedTable<Key, T>::find(const Key key) const {
     if (!key) {
         return nullptr;
     }
