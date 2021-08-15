@@ -21,7 +21,7 @@ $ ./check.py
 
 ## todo
 
-* parse chained . and ()
+* separate typechecking and declare()
 * strings
 * interop with C
 * methods

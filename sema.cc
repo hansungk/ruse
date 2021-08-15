@@ -8,6 +8,7 @@
 
 #define BUFSIZE 1024
 
+// This is essentially the try! macro in Rust.
 #define guard(expr)                                                                                \
     if (!(expr)) {                                                                                 \
         return false;                                                                              \
@@ -270,6 +271,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         de->decl = sym->value;
         assert(de->decl);
         de->type = de->decl->type;
+        assert(de->type);
         break;
     }
     case Expr::call: {
@@ -278,16 +280,22 @@ bool typecheck_expr(Sema &sema, Expr *e) {
             assert(!"not implemented");
         }
 
-        auto sym = sema.decl_table.find(c->func_name);
-        if (!sym) {
-            return error(c->loc, "undeclared function '{}'",
-                         c->func_name->text);
-        }
-        c->callee_decl = sym->value;
+        guard(typecheck_expr(sema, c->callee_expr));
 
-        // assumes callee_decl is a FuncDecl
+        assert(c->callee_expr->decl);
+        assert(c->callee_expr->type);
+
+        // auto sym = sema.decl_table.find(c->func_name);
+        // if (!sym) {
+        //     return error(c->loc, "undeclared function '{}'",
+        //                  c->func_name->text);
+        // }
+        c->callee_decl = c->callee_expr->decl; // FIXME don't use c->callee_decl
+
+        assert(c->callee_decl->kind == Decl::func);
         auto func_decl = static_cast<FuncDecl *>(c->callee_decl);
-        c->type = func_decl->rettype;
+        assert(func_decl->ret_type);
+        c->type = func_decl->ret_type;
 
         if (c->args.size() != func_decl->params.size()) {
             return error(c->loc,
@@ -297,8 +305,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         }
 
         for (size_t i = 0; i < c->args.size(); i++) {
-            if (!typecheck_expr(sema, c->args[i]))
-                return false;
+            guard(typecheck_expr(sema, c->args[i]));
 
             if (!typecheck_assignable(func_decl->params[i]->type,
                                       c->args[i]->type)) {
@@ -443,10 +450,8 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         return typecheck_unary_expr(sema, static_cast<UnaryExpr *>(e));
     case Expr::binary: {
         auto b = static_cast<BinaryExpr *>(e);
-        if (!typecheck_expr(sema, b->lhs))
-            return false;
-        if (!typecheck_expr(sema, b->rhs))
-            return false;
+        guard(typecheck_expr(sema, b->lhs));
+        guard(typecheck_expr(sema, b->rhs));
 
         auto lhs_type = b->lhs->type;
         auto rhs_type = b->rhs->type;
@@ -556,8 +561,8 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
 
         assert(!sema.context.func_stack.empty());
         auto current_func = sema.context.func_stack.back();
-        if (r->expr->type != current_func->rettype) {
-            if (current_func->rettype == sema.context.void_type) {
+        if (r->expr->type != current_func->ret_type) {
+            if (current_func->ret_type == sema.context.void_type) {
                 return error(
                     r->expr->loc,
                     "tried to return a value from a void function '{}'",
@@ -567,7 +572,7 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
                 r->expr->loc,
                 "tried to return '{}' from function '{}', which returns '{}'",
                 r->expr->type->name->text, current_func->name->text,
-                current_func->rettype->name->text);
+                current_func->ret_type->name->text);
         }
 
         break;
@@ -666,14 +671,16 @@ bool typecheck_decl(Sema &sema, Decl *d) {
         }
         // Freestanding functions.
         else {
+            // But wait, the function name should be declared OUTSIDE the
+            // param's scope!!
             guard(declare(sema, f->name, f));
         }
 
         if (f->ret_type_expr) {
             guard(typecheck_expr(sema, f->ret_type_expr));
-            f->rettype = f->ret_type_expr->type;
+            f->ret_type = f->ret_type_expr->type;
         } else {
-            f->rettype = sema.context.void_type;
+            f->ret_type = sema.context.void_type;
         }
 
         for (auto param : f->params) {
@@ -850,8 +857,9 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
         }
 
         if (func_decl->ret_type_expr) {
-            emit("%_{} ={} call ${}(", valstack.next_id,
-                          abity_string(func_decl->rettype), c->func_name->text);
+            assert(!"FIXME: func_name removed");
+            // emit("%_{} ={} call ${}(", valstack.next_id,
+            //               abity_string(func_decl->rettype), c->func_name->text);
 
             for (size_t i = 0; i < c->args.size(); i++) {
                 emit_same_line("{} {}, ", abity_string(c->args[i]->type),
@@ -862,7 +870,8 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
 
             valstack.push_temp_value();
         } else {
-            emit("call ${}(", c->func_name->text);
+            assert(!"FIXME: func_name removed");
+            // emit("call ${}(", c->func_name->text);
 
             // @Copypaste from above
             for (size_t i = 0; i < c->args.size(); i++) {
@@ -1093,7 +1102,7 @@ void QbeGenerator::codegen_decl(Decl *d) {
     case Decl::func: {
         auto f = static_cast<FuncDecl *>(d);
 
-        emit_same_line("\nexport function {} ${}(", abity_string(f->rettype),
+        emit_same_line("\nexport function {} ${}(", abity_string(f->ret_type),
                      f->name->text);
 
         for (auto param : f->params) {

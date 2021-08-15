@@ -206,11 +206,10 @@ struct CallExpr : public Expr {
         func,
     } kind;
 
-    Name *func_name = nullptr; // FIXME: remove
     // This could be either DeclRefExpr ("f()") or MemberExpr ("s.m()").
     Expr *callee_expr = nullptr;
     // Decl of the called function or the destination type.
-    Decl *callee_decl = nullptr;
+    Decl *callee_decl = nullptr; // FIXME: just use callee_expr->decl
     std::vector<Expr *> args;
 
     CallExpr(Kind kind, Expr *ce, const std::vector<Expr *> &args)
@@ -409,7 +408,7 @@ struct VarDecl : public Decl {
 // Function declaration.  There is no separate function definition: functions
 // should always be defined whenever they are declared.
 struct FuncDecl : public Decl {
-    Type *rettype = nullptr;            // return type of the function
+    Type *ret_type = nullptr;            // return type of the function
     VarDecl *struct_param = nullptr;   // target struct that this method is implemented in
     std::vector<VarDecl *> params;      // list of parameters
     CompoundStmt *body = nullptr;       // body statements
