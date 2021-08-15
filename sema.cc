@@ -753,7 +753,7 @@ bool cmp::typecheck(Sema &sema, AstNode *n) {
     return true;
 }
 
-std::string abityStr(const Type *type) {
+std::string abity_string(const Type *type) {
     std::string s;
     if (type->builtin) {
         // TODO: "l", "s", "d", ...
@@ -851,10 +851,10 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
 
         if (func_decl->ret_type_expr) {
             emit("%_{} ={} call ${}(", valstack.next_id,
-                          abityStr(func_decl->rettype), c->func_name->text);
+                          abity_string(func_decl->rettype), c->func_name->text);
 
             for (size_t i = 0; i < c->args.size(); i++) {
-                emit_same_line("{} {}, ", abityStr(c->args[i]->type),
+                emit_same_line("{} {}, ", abity_string(c->args[i]->type),
                        generated_args[i].format());
             }
 
@@ -866,7 +866,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
 
             // @Copypaste from above
             for (size_t i = 0; i < c->args.size(); i++) {
-                emit_same_line("{} {}, ", abityStr(c->args[i]->type),
+                emit_same_line("{} {}, ", abity_string(c->args[i]->type),
                        generated_args[i].format());
             }
 
@@ -1093,11 +1093,11 @@ void QbeGenerator::codegen_decl(Decl *d) {
     case Decl::func: {
         auto f = static_cast<FuncDecl *>(d);
 
-        emit_same_line("\nexport function {} ${}(", abityStr(f->rettype),
+        emit_same_line("\nexport function {} ${}(", abity_string(f->rettype),
                      f->name->text);
 
         for (auto param : f->params) {
-            emit_same_line("{} %{}, ", abityStr(param->type), param->name->text);
+            emit_same_line("{} %{}, ", abity_string(param->type), param->name->text);
         }
 
         emit_same_line(") {{");

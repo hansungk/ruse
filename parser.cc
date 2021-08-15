@@ -238,7 +238,7 @@ BuiltinStmt *Parser::parse_builtin_stmt() {
     return make_node_range<BuiltinStmt>(start, text);
 }
 
-static Name *push_token(Sema &sema, const Token tok) {
+static Name *push_token_to_name_table(Sema &sema, const Token tok) {
     return sema.name_table.pushlen(tok.start, tok.end - tok.start);
 }
 
@@ -250,7 +250,7 @@ VarDecl *Parser::parse_var_decl(VarDecl::Kind kind) {
         error_expected("an identifier");
     }
 
-    Name *name = push_token(sema, tok);
+    Name *name = push_token_to_name_table(sema, tok);
     next();
 
     VarDecl *v = nullptr;
@@ -333,7 +333,7 @@ FuncDecl *Parser::parse_func_header() {
     }
 
     // name
-    Name *name = push_token(sema, tok);
+    Name *name = push_token_to_name_table(sema, tok);
     auto func = make_node_range<FuncDecl>(pos, name);
     func->loc = sema.source.locate(tok.pos);
     func->struct_param = method_struct;
@@ -381,7 +381,7 @@ StructDecl *Parser::parse_struct_decl() {
         error_expected("an identifier");
         skip_until(Tok::lbrace);
     } else {
-        name = push_token(sema, tok);
+        name = push_token_to_name_table(sema, tok);
         next();
     }
 
@@ -403,7 +403,7 @@ StructDecl *Parser::parse_struct_decl() {
 EnumVariantDecl *Parser::parse_enum_variant() {
     auto pos = tok.pos;
 
-    Name *name = push_token(sema, tok);
+    Name *name = push_token_to_name_table(sema, tok);
     next();
 
     std::vector<Expr *> fields;
@@ -443,7 +443,7 @@ EnumDecl *Parser::parse_enum_decl() {
 
     if (tok.kind != Tok::ident)
         error_expected("an identifier");
-    Name *name = push_token(sema, tok);
+    Name *name = push_token_to_name_table(sema, tok);
     next();
 
     if (!expect(Tok::lbrace))
@@ -539,32 +539,45 @@ Expr *Parser::parse_literal_expr() {
 
 // Upon seeing an expression that starts with an identifier, we don't know
 // whether it is just a variable, a function call, an enum name, or a struct
-// name ('a' vs 'a()' vs 'a {...}') without lookahead. Rather than using
+// name ('a' vs. 'a()' vs. 'a.m') without lookahead. Rather than using
 // lookahead, parse the both kinds in one go in this function.
-//
-// TODO: maybe name it parse_ident_start_exprs?
-// TODO: add struct declaration here, e.g. Car {}
 Expr *Parser::parse_funccall_or_declref_expr() {
     auto pos = tok.pos;
-    assert(tok.kind == Tok::ident);
-    Name *name = push_token(sema, tok);
-    next();
 
-    if (tok.kind == Tok::lparen) {
-        expect(Tok::lparen);
-        std::vector<Expr *> args;
-        while (tok.kind != Tok::rparen) {
-            args.push_back(parse_expr());
-            if (tok.kind == Tok::comma)
-                next();
+    // First, just parse a single declref.
+    assert(tok.kind == Tok::ident);
+    Name *name = push_token_to_name_table(sema, tok);
+    next();
+    Expr *expr = make_node_range<DeclRefExpr>(pos, name);
+
+    // Then loop to see if there's any trailing . or (), expanding the LHS
+    // because they are left-associative.
+    while (!is_eos()) {
+        if (tok.kind == Tok::dot) {
+            expect(Tok::dot);
+            // TODO start here: s.a().b().c()
+            assert(tok.kind == Tok::ident);
+            Name *member_name = push_token_to_name_table(sema, tok);
+            next();
+            // Collapse the expr parsed so far into the LHS of a new MemberExpr.
+            expr = make_node_range<MemberExpr>(pos, expr, member_name);
+        } else if (tok.kind == Tok::lparen) {
+            expect(Tok::lparen);
+            std::vector<Expr *> args;
+            while (tok.kind != Tok::rparen) {
+                args.push_back(parse_expr());
+                if (tok.kind == Tok::comma)
+                    next();
+            }
+            expect(Tok::rparen);
+            expr = make_node_range<CallExpr>(pos, CallExpr::func, expr, args);
+        } else {
+            // Otherwise, this could be anything between a variable, a struct or a
+            // function, which can only be decided in the type checking stage.
+            break;
         }
-        expect(Tok::rparen);
-        return make_node_range<CallExpr>(pos, CallExpr::func, name, args);
-    } else {
-        // Whether this is a variable or a struct/enum name can only be decided
-        // in the type checking stage.
-        return make_node_range<DeclRefExpr>(pos, name);
     }
+    return expr;
 }
 
 Expr *Parser::parse_cast_expr() {
@@ -630,7 +643,7 @@ Expr *Parser::parse_type_expr() {
         // Lifetime annotation.
         if (tok.kind == Tok::dot) {
             next();
-            lt_name = push_token(sema, tok);
+            lt_name = push_token_to_name_table(sema, tok);
             next();
         }
         // Base type name.
@@ -747,12 +760,11 @@ int binary_op_precedence(const Token &op) {
 
 } // namespace
 
-// Extend a unary expression into binary if possible, by parsing any attached
-// RHS. There may be more than one terms in the RHS, all of which is consumed
-// by this function. The parsing goes on as long as operators with higher than
-// or equal to 'precedence' are seen. Giving it 0 means that this function will
-// keep parsing until no more valid binary operators are seen (which has
-// negative precedence values).
+// Extend a unary expression into binary if possible, by parsing any succeeding
+// RHS.  The parsing goes on as long as operators with higher than or equal to
+// `precedence` are seen.  Setting it to 0 will have the function parse the
+// entire binary expression, as non-operator tokens have negative precedence
+// values.
 Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
     Expr *root = lhs;
 
@@ -792,15 +804,16 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
 }
 
 // If this expression is a member expression with a dot (.) operator, parse as
-// such. If not, just pass along the original expression. This function is
-// called after the operand expression part is fully parsed.
+// such. If not, just pass along the original expression.
+// This function should called after the operand (expression before the dot) is
+// fully parsed.
 Expr *Parser::parse_member_expr_maybe(Expr *expr) {
     Expr *result = expr;
 
     while (tok.kind == Tok::dot) {
         expect(Tok::dot);
 
-        Name *member_name = push_token(sema, tok);
+        Name *member_name = push_token_to_name_table(sema, tok);
         next();
 
         result = make_node_range<MemberExpr>(result->pos, result, member_name);
@@ -839,7 +852,7 @@ fail:
 std::optional<StructDefTerm> Parser::parse_structdef_field() {
     if (!expect(Tok::dot))
         return {};
-    Name *name = push_token(sema, tok);
+    Name *name = push_token_to_name_table(sema, tok);
     next();
 
     if (!expect(Tok::equals))

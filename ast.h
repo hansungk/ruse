@@ -205,13 +205,16 @@ struct CallExpr : public Expr {
     enum Kind {
         func,
     } kind;
-    Name *func_name = nullptr;
-    std::vector<Expr *> args;
+
+    Name *func_name = nullptr; // FIXME: remove
+    // This could be either DeclRefExpr ("f()") or MemberExpr ("s.m()").
+    Expr *callee_expr = nullptr;
     // Decl of the called function or the destination type.
     Decl *callee_decl = nullptr;
+    std::vector<Expr *> args;
 
-    CallExpr(Kind kind, Name *name, const std::vector<Expr *> &args)
-        : Expr(Expr::call), kind(kind), func_name(name), args(args) {}
+    CallExpr(Kind kind, Expr *ce, const std::vector<Expr *> &args)
+        : Expr(Expr::call), kind(kind), callee_expr(ce), args(args) {}
 };
 
 // '.memb = expr' part in Struct { ... }.
@@ -248,8 +251,8 @@ struct MemberExpr : public Expr {
     // MemberExprs may or may not have an associated VarDecl, depending on
     // 'struct_expr' being l-value or r-value.
 
-    MemberExpr(Expr *e, Name *m)
-        : Expr(Expr::member), parent_expr(e), member_name(m) {}
+    MemberExpr(Expr *parent, Name *member)
+        : Expr(Expr::member), parent_expr(parent), member_name(member) {}
 };
 
 // '[type](expr)'
