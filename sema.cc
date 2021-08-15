@@ -8,6 +8,11 @@
 
 #define BUFSIZE 1024
 
+#define guard(expr)                                                                                \
+    if (!(expr)) {                                                                                 \
+        return false;                                                                              \
+    }
+
 using namespace cmp;
 
 template <typename... Args> static bool error(SourceLoc loc, Args &&...args) {
@@ -88,8 +93,7 @@ void Sema::scope_close() {
 }
 
 bool Type::is_struct() const {
-    return kind == TypeKind::value && decl &&
-           decl->kind == Decl::struct_;
+    return kind == TypeKind::value && origin_decl && origin_decl->kind == Decl::struct_;
 }
 
 bool Type::is_pointer() const {
@@ -369,7 +373,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         if (parent_type->is_pointer()) {
             reported_name = parent_type->referee_type->name;
             if (parent_type->referee_type->is_struct()) {
-                parent_type_decl = parent_type->referee_type->decl;
+                parent_type_decl = parent_type->referee_type->origin_decl;
 
                 // How do we get the VarDecl of the target of the pointer?
                 // Best way to do this would be to rewrite the AST to (*p).mem.
@@ -387,7 +391,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
 
         reported_name = parent_type->name;
         if (parent_type->is_struct()) {
-            parent_type_decl = parent_type->decl;
+            parent_type_decl = parent_type->origin_decl;
         }
 
         if (!parent_type_decl) {
@@ -612,7 +616,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 
         // For struct-typed VarDecls, instantiate all of its fields.
         if (v->type->is_struct()) {
-            auto struct_decl = static_cast<StructDecl *>(v->type->decl);
+            auto struct_decl = static_cast<StructDecl *>(v->type->origin_decl);
             for (auto field : struct_decl->fields) {
                 instantiate_field(sema, v, field->name, field->type);
                 // FIXME: should we typecheck_decl() children here?
@@ -624,19 +628,26 @@ bool typecheck_decl(Sema &sema, Decl *d) {
     case Decl::func: {
         auto f = static_cast<FuncDecl *>(d);
 
+        sema.decl_table.scope_open();
+
+        // Struct methods.
         if (f->struct_param) {
-            if (!typecheck_decl(sema, f->struct_param))
-                return false;
+            // This will declare() the param, so that is why we set up a new
+            // scope before to prevent all methods from conflicting each other.
+            guard(typecheck_decl(sema, f->struct_param));
+
             if (!f->struct_param->type->is_struct()) {
                 return error(f->struct_param->type_expr->loc,
                              "cannot declare a method for '{}' which is not a struct",
                              f->struct_param->type->name->text);
             }
-            // if (!declare_in_struct(f->struct_param, ...))
-            //     return false;
-        } else {
-            if (!declare(sema, f->name, f))
-                return false;
+            // TODO: declare the param as well
+            auto target_struct_decl = static_cast<StructDecl *>(f->struct_param->type->origin_decl);
+            guard(declare_in_struct(target_struct_decl, f->name, f));
+        }
+        // Freestanding functions.
+        else {
+            guard(declare(sema, f->name, f));
         }
 
         if (f->rettypeexpr) {
@@ -648,12 +659,12 @@ bool typecheck_decl(Sema &sema, Decl *d) {
         }
 
         for (auto param : f->params) {
+            // typecheck_decl() will declare the params inside them as well.
             if (!typecheck_decl(sema, param))
                 return false;
         }
 
         sema.context.func_stack.push_back(f);
-        sema.decl_table.scope_open();
 
         bool success = true;
         for (auto stmt : f->body->stmts) {
@@ -662,8 +673,9 @@ bool typecheck_decl(Sema &sema, Decl *d) {
             }
         }
 
-        sema.decl_table.scope_close();
         sema.context.func_stack.pop_back();
+
+        sema.decl_table.scope_close();
 
         return success;
     }
@@ -789,7 +801,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
                 if (dre->type->size > 8) {
                     // FIXME: assumes this is a stack-allocated struct
                     assert(!dre->type->builtin);
-                    assert(dre->type->decl->kind == Decl::struct_);
+                    assert(dre->type->origin_decl->kind == Decl::struct_);
                 } else if (dre->type->size == 8) {
                     emit("%_{} =l loadl {}", valstack.next_id,
                          valstack.pop().format());
@@ -1170,8 +1182,8 @@ void QbeGenerator::emit_assignment(const Decl *lhs, Expr *rhs) {
     if (lhs_type->size > 8) {
         assert(lhs_type->kind == TypeKind::value);
         assert(!lhs_type->builtin);
-        assert(lhs_type->decl->kind == Decl::struct_);
-        auto struct_decl = static_cast<StructDecl *>(lhs_type->decl);
+        assert(lhs_type->origin_decl->kind == Decl::struct_);
+        auto struct_decl = static_cast<StructDecl *>(lhs_type->origin_decl);
 
         for (auto field : struct_decl->fields) {
             auto rhs_text =
@@ -1254,9 +1266,9 @@ long QbeGenerator::emit_stack_alloc(const Type *type, size_t line,
         emit_same_line("alloc4");
     } else {
         assert(type->kind == TypeKind::value);
-        assert(type->decl->kind == Decl::struct_ &&
+        assert(type->origin_decl->kind == Decl::struct_ &&
                "non-struct value type?");
-        if (static_cast<StructDecl *>(type->decl)->alignment == 4) {
+        if (static_cast<StructDecl *>(type->origin_decl)->alignment == 4) {
             emit_same_line("alloc4");
         } else {
             emit_same_line("alloc8");

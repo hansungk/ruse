@@ -4,10 +4,13 @@ struct S {
     hi: int
 }
 
-func (s: int) get_hi() -> int { //~error: cannot declare a method for 'int' which is not a struct
+func (s: int) wrong() -> int { //~error: cannot declare a method for 'int' which is not a struct
 }
 
-func (s: *S) get_hi() -> int {
+func (s: S) get_hi() -> int {
+}
+
+func (s: S) get_hi() -> int { //~error: redefinition of 'get_hi' inside struct S
 }
 
 func main() {

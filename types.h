@@ -96,7 +96,7 @@ struct Type {
     union {
         // For value types: back-reference to the decl that this type
         // originates from.
-        Decl *decl = nullptr;
+        Decl *origin_decl = nullptr;
         // For derived types e.g. pointers: the target type that this type
         // refers to.
         Type *referee_type;
@@ -107,7 +107,7 @@ struct Type {
     // Built-in value types.
     Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
     // Struct types.
-    Type(TypeKind k, Name *n, Decl *td) : kind(k), name(n), decl(td) {}
+    Type(TypeKind k, Name *n, Decl *td) : kind(k), name(n), origin_decl(td) {}
     // Reference types.
     // TODO: copyable?
     Type(Name *n, TypeKind k, Type *rt) : kind(k), name(n), referee_type(rt) {
