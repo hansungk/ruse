@@ -21,6 +21,7 @@ $ ./check.py
 
 ## todo
 
+* parse chained . and ()
 * strings
 * interop with C
 * methods
