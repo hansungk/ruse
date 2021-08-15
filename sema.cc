@@ -630,7 +630,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
     case Decl::func: {
         auto f = static_cast<FuncDecl *>(d);
 
-        sema.decl_table.scope_open();
+        Sema::DeclTableScope dts{sema};
 
         // Struct methods.
         if (f->struct_param) {
@@ -670,8 +670,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
         }
 
         if (f->ret_type_expr) {
-            if (!typecheck_expr(sema, f->ret_type_expr))
-                return false;
+            guard(typecheck_expr(sema, f->ret_type_expr));
             f->rettype = f->ret_type_expr->type;
         } else {
             f->rettype = sema.context.void_type;
@@ -679,8 +678,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 
         for (auto param : f->params) {
             // typecheck_decl() will declare the params inside them as well.
-            if (!typecheck_decl(sema, param))
-                return false;
+            guard(typecheck_decl(sema, param));
         }
 
         sema.context.func_stack.push_back(f);
@@ -693,8 +691,6 @@ bool typecheck_decl(Sema &sema, Decl *d) {
         }
 
         sema.context.func_stack.pop_back();
-
-        sema.decl_table.scope_close();
 
         return success;
     }

@@ -90,6 +90,13 @@ struct Sema {
     // Declarations visible at the current scope, keyed by their Names.
     ScopedTable<Name *, Decl *> decl_table;
 
+    struct DeclTableScope {
+        Sema &sema;
+
+        DeclTableScope(Sema &s) : sema(s) { sema.decl_table.scope_open(); }
+        ~DeclTableScope() { sema.decl_table.scope_close(); }
+    };
+
     // XXX: needed?
     ScopedTable<Name *, Type *> type_table;
 

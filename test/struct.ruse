@@ -11,8 +11,9 @@ func (s: *S) get_hi() -> int {
     return s.hi
 }
 
-func (s: *S) by_ptr_method() -> int {
-    return s.hi
+func (p: *S) by_ptr_method() -> int {
+    return s.hi //~error: undeclared identifier 's'
+    return p.hi
 }
 
 func (s: S) get_hi() -> int { //~error: redefinition of 'get_hi' inside struct S
