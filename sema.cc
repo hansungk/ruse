@@ -639,25 +639,27 @@ bool typecheck_decl(Sema &sema, Decl *d) {
             guard(typecheck_decl(sema, f->struct_param));
 
             StructDecl *target_struct_decl = nullptr;
+            auto struct_param_type = f->struct_param->type;
+            auto struct_param_type_expr = static_cast<TypeExpr *>(f->struct_param->type_expr);
+
             // By-pointer methods
-            if (f->struct_param->type->is_pointer()) {
-                if (!f->struct_param->type->referee_type->is_struct()) {
-                    auto type_expr = static_cast<TypeExpr *>(f->struct_param->type_expr);
-                    return error(type_expr->subexpr->loc,
+            if (struct_param_type->is_pointer()) {
+                if (!struct_param_type->referee_type->is_struct()) {
+                    return error(struct_param_type_expr->subexpr->loc,
                                  "cannot declare a method for '{}' which is not a struct",
-                                 f->struct_param->type->referee_type->name->text);
+                                 struct_param_type->referee_type->name->text);
                 }
                 target_struct_decl =
-                    static_cast<StructDecl *>(f->struct_param->type->referee_type->origin_decl);
+                    static_cast<StructDecl *>(struct_param_type->referee_type->origin_decl);
             }
             // By-value methods
-            else if (!f->struct_param->type->is_struct()) {
-                return error(f->struct_param->type_expr->loc,
+            else if (!struct_param_type->is_struct()) {
+                return error(struct_param_type_expr->loc,
                              "cannot declare a method for '{}' which is not a struct",
-                             f->struct_param->type->name->text);
+                             struct_param_type->name->text);
             } else {
                 // all is good
-                target_struct_decl = static_cast<StructDecl *>(f->struct_param->type->origin_decl);
+                target_struct_decl = static_cast<StructDecl *>(struct_param_type->origin_decl);
             }
 
             guard(declare_in_struct(target_struct_decl, f->name, f));

@@ -8,9 +8,11 @@ func (s: int) wrong() -> int { //~error: cannot declare a method for 'int' which
 }
 
 func (s: *S) get_hi() -> int {
+    return s.hi
 }
 
 func (s: *S) by_ptr_method() -> int {
+    return s.hi
 }
 
 func (s: S) get_hi() -> int { //~error: redefinition of 'get_hi' inside struct S
