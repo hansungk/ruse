@@ -162,18 +162,34 @@ IfStmt *Parser::parse_if_stmt() {
     return make_node_range<IfStmt>(pos, cond, cstmt, elseif, cstmt_false);
 }
 
-// Parse 'let a = ...'
+// This could be 'let a = ...' or a 'struct { ... }'; look into parseDecl()
+// (FIXME doc).
 DeclStmt *Parser::parse_decl_stmt() {
-    auto decl = parseDecl();
+    VarDecl *var_decl = nullptr;
+
+    switch (tok.kind) {
+    case Tok::kw_let:
+        next();
+        var_decl = parse_var_decl(VarDecl::local_);
+        break;
+    case Tok::kw_var:
+        next();
+        var_decl = parse_var_decl(VarDecl::local_);
+        var_decl->mut = true;
+        break;
+    default:
+        assert(!"not implemented");
+    }
+
     if (!is_end_of_stmt()) {
         // XXX: remove bad check
-        if (decl && decl->kind != Decl::bad) {
+        if (var_decl && static_cast<Decl *>(var_decl)->kind != Decl::bad) {
             expect(Tok::newline);
         }
         // try to recover
         skip_until_end_of_line();
     }
-    return sema.make_node<DeclStmt>(decl);
+    return sema.make_node<DeclStmt>(var_decl);
 }
 
 // Upon seeing an expression, we don't know yet if it is a simple expression
@@ -499,7 +515,7 @@ bool Parser::is_start_of_decl() {
 
 // Parse a declaration.
 // Remember to modify is_start_of_decl() accordingly.
-Decl *Parser::parseDecl() {
+Decl *Parser::parse_decl() {
     assert(is_start_of_decl());
 
     switch (tok.kind) {

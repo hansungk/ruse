@@ -84,6 +84,7 @@ struct Stmt : public AstNode {
     Stmt(Kind s) : AstNode(AstNode::stmt), kind(s) {}
 };
 
+// Variable declaration statement; doesn't include function declarations.
 struct DeclStmt : public Stmt {
     DeclStmt(Decl *d) : Stmt(Stmt::decl), decl(d) {}
 

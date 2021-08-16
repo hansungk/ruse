@@ -513,8 +513,12 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
     switch (s->kind) {
     case Stmt::expr:
         return typecheck_expr(sema, static_cast<ExprStmt *>(s)->expr);
-    case Stmt::decl:
-        return typecheck_decl(sema, static_cast<DeclStmt *>(s)->decl);
+    case Stmt::decl: {
+        auto decl = static_cast<DeclStmt *>(s)->decl;
+        guard(typecheck_decl(sema, decl));
+        guard(declare(sema, decl->name, decl));
+        break;
+    }
     case Stmt::assign: {
         auto as = static_cast<AssignStmt *>(s);
         if (!typecheck_expr(sema, as->rhs))
@@ -603,14 +607,96 @@ VarDecl *instantiate_field(Sema &sema, VarDecl *parent, Name *name,
     return field;
 }
 
+static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
+    // Usually typecheck_decl() should not do declare()s inside them, but
+    // this one is a little different as a FuncDecl is more of a stmt then
+    // a pure decl.  So we do all necessary declaration of parameters in
+    // side a new func-local scope, etc. here.
+
+    // Struct methods.
+    if (f->struct_param) {
+        guard(typecheck_decl(sema, f->struct_param));
+
+        StructDecl *target_struct_decl = nullptr;
+        auto struct_param_type = f->struct_param->type;
+        auto struct_param_type_expr = static_cast<TypeExpr *>(f->struct_param->type_expr);
+
+        // By-pointer methods
+        if (struct_param_type->is_pointer()) {
+            if (!struct_param_type->referee_type->is_struct()) {
+                return error(struct_param_type_expr->subexpr->loc,
+                             "cannot declare a method for '{}' which is not a struct",
+                             struct_param_type->referee_type->name->text);
+            }
+            target_struct_decl =
+                static_cast<StructDecl *>(struct_param_type->referee_type->origin_decl);
+        }
+        // By-value methods
+        else if (!struct_param_type->is_struct()) {
+            return error(struct_param_type_expr->loc,
+                         "cannot declare a method for '{}' which is not a struct",
+                         struct_param_type->name->text);
+        } else {
+            // all is good
+            target_struct_decl = static_cast<StructDecl *>(struct_param_type->origin_decl);
+        }
+
+        guard(declare_in_struct(target_struct_decl, f->name, f));
+    }
+    // Freestanding functions.
+    else {
+        // But wait, the function name should be declared OUTSIDE the
+        // param's scope!!
+        guard(declare(sema, f->name, f));
+    }
+
+    if (f->ret_type_expr) {
+        guard(typecheck_expr(sema, f->ret_type_expr));
+        f->ret_type = f->ret_type_expr->type;
+    } else {
+        f->ret_type = sema.context.void_type;
+    }
+
+    // Work inside a new function-local scope to handle params and body
+    // statements.
+    bool success = true;
+    {
+        // RAII is convenient for failing at the typecheck() functions
+        // below.
+        Sema::DeclTableScope dts{sema};
+        // FIXME: change this to RAII as well
+        sema.context.func_stack.push_back(f);
+
+        if (f->struct_param) {
+            guard(declare(sema, f->struct_param->name, f->struct_param));
+        }
+
+        for (auto param : f->params) {
+            // typecheck_decl() will declare the params inside them as well.
+            guard(typecheck_decl(sema, param));
+            guard(declare(sema, param->name, param));
+        }
+
+        for (auto stmt : f->body->stmts) {
+            if (!typecheck_stmt(sema, stmt)) {
+                success = false;
+            }
+        }
+
+        sema.context.func_stack.pop_back();
+    }
+
+    return success;
+}
+
 // Note that this function will also do declare() for new symbols, so the
 // caller would have to set new scopes accordingly.
 bool typecheck_decl(Sema &sema, Decl *d) {
     switch (d->kind) {
     case Decl::var: {
         auto v = static_cast<VarDecl *>(d);
-        if (!declare(sema, v->name, v))
-            return false;
+        // if (!declare(sema, v->name, v))
+        //     return false;
         if (v->assign_expr) {
             if (!typecheck_expr(sema, v->assign_expr))
                 return false;
@@ -632,80 +718,13 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 
         break;
     }
-    case Decl::func: {
-        auto f = static_cast<FuncDecl *>(d);
-
-        Sema::DeclTableScope dts{sema};
-
-        // Struct methods.
-        if (f->struct_param) {
-            // This will declare() the param, so that is why we set up a new
-            // scope before to prevent all methods from conflicting each other.
-            guard(typecheck_decl(sema, f->struct_param));
-
-            StructDecl *target_struct_decl = nullptr;
-            auto struct_param_type = f->struct_param->type;
-            auto struct_param_type_expr = static_cast<TypeExpr *>(f->struct_param->type_expr);
-
-            // By-pointer methods
-            if (struct_param_type->is_pointer()) {
-                if (!struct_param_type->referee_type->is_struct()) {
-                    return error(struct_param_type_expr->subexpr->loc,
-                                 "cannot declare a method for '{}' which is not a struct",
-                                 struct_param_type->referee_type->name->text);
-                }
-                target_struct_decl =
-                    static_cast<StructDecl *>(struct_param_type->referee_type->origin_decl);
-            }
-            // By-value methods
-            else if (!struct_param_type->is_struct()) {
-                return error(struct_param_type_expr->loc,
-                             "cannot declare a method for '{}' which is not a struct",
-                             struct_param_type->name->text);
-            } else {
-                // all is good
-                target_struct_decl = static_cast<StructDecl *>(struct_param_type->origin_decl);
-            }
-
-            guard(declare_in_struct(target_struct_decl, f->name, f));
-        }
-        // Freestanding functions.
-        else {
-            // But wait, the function name should be declared OUTSIDE the
-            // param's scope!!
-            guard(declare(sema, f->name, f));
-        }
-
-        if (f->ret_type_expr) {
-            guard(typecheck_expr(sema, f->ret_type_expr));
-            f->ret_type = f->ret_type_expr->type;
-        } else {
-            f->ret_type = sema.context.void_type;
-        }
-
-        for (auto param : f->params) {
-            // typecheck_decl() will declare the params inside them as well.
-            guard(typecheck_decl(sema, param));
-        }
-
-        sema.context.func_stack.push_back(f);
-
-        bool success = true;
-        for (auto stmt : f->body->stmts) {
-            if (!typecheck_stmt(sema, stmt)) {
-                success = false;
-            }
-        }
-
-        sema.context.func_stack.pop_back();
-
-        return success;
-    }
+    case Decl::func:
+        return typecheck_func_decl(sema, static_cast<FuncDecl *>(d));
     case Decl::field: {
         auto f = static_cast<FieldDecl *>(d);
         // field redeclaration check
-        if (!declare(sema, f->name, f))
-            return false;
+        // if (!declare(sema, f->name, f))
+        //     return false;
 
         if (!typecheck_expr(sema, f->type_expr))
             return false;
@@ -714,10 +733,10 @@ bool typecheck_decl(Sema &sema, Decl *d) {
     }
     case Decl::struct_: {
         auto s = static_cast<StructDecl *>(d);
-        if (!declare(sema, s->name, s))
-            return false;
-
         s->type = make_value_type(sema, s->name, s);
+
+        // if (!declare(sema, f->name, f))
+        //     return false;
 
         sema.decl_table.scope_open();
         bool success = true;
@@ -752,7 +771,10 @@ bool cmp::typecheck(Sema &sema, AstNode *n) {
     case AstNode::stmt:
         return typecheck_stmt(sema, static_cast<Stmt *>(n));
     case AstNode::decl:
-        return typecheck_decl(sema, static_cast<Decl *>(n));
+        guard(typecheck_decl(sema, static_cast<Decl *>(n)));
+        // XXX: kinda ad-hoc, why not disallow bare Decls at the toplevel?
+        guard(declare(sema, static_cast<Decl *>(n)->name, static_cast<Decl *>(n)));
+        break;
     default:
         assert(!"unknown ast kind");
     }
@@ -760,7 +782,7 @@ bool cmp::typecheck(Sema &sema, AstNode *n) {
     return true;
 }
 
-std::string abity_string(const Type *type) {
+std::string qbe_abity_string(const Type *type) {
     std::string s;
     if (type->builtin) {
         // TODO: "l", "s", "d", ...
@@ -862,7 +884,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
             //               abity_string(func_decl->rettype), c->func_name->text);
 
             for (size_t i = 0; i < c->args.size(); i++) {
-                emit_same_line("{} {}, ", abity_string(c->args[i]->type),
+                emit_same_line("{} {}, ", qbe_abity_string(c->args[i]->type),
                        generated_args[i].format());
             }
 
@@ -875,7 +897,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
 
             // @Copypaste from above
             for (size_t i = 0; i < c->args.size(); i++) {
-                emit_same_line("{} {}, ", abity_string(c->args[i]->type),
+                emit_same_line("{} {}, ", qbe_abity_string(c->args[i]->type),
                        generated_args[i].format());
             }
 
@@ -1102,11 +1124,11 @@ void QbeGenerator::codegen_decl(Decl *d) {
     case Decl::func: {
         auto f = static_cast<FuncDecl *>(d);
 
-        emit_same_line("\nexport function {} ${}(", abity_string(f->ret_type),
+        emit_same_line("\nexport function {} ${}(", qbe_abity_string(f->ret_type),
                      f->name->text);
 
         for (auto param : f->params) {
-            emit_same_line("{} %{}, ", abity_string(param->type), param->name->text);
+            emit_same_line("{} %{}, ", qbe_abity_string(param->type), param->name->text);
         }
 
         emit_same_line(") {{");

@@ -62,7 +62,7 @@ private:
     bool is_eos() const;
 
     // Declaration parsers
-    Decl *parseDecl();
+    Decl *parse_decl();
     VarDecl *parse_var_decl(VarDecl::Kind kind);
     template <typename T, typename F1, typename F2>
     void parse_comma_separated_list(F1 &&parse_fn, F2 &&push_back_fn);
