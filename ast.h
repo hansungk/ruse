@@ -117,7 +117,7 @@ struct ReturnStmt : public Stmt {
 };
 
 struct CompoundStmt : public Stmt {
-    std::vector<Stmt *> stmts;
+    std::vector<AstNode *> stmts;
 
     CompoundStmt() : Stmt(Stmt::compound) {}
 };

@@ -592,8 +592,8 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
     case Stmt::compound: {
         bool success = true;
         sema.scope_open();
-        for (auto stmt : static_cast<CompoundStmt *>(s)->stmts) {
-            if (!typecheck_stmt(sema, stmt)) {
+        for (auto line : static_cast<CompoundStmt *>(s)->stmts) {
+            if (!typecheck(sema, line)) {
                 success = false;
             }
         }
@@ -671,8 +671,8 @@ static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
             guard(declare(sema, param));
         }
 
-        for (auto stmt : f->body->stmts) {
-            if (!typecheck_stmt(sema, stmt)) {
+        for (auto line : f->body->stmts) {
+            if (!typecheck(sema, line)) {
                 success = false;
             }
         }
@@ -1084,8 +1084,8 @@ void QbeGenerator::codegen_stmt(Stmt *s) {
         break;
     }
     case Stmt::compound:
-        for (auto s : static_cast<CompoundStmt *>(s)->stmts) {
-            codegen_stmt(s);
+        for (auto line : static_cast<CompoundStmt *>(s)->stmts) {
+            codegen(line);
         }
         break;
     default:
@@ -1142,8 +1142,8 @@ void QbeGenerator::codegen_decl(Decl *d) {
                               param->name->text);
             }
 
-            for (auto body_stmt : f->body->stmts) {
-                codegen_stmt(body_stmt);
+            for (auto line : f->body->stmts) {
+                codegen(line);
             }
             // Analyses in the earlier passes should make sure that this ret is
             // not reachable.  This is only here to make QBE work meanwhile

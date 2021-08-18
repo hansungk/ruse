@@ -225,8 +225,6 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 }
 
 // Compound statement is a scoped block that consists of multiple statements.
-// There is no restriction in order such as variable declarations should come
-// first, etc.
 //
 // CompoundStmt:
 //     { Stmt* }
@@ -238,8 +236,8 @@ CompoundStmt *Parser::parse_compound_stmt() {
         skip_newlines();
         if (tok.kind == Tok::rbrace)
             break;
-        auto stmt = parse_stmt();
-        compound->stmts.push_back(stmt);
+        auto line = parse_toplevel();
+        compound->stmts.push_back(line);
     }
 
     expect(Tok::rbrace);
@@ -530,14 +528,14 @@ Decl *Parser::parse_decl() {
         v->mut = true;
         return v;
     }
-    case Tok::kw_struct: {
+    case Tok::kw_struct:
         return parse_struct_decl();
-    }
     case Tok::kw_func:
         return parse_func_decl();
-    default: {
+    case Tok::kw_extern:
+        return parse_extern_decl();
+    default:
         assert(false && "not a start of a declaration");
-    }
     }
 }
 
@@ -957,22 +955,18 @@ void Parser::skip_newlines() {
 }
 
 AstNode *Parser::parse_toplevel() {
-    switch (tok.kind) {
-    case Tok::kw_func:
-        return parse_func_decl();
-    case Tok::kw_struct:
-        return parse_struct_decl();
-    case Tok::kw_enum:
-        return parse_enum_decl();
-    case Tok::kw_extern:
-        return parse_extern_decl();
-    default:
-        error(fmt::format(
-            "unexpected '{}' at toplevel",
-            std::string{tok.start, static_cast<size_t>(tok.end - tok.start)}));
+    if (is_start_of_decl()) {
+        return parse_decl();
+    }
+
+    auto stmt = parse_stmt();
+    if (!stmt) {
+        error(fmt::format("unexpected '{}' at toplevel",
+                          std::string{tok.start, static_cast<size_t>(tok.end - tok.start)}));
         skip_to_next_line();
         return nullptr;
     }
+    return stmt;
 }
 
 File *Parser::parse_file() {
