@@ -583,7 +583,6 @@ Expr *Parser::parse_funccall_or_declref_expr() {
     while (!is_eos()) {
         if (tok.kind == Tok::dot) {
             expect(Tok::dot);
-            // TODO start here: s.a().b().c()
             assert(tok.kind == Tok::ident);
             Name *member_name = push_token_to_name_table(sema, tok);
             next();

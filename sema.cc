@@ -125,21 +125,7 @@ bool is_lvalue(const Expr *e) {
     return false;
 }
 
-// Declare a `decl` that has `name` in the current scope.
-// Returns true if success; otherwise (e.g.  redeclaration), return false and
-// do error handling.
-bool declare(Sema &sema, Name *name, Decl *decl) {
-    auto found = sema.decl_table.find(name);
-    if (found && found->value->kind == decl->kind &&
-        found->scope_level == sema.decl_table.curr_scope_level) {
-        return error(decl->loc, "redefinition of '{}'", name->text);
-    }
-
-    sema.decl_table.insert(name, decl);
-    return true;
-}
-
-bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl) {
+static bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl) {
     auto found = struct_decl->decl_table.find(name);
     if (found && found->value->kind == decl->kind &&
         found->scope_level == struct_decl->decl_table.curr_scope_level) {
@@ -148,6 +134,28 @@ bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl) {
     }
 
     struct_decl->decl_table.insert(name, decl);
+    return true;
+}
+
+// Declare a `decl` that has `name` in the current scope.
+// Returns true if success; otherwise (e.g.  redeclaration), return false and
+// do error handling.
+bool declare(Sema &sema, Name *name, Decl *decl) {
+    // For struct methods, we need to declare in a special struct-local scope.
+    if (decl->kind == Decl::func) {
+        auto fd = static_cast<FuncDecl *>(decl);
+        if (fd->struct_param) {
+            return declare_in_struct(fd->target_struct, fd->name, fd);
+        }
+    }
+
+    auto found = sema.decl_table.find(name);
+    if (found && found->value->kind == decl->kind &&
+        found->scope_level == sema.decl_table.curr_scope_level) {
+        return error(decl->loc, "redefinition of '{}'", name->text);
+    }
+
+    sema.decl_table.insert(name, decl);
     return true;
 }
 
@@ -608,16 +616,10 @@ VarDecl *instantiate_field(Sema &sema, VarDecl *parent, Name *name,
 }
 
 static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
-    // Usually typecheck_decl() should not do declare()s inside them, but
-    // this one is a little different as a FuncDecl is more of a stmt then
-    // a pure decl.  So we do all necessary declaration of parameters in
-    // side a new func-local scope, etc. here.
-
     // Struct methods.
     if (f->struct_param) {
         guard(typecheck_decl(sema, f->struct_param));
 
-        StructDecl *target_struct_decl = nullptr;
         auto struct_param_type = f->struct_param->type;
         auto struct_param_type_expr = static_cast<TypeExpr *>(f->struct_param->type_expr);
 
@@ -628,7 +630,7 @@ static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
                              "cannot declare a method for '{}' which is not a struct",
                              struct_param_type->referee_type->name->text);
             }
-            target_struct_decl =
+            f->target_struct =
                 static_cast<StructDecl *>(struct_param_type->referee_type->origin_decl);
         }
         // By-value methods
@@ -638,16 +640,8 @@ static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
                          struct_param_type->name->text);
         } else {
             // all is good
-            target_struct_decl = static_cast<StructDecl *>(struct_param_type->origin_decl);
+            f->target_struct = static_cast<StructDecl *>(struct_param_type->origin_decl);
         }
-
-        guard(declare_in_struct(target_struct_decl, f->name, f));
-    }
-    // Freestanding functions.
-    else {
-        // But wait, the function name should be declared OUTSIDE the
-        // param's scope!!
-        guard(declare(sema, f->name, f));
     }
 
     if (f->ret_type_expr) {
@@ -772,7 +766,7 @@ bool cmp::typecheck(Sema &sema, AstNode *n) {
         return typecheck_stmt(sema, static_cast<Stmt *>(n));
     case AstNode::decl:
         guard(typecheck_decl(sema, static_cast<Decl *>(n)));
-        // XXX: kinda ad-hoc, why not disallow bare Decls at the toplevel?
+        // XXX: kinda ad-hoc, causes redeclaration errors for functions
         guard(declare(sema, static_cast<Decl *>(n)->name, static_cast<Decl *>(n)));
         break;
     default:

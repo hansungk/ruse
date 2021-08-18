@@ -408,11 +408,14 @@ struct VarDecl : public Decl {
 // should always be defined whenever they are declared.
 struct FuncDecl : public Decl {
     Type *ret_type = nullptr;            // return type of the function
-    VarDecl *struct_param = nullptr;   // target struct that this method is implemented in
-    std::vector<VarDecl *> params;      // list of parameters
-    CompoundStmt *body = nullptr;       // body statements
-    Expr *ret_type_expr = nullptr;        // return type expression
-    Name *ret_lifetime_annot = nullptr; // lifetime annotation of the return value
+    VarDecl *struct_param = nullptr;     // struct parameter for methods
+    StructDecl *target_struct = nullptr; // target struct that this method is implemented in. Should
+                                         // be null for freestanding functions.
+                                         // @Improve: don't really want to keep this as a member.
+    std::vector<VarDecl *> params;       // list of parameters
+    CompoundStmt *body = nullptr;        // body statements
+    Expr *ret_type_expr = nullptr;       // return type expression
+    Name *ret_lifetime_annot = nullptr;  // lifetime annotation of the return value
     // "Bogus" lifetime that represents the scope of the function body.
     Lifetime *scope_lifetime = nullptr;
 
