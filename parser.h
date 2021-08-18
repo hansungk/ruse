@@ -4,7 +4,6 @@
 #include "ast.h"
 #include "lexer.h"
 #include "sema.h"
-#include <variant>
 
 namespace cmp {
 
