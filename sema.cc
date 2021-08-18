@@ -140,7 +140,7 @@ static bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl) {
 // Declare a `decl` that has `name` in the current scope.
 // Returns true if success; otherwise (e.g.  redeclaration), return false and
 // do error handling.
-bool declare(Sema &sema, Name *name, Decl *decl) {
+bool declare(Sema &sema, Decl *decl) {
     // For struct methods, we need to declare in a special struct-local scope.
     if (decl->kind == Decl::func) {
         auto fd = static_cast<FuncDecl *>(decl);
@@ -149,13 +149,13 @@ bool declare(Sema &sema, Name *name, Decl *decl) {
         }
     }
 
-    auto found = sema.decl_table.find(name);
+    auto found = sema.decl_table.find(decl->name);
     if (found && found->value->kind == decl->kind &&
         found->scope_level == sema.decl_table.curr_scope_level) {
-        return error(decl->loc, "redefinition of '{}'", name->text);
+        return error(decl->loc, "redefinition of '{}'", decl->name->text);
     }
 
-    sema.decl_table.insert(name, decl);
+    sema.decl_table.insert(decl->name, decl);
     return true;
 }
 
@@ -524,7 +524,7 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
     case Stmt::decl: {
         auto decl = static_cast<DeclStmt *>(s)->decl;
         guard(typecheck_decl(sema, decl));
-        guard(declare(sema, decl->name, decl));
+        guard(declare(sema, decl));
         break;
     }
     case Stmt::assign: {
@@ -662,13 +662,13 @@ static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
         sema.context.func_stack.push_back(f);
 
         if (f->struct_param) {
-            guard(declare(sema, f->struct_param->name, f->struct_param));
+            guard(declare(sema, f->struct_param));
         }
 
         for (auto param : f->params) {
             // typecheck_decl() will declare the params inside them as well.
             guard(typecheck_decl(sema, param));
-            guard(declare(sema, param->name, param));
+            guard(declare(sema, param));
         }
 
         for (auto stmt : f->body->stmts) {
@@ -767,7 +767,7 @@ bool cmp::typecheck(Sema &sema, AstNode *n) {
     case AstNode::decl:
         guard(typecheck_decl(sema, static_cast<Decl *>(n)));
         // XXX: kinda ad-hoc, causes redeclaration errors for functions
-        guard(declare(sema, static_cast<Decl *>(n)->name, static_cast<Decl *>(n)));
+        guard(declare(sema, static_cast<Decl *>(n)));
         break;
     default:
         assert(!"unknown ast kind");
