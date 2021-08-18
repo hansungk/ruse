@@ -4,7 +4,6 @@
 #include "lexer.h"
 #include "scoped_table.h"
 #include "types.h"
-#include <type_traits>
 
 namespace cmp {
 
@@ -345,7 +344,6 @@ struct Decl : public AstNode {
     Decl(Kind d, Name *n) : Decl(d, n, nullptr) {}
     Decl(Kind d, Name *n, Type *t)
         : AstNode(AstNode::decl), kind(d), name(n), type(t) {}
-    std::optional<Type *> typemaybe() const;
 };
 
 // Variable declaration.

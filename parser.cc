@@ -280,43 +280,44 @@ VarDecl *Parser::parse_var_decl(VarDecl::Kind kind) {
 // function for the node type should be provided as 'parse_fn' so that this
 // function knows how to parse the elements.
 // Doesn't account for the enclosing parentheses or braces.
-template <typename T, typename F>
-std::vector<T> Parser::parse_comma_separated_list(F &&parse_fn) {
+template <typename T, typename F1, typename F2>
+void Parser::parse_comma_separated_list(F1 &&parse_fn, F2 &&push_back_fn) {
+    // With both ) and } checked, this works for both function argument lists
+    // and struct fields.
     auto finishers = {Tok::rparen, Tok::rbrace};
     auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
-    std::vector<T> list;
 
     for (;;) {
         skip_newlines();
         if (tok.is_any(finishers) || is_eos())
             break;
 
-        auto elem = parse_fn();
-        if (elem)
-            list.push_back(elem);
+        T elem;
+        bool success = parse_fn(elem);
+        if (success) {
+            push_back_fn(elem);
+        }
 
-        // Determining where each decl ends in a list is a little tricky.  Here,
+        // Determining where a decl ends in a list is a little tricky.  Here,
         // we stop for any token that is either (1) separator tokens like comma
-        // or newline, or (2) closing tokens like parentheses and braces.  This
-        // works for both function argument lists and struct fields.
-        if (!elem) {
+        // or newline, or (2) closing tokens like parentheses and braces.
+        if (!success) {
             skip_until_any(delimiters);
         } else if (!tok.is_any(delimiters)) {
-            // For cases when a VarDecl succeeds parsing but there is a leftover
-            // token, e.g. 'a: int###', we need to directly check the next token
-            // is the delimiting token, and do an appropriate error report.
+            // For cases where a VarDecl succeeds parsing but there is a
+            // leftover token, e.g. 'a: int###', we need to directly check the
+            // next token is the delimiting token, and do an appropriate error
+            // report.
             error(fmt::format("trailing token '{}' after declaration",
                               tok.str()));
             skip_until_any(delimiters);
         }
 
-        // Skip comma if any. This allows trailing comma at the end, e.g.
+        // Skip comma if any. This allows trailing comma at the end, such as
         // '(a,)'.
         if (tok.kind == Tok::comma)
             next();
     }
-
-    return list;
 }
 
 FuncDecl *Parser::parse_func_header() {
@@ -341,8 +342,12 @@ FuncDecl *Parser::parse_func_header() {
 
     // argument list
     expect(Tok::lparen);
-    func->params = parse_comma_separated_list<VarDecl *>(
-        [this] { return parse_var_decl(VarDecl::param); });
+    parse_comma_separated_list<VarDecl *>(
+        [this](VarDecl *&result) {
+            result = parse_var_decl(VarDecl::param);
+            return result != nullptr;
+        },
+        [&](VarDecl *result) { func->params.push_back(result); });
     if (!expect(Tok::rparen)) {
         skip_until(Tok::rparen);
         expect(Tok::rparen);
@@ -388,12 +393,15 @@ StructDecl *Parser::parse_struct_decl() {
     if (!expect(Tok::lbrace))
         skip_until_end_of_line();
 
-    auto fields = parse_comma_separated_list<FieldDecl *>([this] {
-        // FIXME: Creates a throwaway VarDecl.
-        auto var_decl = parse_var_decl(VarDecl::struct_);
-        return make_node_range<FieldDecl>(var_decl->pos, var_decl->name,
-                                             var_decl->type_expr);
-    });
+    std::vector<FieldDecl *> fields;
+    parse_comma_separated_list<FieldDecl *>(
+        [this](FieldDecl *&result) {
+            // FIXME: Creates a throwaway VarDecl.
+            auto var_decl = parse_var_decl(VarDecl::struct_);
+            result = make_node_range<FieldDecl>(var_decl->pos, var_decl->name, var_decl->type_expr);
+            return var_decl != nullptr;
+        },
+        [&](FieldDecl *result) { fields.push_back(result); });
     expect(Tok::rbrace, "unterminated struct declaration");
     // TODO: recover
 
@@ -409,8 +417,12 @@ EnumVariantDecl *Parser::parse_enum_variant() {
     std::vector<Expr *> fields;
     if (tok.kind == Tok::lparen) {
         expect(Tok::lparen);
-        fields = parse_comma_separated_list<Expr *>(
-            [this] { return parse_type_expr(); });
+        parse_comma_separated_list<Expr *>(
+            [this](Expr *&result) {
+                result = parse_type_expr();
+                return result != nullptr;
+            },
+            [&](Expr *result) { fields.push_back(result); });
         expect(Tok::rparen);
     }
 
@@ -849,20 +861,22 @@ fail:
 }
 
 // Parse '.memb = expr' part in Struct { .m1 = e1, .m2 = e2, ... }.
-std::optional<StructDefTerm> Parser::parse_structdef_field() {
+// Returns false if there is no more valid term to parse.
+bool Parser::parse_structdef_field(StructDefTerm &result) {
     if (!expect(Tok::dot))
-        return {};
+        return false;
     Name *name = push_token_to_name_table(sema, tok);
     next();
 
     if (!expect(Tok::equals))
-        return {};
+        return false;
 
     auto expr = parse_expr();
     if (!expr)
-        return {};
+        return false;
 
-    return StructDefTerm{name, expr};
+    result = StructDefTerm{name, expr};
+    return true;
 }
 
 // If this expression has a trailing {...}, parse as a struct definition
@@ -878,14 +892,10 @@ Expr *Parser::parse_structdef_maybe(Expr *expr) {
 
     expect(Tok::lbrace);
 
-    auto v = parse_comma_separated_list<std::optional<StructDefTerm>>(
-        [this] { return parse_structdef_field(); });
-
     std::vector<StructDefTerm> desigs;
-    for (auto opt_field : v) {
-        assert(opt_field.has_value());
-        desigs.push_back(*opt_field);
-    }
+    parse_comma_separated_list<StructDefTerm>(
+        [this](StructDefTerm &result) { return parse_structdef_field(result); },
+        [&](const StructDefTerm &result) { desigs.push_back(result); });
 
     expect(Tok::rbrace);
 

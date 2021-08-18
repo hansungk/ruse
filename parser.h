@@ -64,8 +64,8 @@ private:
     // Declaration parsers
     Decl *parseDecl();
     VarDecl *parse_var_decl(VarDecl::Kind kind);
-    template <typename T, typename F>
-    std::vector<T> parse_comma_separated_list(F &&parseFn);
+    template <typename T, typename F1, typename F2>
+    void parse_comma_separated_list(F1 &&parse_fn, F2 &&push_back_fn);
     FuncDecl *parse_func_header();
     FuncDecl *parse_func_decl();
     StructDecl *parse_struct_decl();
@@ -84,7 +84,7 @@ private:
     Expr *parse_type_expr();
     Expr *parse_binary_expr_rhs(Expr *lhs, int precedence);
     Expr *parse_member_expr_maybe(Expr *expr);
-    std::optional<StructDefTerm> parse_structdef_field();
+    bool parse_structdef_field(StructDefTerm &result);
     bool lookahead_structdef();
     Expr *parse_structdef_maybe(Expr *expr);
 
