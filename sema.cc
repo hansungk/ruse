@@ -287,7 +287,17 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         de->type = de->decl->type;
         // DeclRefExprs don't always have a non-null type associated, i.e. when
         // it designates a function.
-        // assert(de->type);
+        if (de->decl->kind != Decl::func) {
+            // A DeclRefExpr may succeed name binding but may have failed
+            // typechecking, e.g. when its declaration failed typechecking:
+            //
+            //     let a = invalid()
+            //     a + ...
+            //
+            // In those cases, just give up here so that outer constructs do
+            // not bother.
+            guard(de->type);
+        }
         break;
     }
     case Expr::call: {
@@ -459,6 +469,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
 
         assert(matched_field->type);
         mem->type = matched_field->type;
+        assert(mem->type);
         break;
     }
     case Expr::unary:
@@ -472,8 +483,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         auto rhs_type = b->rhs->type;
 
         if (lhs_type != rhs_type) {
-            return error(b->loc,
-                         "incompatible binary op with type '{}' and '{}'",
+            return error(b->loc, "incompatible binary op with type '{}' and '{}'",
                          lhs_type->name->text, rhs_type->name->text);
         }
 
@@ -908,6 +918,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
             // Don't push to valstack here; that the caller doesn't erroneously
             // pop afterwards should have been checked by the semantic phase.
         }
+        assert(c->type);
         break;
     }
     case Expr::struct_def: {

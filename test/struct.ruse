@@ -30,6 +30,8 @@ func main() {
     S {.notthere = 0} //~error: unknown field 'notthere' in struct 'S'
 
     let def = S {.hi = 0}
+    let hi = def.get_hi()
+    hi + 1
 
     {
         struct Inner {
