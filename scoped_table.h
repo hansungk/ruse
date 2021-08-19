@@ -1,7 +1,6 @@
 #ifndef CMP_SCOPED_TABLE_H
 #define CMP_SCOPED_TABLE_H
 
-#include <array>
 #include <vector>
 
 namespace cmp {
@@ -33,7 +32,7 @@ template <typename Key, typename T> struct ScopedTable {
     // Close current cope.
     void scope_close();
 
-    std::array<Symbol *, SYMBOL_TABLE_BUCKET_COUNT> keys;
+    Symbol *keys[SYMBOL_TABLE_BUCKET_COUNT];
     std::vector<Symbol *> scope_stack = {};
     int curr_scope_level = 0;
 };
