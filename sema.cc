@@ -126,6 +126,8 @@ bool is_lvalue(const Expr *e) {
 }
 
 static bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl) {
+    assert(struct_decl);
+
     auto found = struct_decl->decl_table.find(name);
     if (found && found->value->kind == decl->kind &&
         found->scope_level == struct_decl->decl_table.curr_scope_level) {
@@ -141,10 +143,14 @@ static bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl) {
 // Returns true if success; otherwise (e.g.  redeclaration), return false and
 // do error handling.
 bool declare(Sema &sema, Decl *decl) {
+    assert(decl);
+
     // For struct methods, we need to declare in a special struct-local scope.
     if (decl->kind == Decl::func) {
         auto fd = static_cast<FuncDecl *>(decl);
-        if (fd->struct_param) {
+        // If 'fd' is a struct method, if its struct parameter fails typecheck,
+        // we can't declare them in its method scope.
+        if (fd->struct_param && fd->target_struct) {
             return declare_in_struct(fd->target_struct, fd->name, fd);
         }
     }
@@ -279,7 +285,9 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         de->decl = sym->value;
         assert(de->decl);
         de->type = de->decl->type;
-        assert(de->type);
+        // DeclRefExprs don't always have a non-null type associated, i.e. when
+        // it designates a function.
+        // assert(de->type);
         break;
     }
     case Expr::call: {
@@ -291,7 +299,6 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         guard(typecheck_expr(sema, c->callee_expr));
 
         assert(c->callee_expr->decl);
-        assert(c->callee_expr->type);
 
         // auto sym = sema.decl_table.find(c->func_name);
         // if (!sym) {
@@ -511,7 +518,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         assert(!"unknown expr kind");
     }
 
-    assert(e->type);
+    // assert(e->type);
 
     // No more work is supposed to be done here.
     return true;
@@ -655,10 +662,9 @@ static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
     // statements.
     bool success = true;
     {
-        // RAII is convenient for failing at the typecheck() functions
-        // below.
+        // RAII is convenient for when we fail at typecheck() functions below.
         Sema::DeclTableScope dts{sema};
-        // FIXME: change this to RAII as well
+        // @Improve: change this to RAII as well
         sema.context.func_stack.push_back(f);
 
         if (f->struct_param) {
@@ -666,7 +672,6 @@ static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
         }
 
         for (auto param : f->params) {
-            // typecheck_decl() will declare the params inside them as well.
             guard(typecheck_decl(sema, param));
             guard(declare(sema, param));
         }
@@ -752,23 +757,26 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 } // namespace
 
 bool cmp::typecheck(Sema &sema, AstNode *n) {
+    bool success;
+
     switch (n->kind) {
-    case AstNode::file: {
-        bool success = true;
+    case AstNode::file:
+        success = true;
         for (auto toplevel : static_cast<File *>(n)->toplevels) {
             if (!typecheck(sema, toplevel)) {
                 success = false;
             }
         }
         return success;
-    }
     case AstNode::stmt:
         return typecheck_stmt(sema, static_cast<Stmt *>(n));
     case AstNode::decl:
-        guard(typecheck_decl(sema, static_cast<Decl *>(n)));
-        // XXX: kinda ad-hoc, causes redeclaration errors for functions
+        // For function and struct decls, even if one of its body statements or
+        // members fail typechecking, we probably still want to declare them to
+        // prevent too many chained errors for the code that use them.
+        success = typecheck_decl(sema, static_cast<Decl *>(n));
         guard(declare(sema, static_cast<Decl *>(n)));
-        break;
+        return success;
     default:
         assert(!"unknown ast kind");
     }

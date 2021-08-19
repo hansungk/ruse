@@ -406,6 +406,8 @@ struct VarDecl : public Decl {
 
 // Function declaration.  There is no separate function definition: functions
 // should always be defined whenever they are declared.
+// Note that FuncDecl doesn't have a related type; only its ret_type will be
+// set here.
 struct FuncDecl : public Decl {
     Type *ret_type = nullptr;            // return type of the function
     VarDecl *struct_param = nullptr;     // struct parameter for methods
