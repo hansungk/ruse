@@ -372,8 +372,6 @@ bool typecheck_expr(Sema &sema, Expr *e) {
                 }
             }
             if (!matched_field) {
-                // TODO: start here: also check methods, not just member
-                // variables.
                 return error(sde->loc, "unknown field '{}' in struct '{}'",
                              term.name->text, struct_type->name->text);
             }
@@ -439,6 +437,9 @@ bool typecheck_expr(Sema &sema, Expr *e) {
             }
         }
         if (!matched_field) {
+            // TODO: start here: also check methods, not just member
+            // variables.  Do that by looking up the decl_table member of
+            // StructDecl.
             return error(mem->loc, "unknown field '{}' in struct '{}'",
                          mem->member_name->text, parent_type->name->text);
         }
