@@ -407,7 +407,8 @@ StructDecl *Parser::parse_struct_decl() {
     if (!expect(Tok::lbrace))
         skip_until_end_of_line();
 
-    std::vector<FieldDecl *> fields;
+    auto sd = make_node_range<StructDecl>(pos, name);
+
     parse_comma_separated_list<FieldDecl *>(
         [this](FieldDecl *&result) {
             // FIXME: Creates a throwaway VarDecl.
@@ -415,11 +416,14 @@ StructDecl *Parser::parse_struct_decl() {
             result = make_node_range<FieldDecl>(var_decl->pos, var_decl->name, var_decl->type_expr);
             return var_decl != nullptr;
         },
-        [&](FieldDecl *result) { fields.push_back(result); });
+        [&](FieldDecl *result) {
+            sd->fields.push_back(result);
+            declare_in_struct(sd, result->name, result);
+        });
     expect(Tok::rbrace, "unterminated struct declaration");
     // TODO: recover
 
-    return make_node_range<StructDecl>(pos, name, fields);
+    return sd;
 }
 
 EnumVariantDecl *Parser::parse_enum_variant() {

@@ -49,8 +49,7 @@ Type *make_ref_type(Sema &sema, Name *name, TypeKind ptr_kind,
 
 Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
     Name *name = s.name_table.pushlen(str.data(), str.length());
-    auto struct_decl =
-        s.make_node<StructDecl>(name, std::vector<FieldDecl *>() /* FIXME */);
+    auto struct_decl = s.make_node<StructDecl>(name);
     struct_decl->type = make_builtin_type(s, name);
     s.decl_table.insert(name, struct_decl);
     return struct_decl->type;
@@ -106,9 +105,7 @@ bool Type::is_builtin(Sema &sema) const {
            this == sema.context.void_type || this == sema.context.string_type;
 }
 
-namespace {
-
-bool is_lvalue(const Expr *e) {
+static bool is_lvalue(const Expr *e) {
     // Determine lvalue-ness by the expression kind.
     switch (e->kind) {
     case Expr::decl_ref:
@@ -125,7 +122,7 @@ bool is_lvalue(const Expr *e) {
     return false;
 }
 
-static bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl) {
+bool cmp::declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl) {
     assert(struct_decl);
 
     auto found = struct_decl->decl_table.find(name);
@@ -142,7 +139,7 @@ static bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl) {
 // Declare a `decl` that has `name` in the current scope.
 // Returns true if success; otherwise (e.g.  redeclaration), return false and
 // do error handling.
-bool declare(Sema &sema, Decl *decl) {
+bool cmp::declare(Sema &sema, Decl *decl) {
     assert(decl);
 
     // For struct methods, we need to declare in a special struct-local scope.
@@ -375,6 +372,8 @@ bool typecheck_expr(Sema &sema, Expr *e) {
                 }
             }
             if (!matched_field) {
+                // TODO: start here: also check methods, not just member
+                // variables.
                 return error(sde->loc, "unknown field '{}' in struct '{}'",
                              term.name->text, struct_type->name->text);
             }
@@ -763,8 +762,6 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 
     return true;
 }
-
-} // namespace
 
 bool cmp::typecheck(Sema &sema, AstNode *n) {
     bool success;

@@ -445,8 +445,7 @@ struct StructDecl : public Decl {
     // aligned to.
     uint64_t alignment;
 
-    StructDecl(Name *n, std::vector<FieldDecl *> m)
-        : Decl(Decl::struct_, n), fields(m) {}
+    StructDecl(Name *n) : Decl(Decl::struct_, n) {}
 };
 
 // A variant type in an enum.
