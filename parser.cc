@@ -291,11 +291,14 @@ VarDecl *Parser::parse_var_decl(VarDecl::Kind kind) {
 }
 
 // Parses a comma separated list of AST nodes whose type is T*.  Parser
-// function for the node type should be provided as 'parse_fn' so that this
+// function for the node type should be provided as `parse_fn` so that this
 // function knows how to parse the elements.
+// `do_on_parse` specifies the action done on each successful parse of an
+// element.  This might include declare()ing to a decl table, or pushing back
+// to a vector that stores struct members.
 // Doesn't account for the enclosing parentheses or braces.
 template <typename T, typename F1, typename F2>
-void Parser::parse_comma_separated_list(F1 &&parse_fn, F2 &&push_back_fn) {
+void Parser::parse_comma_separated_list(F1 &&parse_fn, F2 &&do_on_parse) {
     // With both ) and } checked, this works for both function argument lists
     // and struct fields.
     auto finishers = {Tok::rparen, Tok::rbrace};
@@ -309,7 +312,7 @@ void Parser::parse_comma_separated_list(F1 &&parse_fn, F2 &&push_back_fn) {
         T elem;
         bool success = parse_fn(elem);
         if (success) {
-            push_back_fn(elem);
+            do_on_parse(elem);
         }
 
         // Determining where a decl ends in a list is a little tricky.  Here,
@@ -418,6 +421,7 @@ StructDecl *Parser::parse_struct_decl() {
         },
         [&](FieldDecl *result) {
             sd->fields.push_back(result);
+            // XXX: fields.push_back should not be necessary
             declare_in_struct(sd, result->name, result);
         });
     expect(Tok::rbrace, "unterminated struct declaration");

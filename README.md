@@ -21,7 +21,7 @@ $ ./check.py
 
 ## todo
 
-* separate typechecking and declare()
+* s.a()
 * strings
 * interop with C
 * methods

@@ -372,7 +372,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
                 }
             }
             if (!matched_field) {
-                return error(sde->loc, "unknown field '{}' in struct '{}'",
+                return error(sde->loc, "'{}' is not a member of struct '{}'",
                              term.name->text, struct_type->name->text);
             }
 
@@ -429,47 +429,47 @@ bool typecheck_expr(Sema &sema, Expr *e) {
                          reported_name->text);
         }
 
-        FieldDecl *matched_field = nullptr;
-        for (auto field : static_cast<StructDecl *>(parent_type_decl)->fields) {
-            if (mem->member_name == field->name) {
-                matched_field = field;
-                break;
-            }
-        }
-        if (!matched_field) {
-            // TODO: start here: also check methods, not just member
-            // variables.  Do that by looking up the decl_table member of
-            // StructDecl.
-            return error(mem->loc, "unknown field '{}' in struct '{}'",
-                         mem->member_name->text, parent_type->name->text);
-        }
-
-        // For querying offsets in the struct later.
-        mem->field_decl = matched_field;
-
-        // If parent is an lvalue, its child is also an lvalue.  So bind a new
-        // VarDecl to this MemberExpr as well.
-
         // At this point, parent_expr is either a struct or a pointer to
-        // struct.
+        // struct.  Now we have to check the member side.
 
-        if (mem->parent_expr->decl) {
-            assert(mem->parent_expr->decl->kind == Decl::var);
-            auto parent_var_decl =
-                static_cast<VarDecl *>(mem->parent_expr->decl);
-            assert(!parent_var_decl->children.empty());
-            for (auto child : parent_var_decl->children) {
-                if (child->name == mem->member_name) {
-                    mem->decl = child;
-                    break;
-                }
-            }
-            assert(mem->decl && "struct member failed to namebind");
+        auto parent_type_struct_decl = static_cast<StructDecl *>(parent_type_decl);
+        auto sym = parent_type_struct_decl->decl_table.find(mem->member_name);
+        if (!sym) {
+            return error(mem->loc, "'{}' is not a member of struct '{}'", mem->member_name->text,
+                         reported_name->text);
         }
 
-        assert(matched_field->type);
-        mem->type = matched_field->type;
-        assert(mem->type);
+        // Figure out if this is a field or a method.
+        if (sym->value->kind == Decl::field) {
+            mem->field_decl = static_cast<FieldDecl *>(sym->value);
+
+            // If parent is an lvalue, its child is also an lvalue.  So find
+            // the right children VarDecl of the paren tand bind it to this
+            // MemberExpr as well.
+            if (mem->parent_expr->decl) {
+                assert(mem->parent_expr->decl->kind == Decl::var);
+                auto parent_var_decl = static_cast<VarDecl *>(mem->parent_expr->decl);
+                assert(!parent_var_decl->children.empty());
+                for (auto child : parent_var_decl->children) {
+                    if (child->name == mem->member_name) {
+                        mem->decl = child;
+                        break;
+                    }
+                }
+                assert(mem->decl && "struct member failed to namebind");
+            }
+
+            mem->type = mem->field_decl->type;
+            assert(mem->type);
+        } else {
+            assert(sym->value->kind == Decl::func);
+
+            // For methods, we need to keep track of the original declaration
+            // of the method.
+            mem->decl = static_cast<FuncDecl *>(sym->value);
+            // return error(mem->loc, "method discovered!");
+        }
+
         break;
     }
     case Expr::unary:
@@ -528,6 +528,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         assert(!"unknown expr kind");
     }
 
+    // TODO: doc why this is allowed non-null.
     // assert(e->type);
 
     // No more work is supposed to be done here.

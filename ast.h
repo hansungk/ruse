@@ -244,7 +244,8 @@ struct MemberExpr : public Expr {
     Expr *parent_expr = nullptr;
     Name *member_name = nullptr; // 'mem' part
 
-    // Back-reference to the FieldDecl. Only valid for struct fields.
+    // Back-reference to the FieldDecl, used for querying the byte offset of
+    // the field.  Only valid for struct fields.
     FieldDecl *field_decl = nullptr;
 
     // MemberExprs may or may not have an associated VarDecl, depending on
