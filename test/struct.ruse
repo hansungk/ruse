@@ -30,6 +30,7 @@ func main() {
     S {.notthere = 0} //~error: 'notthere' is not a member of struct 'S'
 
     let def = S {.hi = 0}
+    let wrong = def.hi() //~error: 'hi' is not a function or a method
     let hi = def.get_hi()
     hi + 1
 

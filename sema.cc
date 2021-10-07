@@ -307,14 +307,13 @@ bool typecheck_expr(Sema &sema, Expr *e) {
 
         assert(c->callee_expr->decl);
 
-        // auto sym = sema.decl_table.find(c->func_name);
-        // if (!sym) {
-        //     return error(c->loc, "undeclared function '{}'",
-        //                  c->func_name->text);
-        // }
-        c->callee_decl = c->callee_expr->decl; // FIXME don't use c->callee_decl
-
-        assert(c->callee_decl->kind == Decl::func);
+        c->callee_decl = c->callee_expr->decl;
+        if (c->callee_decl->kind != Decl::func) {
+            return error(c->loc,
+                         "'{}' is not a function or a method", // FIXME differentiate between
+                                                               // function and method?
+                         c->callee_decl->name->text);
+        }
         auto func_decl = static_cast<FuncDecl *>(c->callee_decl);
         assert(func_decl->ret_type);
         c->type = func_decl->ret_type;
@@ -467,7 +466,6 @@ bool typecheck_expr(Sema &sema, Expr *e) {
             // For methods, we need to keep track of the original declaration
             // of the method.
             mem->decl = static_cast<FuncDecl *>(sym->value);
-            // return error(mem->loc, "method discovered!");
         }
 
         break;
