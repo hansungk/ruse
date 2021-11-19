@@ -8,10 +8,10 @@
 
 #define BUFSIZE 1024
 
-// This is essentially the try! macro in Rust.
-#define guard(expr)                                                                                \
-    if (!(expr)) {                                                                                 \
-        return false;                                                                              \
+// This is essentially an equivalent to the try! macro in Rust.
+#define guard(expr)   \
+    if (!(expr)) {    \
+        return false; \
     }
 
 using namespace cmp;
