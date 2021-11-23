@@ -128,7 +128,10 @@ static void skip_while(Parser *p, enum TokenType type) {
 }
 
 static void skip_newlines(Parser *p) {
-    skip_while(p, '\n');
+	while (p->tok.type == '\n' || p->tok.type == TOK_COMMENT) {
+		skip_while(p, '\n');
+		skip_while(p, TOK_COMMENT);
+	}
 }
 
 static void skip_to_end_of_line(Parser *p) {
@@ -229,8 +232,7 @@ static int get_precedence(const Token op) {
 //	 UnaryExpr (op BinaryExpr)*
 //
 // Return the pointer to the node respresenting the reduced binary expression.
-static Node *parse_binexpr_rhs(Parser *p, Node *lhs,
-				      int precedence) {
+static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence) {
 	while (1) {
 		int this_prec = get_precedence(p->tok);
 
@@ -331,41 +333,42 @@ static Node *parse_stmt(Parser *p) {
 }
 
 static Node *parse_function(Parser *p) {
-    expect(p, TOK_FUNC);
+	expect(p, TOK_FUNC);
 
-    Node *func = makefunc(p, p->tok);
-    next(p);
+	Node *func = makefunc(p, p->tok);
+	next(p);
 
-    // argument list
-    expect(p, TOK_LPAREN);
-    // func->paramdecls = parse_paramdecllist(p);
-    expect(p, TOK_RPAREN);
+	// argument list
+	expect(p, TOK_LPAREN);
+	// func->paramdecls = parse_paramdecllist(p);
+	expect(p, TOK_RPAREN);
 
-    // return type
-    func->rettypeexpr = NULL;
-    expect_end_of_line(p);
+	// return type
+	func->rettypeexpr = NULL;
+	expect_end_of_line(p);
 
-    while (p->tok.type != TOK_END) {
-        Node *s = parse_stmt(p);
-        if (s) {
-            sb_push(func->stmts, s);
-        }
-    }
-    expect(p, TOK_END);
+	while (p->tok.type != TOK_END) {
+		Node *s = parse_stmt(p);
+		if (s) {
+			sb_push(func->stmts, s);
+		}
+	}
+	expect(p, TOK_END);
 
-    return func;
+	return func;
 }
 
 static Node *parse_toplevel(Parser *p) {
-    skip_newlines(p);
+	skip_newlines(p);
 
-    switch (p->tok.type) {
-    case TOK_FUNC:
-        return parse_function(p);
-    default:
-        assert(0 && "unreachable");
-        return NULL;
-    }
+	switch (p->tok.type) {
+	case TOK_FUNC:
+		return parse_function(p);
+	default:
+		printf("p->tok=%d\n", p->tok.type);
+		assert(0 && "unreachable");
+		return NULL;
+	}
 }
 
 Node *parse(Parser *p) {
