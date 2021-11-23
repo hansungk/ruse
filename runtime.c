@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void context_init(struct Context *ctx, struct Source *src) {
+void context_init(struct Context *ctx, Source *src) {
 	memset(ctx, 0, sizeof(struct Context));
 	ctx->src = src;
 	ctx->scope = calloc(sizeof(struct Scope), 1);
@@ -33,7 +33,7 @@ static void error(struct Context *ctx, long loc, const char *fmt, ...) {
 	vsnprintf(msg, sizeof(msg), fmt, args);
 	va_end(args);
 
-	struct SrcLoc srcloc = locate(ctx->src, loc);
+	SrcLoc srcloc = locate(ctx->src, loc);
 	fprintf(stderr, "error in %s:%d:%d:(%ld): %s\n", srcloc.filename,
 		srcloc.line, srcloc.col, loc, msg);
 	exit(EXIT_FAILURE);

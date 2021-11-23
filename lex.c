@@ -13,8 +13,8 @@ char *token_names[NUM_TOKENTYPES] = {
     [TOK_END] = "end",
 };
 
-struct token_map keywords[] = {
-    {"var", TOK_VAR}, {"proc", TOK_PROC}, {"return", TOK_RETURN},
+struct TokenMap keywords[] = {
+    {"var", TOK_VAR}, {"func", TOK_FUNC}, {"return", TOK_RETURN},
     {"end", TOK_END}, {NULL, 0},
 };
 
@@ -39,7 +39,7 @@ static char *readfile(const char *filename, long *filesize) {
     return s;
 }
 
-static void step(struct Lexer *l) {
+static void step(Lexer *l) {
     if (l->rd_off < l->src.srclen) {
         l->off = l->rd_off;
         l->ch = l->src.src[l->off];
@@ -53,29 +53,29 @@ static void step(struct Lexer *l) {
     }
 }
 
-static void consume(struct Lexer *l, long n) {
+static void consume(Lexer *l, long n) {
     for (long i = 0; i < n; i++) {
         step(l);
     }
 }
 
-static char lookn(struct Lexer *l, long n) {
+static char lookn(Lexer *l, long n) {
     if (l->off + n < l->src.srclen) {
         return l->src.src[l->off + n];
     }
     return '\0';
 }
 
-int lexer_from_file(struct Lexer *l, const char *filename) {
-    memset(l, 0, sizeof(struct Lexer));
+int lexer_from_file(Lexer *l, const char *filename) {
+    memset(l, 0, sizeof(Lexer));
     strncpy(l->src.filename, filename, 255);
     l->src.src = readfile(filename, &l->src.srclen);
     step(l);
     return 1;
 }
 
-int lexer_from_buf(struct Lexer *l, const char *buf, size_t len) {
-    memset(l, 0, sizeof(struct Lexer));
+int lexer_from_buf(Lexer *l, const char *buf, size_t len) {
+    memset(l, 0, sizeof(Lexer));
     strncpy(l->src.filename, "(null)", 255);
     l->src.srclen = len;
     l->src.src = calloc(len + 1, 1);
@@ -84,20 +84,20 @@ int lexer_from_buf(struct Lexer *l, const char *buf, size_t len) {
     return 1;
 }
 
-void lexer_cleanup(struct Lexer *l) {
+void lexer_cleanup(Lexer *l) {
     sb_free(l->src.line_offs);
     free(l->src.src);
 }
 
-static void maketoken(struct Lexer *l, enum TokenType type) {
-    memset(&l->tok, 0, sizeof(struct Token));
+static void maketoken(Lexer *l, enum TokenType type) {
+    memset(&l->tok, 0, sizeof(Token));
     l->tok.type = type;
-    l->tok.range = (struct SrcRange){l->start, l->off};
+    l->tok.range = (SrcRange){l->start, l->off};
 }
 
-static void lex_ident_or_keyword(struct Lexer *l) {
+static void lex_ident_or_keyword(Lexer *l) {
     // multi-char keywords
-    for (const struct token_map *m = &keywords[0]; m->text != NULL; m++) {
+    for (const struct TokenMap *m = &keywords[0]; m->text != NULL; m++) {
         for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i); i++) {
             if (m->text[i] == '\0') {
                 consume(l, i);
@@ -114,9 +114,9 @@ static void lex_ident_or_keyword(struct Lexer *l) {
     maketoken(l, TOK_IDENT);
 }
 
-static void lex_symbol(struct Lexer *l) {
+static void lex_symbol(Lexer *l) {
     // multi-char symbol
-    for (const struct token_map *m = &keywords[0]; m->text != NULL; m++) {
+    for (const struct TokenMap *m = &keywords[0]; m->text != NULL; m++) {
         for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i); i++) {
             if (m->text[i] == '\0') {
                 consume(l, i);
@@ -132,12 +132,12 @@ static void lex_symbol(struct Lexer *l) {
     maketoken(l, ch);
 }
 
-static void skip_numbers(struct Lexer *l) {
+static void skip_numbers(Lexer *l) {
     while (isdigit(l->ch))
         step(l);
 }
 
-static void lex_number(struct Lexer *l) {
+static void lex_number(Lexer *l) {
     skip_numbers(l);
     if (l->ch == '.') {
         step(l);
@@ -146,7 +146,7 @@ static void lex_number(struct Lexer *l) {
     maketoken(l, TOK_NUM);
 }
 
-static void lex_string(struct Lexer *l) {
+static void lex_string(Lexer *l) {
     step(l); // opening "
     while (l->ch != '\0') {
         switch (l->ch) {
@@ -168,7 +168,7 @@ strclose:
 
 // Lex the next token and place it at l->tok.
 // Return EOF if reached source EOF.
-int lex(struct Lexer *l) {
+int lex(Lexer *l) {
     for (;;) {
         l->start = l->off;
 
@@ -222,13 +222,13 @@ int lex(struct Lexer *l) {
     return 0;
 }
 
-struct SrcLoc locate(struct Source *src, size_t pos) {
+SrcLoc locate(Source *src, size_t pos) {
     // search linearly for line that contains this position
     // TODO: performance
 
     // single-line
     if (sb_count(src->line_offs) == 0) {
-        return (struct SrcLoc){src->filename, 1, pos + 1};
+        return (SrcLoc){src->filename, 1, pos + 1};
     }
 
     int line;
@@ -239,12 +239,12 @@ struct SrcLoc locate(struct Source *src, size_t pos) {
     }
 
     int col = pos - src->line_offs[line - 1];
-    return (struct SrcLoc){src->filename, line + 1, col};
+    return (SrcLoc){src->filename, line + 1, col};
 }
 
 // Print 'tok' as string into buf.
 // Needs lexer because it needs the source text.
-char *tokenstr(const char *src, struct Token tok, char *buf, size_t blen) {
+char *tokenstr(const char *src, Token tok, char *buf, size_t blen) {
     size_t tlen = tok.range.end - tok.range.start;
     size_t strlen = (blen - 1) < tlen ? (blen - 1) : tlen;
     strncpy(buf, src + tok.range.start, strlen);
@@ -253,7 +253,7 @@ char *tokenstr(const char *src, struct Token tok, char *buf, size_t blen) {
 }
 
 // Compare the string content of the two tokens.
-int tokeneq(const char *src, struct Token t1, struct Token t2) {
+int tokeneq(const char *src, Token t1, Token t2) {
     char buf1[MAXTOKLEN], buf2[MAXTOKLEN];
     tokenstr(src, t1, buf1, sizeof(buf1));
     tokenstr(src, t2, buf2, sizeof(buf2));
@@ -276,7 +276,7 @@ char *tokentypestr(enum TokenType t, char *buf, size_t blen) {
     return buf;
 }
 
-void tokenprint(const char *src, const struct Token tok) {
+void tokenprint(const char *src, const Token tok) {
     char buf[MAXTOKLEN];
 
     switch (tok.type) {

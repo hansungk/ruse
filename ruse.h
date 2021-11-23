@@ -6,6 +6,10 @@
 
 #define MAXTOKLEN 64
 
+typedef struct Source Source;
+typedef struct SrcRange SrcRange;
+typedef struct SrcLoc SrcLoc;
+
 struct Source {
     char filename[256]; // source filename
     size_t *line_offs;  // byte offsets of '\n's
@@ -48,7 +52,7 @@ enum TokenType {
 
     TOK_KEYWORDS,
     TOK_VAR,
-    TOK_PROC,
+    TOK_FUNC,
     TOK_RETURN,
     TOK_END,
 
@@ -58,10 +62,13 @@ enum TokenType {
 
 extern char *token_names[NUM_TOKENTYPES];
 
-struct token_map {
+struct TokenMap {
     const char *text;
     enum TokenType type;
 };
+
+typedef struct Token Token;
+typedef struct Lexer Lexer;
 
 // Making Tokens store source ranges instead of string memory blocks makes
 // passing them around easy.
@@ -72,8 +79,8 @@ struct Token {
 
 // Lexer state.
 struct Lexer {
-    struct Source src; // program source
-    struct Token tok;  // currently lexed token
+    Source src; // program source
+    Token tok;  // currently lexed token
     char ch;           // lookahead character
     long off;          // lookahead character offset
     long rd_off;       // next read character offset
@@ -81,16 +88,16 @@ struct Lexer {
     long start;        // start position of `tok`
 };
 
-int lexer_from_file(struct Lexer *l, const char *filename);
-int lexer_from_buf(struct Lexer *l, const char *buf, size_t len);
-void lexer_cleanup(struct Lexer *l);
-struct SrcLoc locate(struct Source *src, size_t pos);
-int lex(struct Lexer *l);
-char *srclocstr(struct SrcLoc loc, char *buf, size_t len);
-char *tokenstr(const char *src, struct Token tok, char *buf, size_t blen);
-int tokeneq(const char *src, struct Token t1, struct Token t2);
+int lexer_from_file(Lexer *l, const char *filename);
+int lexer_from_buf(Lexer *l, const char *buf, size_t len);
+void lexer_cleanup(Lexer *l);
+SrcLoc locate(Source *src, size_t pos);
+int lex(Lexer *l);
+char *srclocstr(SrcLoc loc, char *buf, size_t len);
+char *tokenstr(const char *src, Token tok, char *buf, size_t blen);
+int tokeneq(const char *src, Token t1, Token t2);
 char *tokentypestr(enum TokenType t, char *buf, size_t blen);
-void tokenprint(const char *src, const struct Token tok);
+void tokenprint(const char *src, const Token tok);
 
 enum NodeKind {
     ND_FILE,
@@ -108,10 +115,13 @@ enum NodeKind {
     ND_END_STMT,
 };
 
+typedef struct Node Node;
+typedef struct Parser Parser;
+
 // AST node.
 struct Node {
     enum NodeKind kind;
-    struct Token tok;
+    Token tok;
     long num;
     struct Decl *decl;
     struct Node **stmts;
@@ -124,29 +134,32 @@ struct Node {
 
 // Source text = ['tok' 'lookahead...' ...unlexed...]
 struct Parser {
-    struct Lexer l;           // lexer driven by this parser
-    struct Token tok;         // current token
-    struct Token *lookahead;  // lookahead tokens
+    Lexer l;           // lexer driven by this parser
+    Token tok;         // current token
+    Token *lookahead;  // lookahead tokens
     struct Node **nodeptrbuf; // pointers to the allocated nodes
 };
 
-void parser_from_file(struct Parser *p, const char *filename);
-void parser_from_buf(struct Parser *p, const char *buf, size_t len);
-void parser_cleanup(struct Parser *p);
-struct Node *parse(struct Parser *p);
+void parser_from_file(Parser *p, const char *filename);
+void parser_from_buf(Parser *p, const char *buf, size_t len);
+void parser_cleanup(Parser *p);
+struct Node *parse(Parser *p);
 
 enum DeclKind {
     DCL_NUM,
 };
 
+typedef struct Decl Decl;
+typedef struct Context Context;
+
 struct Decl {
     enum DeclKind kind;
-    struct Token name;
+    Token name;
     double num;
 };
 
 struct Map {
-    struct Token name;
+    Token name;
     struct Decl *decl;
 };
 
@@ -156,7 +169,7 @@ struct Scope {
 };
 
 struct Context {
-    struct Source *src;
+    Source *src;
     struct Scope *scope;
     struct Valstack {
         int curr_id; // next id to be pushed to valstack
@@ -164,7 +177,7 @@ struct Context {
     } valstack;
 };
 
-void context_init(struct Context *ctx, struct Source *src);
+void context_init(struct Context *ctx, Source *src);
 void context_free(struct Context *ctx);
 void eval(struct Context *ctx, struct Node *v);
 

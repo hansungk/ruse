@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    struct Parser p;
+    Parser p;
     struct Context ctx;
     parser_from_file(&p, argv[1]);
     context_init(&ctx, &p.l.src);

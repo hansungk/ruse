@@ -72,12 +72,12 @@ static void emit(char *c, ...) {
 #endif
 }
 
-static int valstack_push_and_incr(struct Context *ctx) {
+static int valstack_push_and_incr(Context *ctx) {
     arrput(ctx->valstack.stack, ctx->valstack.curr_id);
     return ctx->valstack.curr_id++;
 }
 
-static void codegen_expr(struct Context *ctx, struct Node *n) {
+static void codegen_expr(Context *ctx, Node *n) {
     char buf[MAXTOKLEN]; // FIXME: stack usage
     int id_lhs, id_rhs;
 
@@ -109,7 +109,7 @@ static void codegen_expr(struct Context *ctx, struct Node *n) {
     }
 }
 
-static void codegen_stmt(struct Context *ctx, struct Node *n) {
+static void codegen_stmt(Context *ctx, Node *n) {
     char buf[MAXTOKLEN];
 
     switch (n->kind) {
@@ -131,7 +131,7 @@ static void codegen_stmt(struct Context *ctx, struct Node *n) {
     }
 }
 
-void codegen(struct Context *ctx, struct Node *n) {
+void codegen(Context *ctx, Node *n) {
     char buf[MAXTOKLEN];
     int id;
 
