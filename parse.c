@@ -351,15 +351,14 @@ static Node *parse_func(Parser *p) {
 	// body
 	expect(p, TOK_LBRACE);
 	while (p->tok.type != TOK_RBRACE) {
-		printf("in while\n");
-
 		Node *stmt = parse_stmt(p);
 		if (stmt) {
 			arrput(func->stmts, stmt);
 		}
+
+		skip_newlines(p);
 	}
-	printf("out while\n");
-	expect(p, TOK_END);
+	expect(p, TOK_RBRACE);
 
 	return func;
 }
