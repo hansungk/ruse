@@ -1,5 +1,5 @@
 #include "ruse.h"
-#include "stretchy_buffer.h"
+#include "stb_ds.h"
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -44,7 +44,7 @@ static void step(Lexer *l) {
         l->off = l->rd_off;
         l->ch = l->src.src[l->off];
         if (l->ch == '\n') {
-            sb_push(l->src.line_offs, l->off);
+            arrput(l->src.line_offs, l->off);
         }
         l->rd_off++;
     } else {
@@ -85,7 +85,7 @@ int lexer_from_buf(Lexer *l, const char *buf, size_t len) {
 }
 
 void lexer_cleanup(Lexer *l) {
-    sb_free(l->src.line_offs);
+    arrfree(l->src.line_offs);
     free(l->src.src);
 }
 
@@ -169,57 +169,66 @@ strclose:
 // Lex the next token and place it at l->tok.
 // Return EOF if reached source EOF.
 int lex(Lexer *l) {
-    for (;;) {
-        l->start = l->off;
+	for (;;) {
+		l->start = l->off;
 
-        switch (l->ch) {
-        case '\0':
-            maketoken(l, TOK_EOF);
-            return EOF;
-        case ' ':
-        case '\t':
-        case '\r':
-            // whitespaces
-            step(l);
-            break;
-        case '"':
-            lex_string(l);
-            return 0;
-        case '/':
-            step(l);
-            if (l->ch == '/') {
-                while (l->ch != '\n') {
-                    step(l);
-                }
-                maketoken(l, TOK_COMMENT);
-                return 0;
-            } else {
-                maketoken(l, '/');
-                return 0;
-            }
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-            lex_number(l);
-            return 0;
-        default:
-            if (isalpha(l->ch) || l->ch == '_') {
-                lex_ident_or_keyword(l);
-            } else {
-                lex_symbol(l);
-            }
-            return 0;
-        }
-    }
+		switch (l->ch) {
+		case '\0':
+			maketoken(l, TOK_EOF);
+			return EOF;
+		case ' ':
+		case '\t':
+		case '\r':
+			// whitespaces
+			step(l);
+			break;
+		case '"':
+			lex_string(l);
+			return 0;
+		case '/':
+			step(l);
+			if (l->ch == '/') {
+				while (l->ch != '\n') {
+					step(l);
+				}
+				maketoken(l, TOK_COMMENT);
+				return 0;
+			} else {
+				maketoken(l, '/');
+				return 0;
+			}
+		case '-':
+			step(l);
+			if (l->ch == '>') {
+				maketoken(l, TOK_ARROW);
+				return 0;
+			} else {
+				maketoken(l, '-');
+				return 0;
+			}
+		case '0':
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			lex_number(l);
+			return 0;
+		default:
+			if (isalpha(l->ch) || l->ch == '_') {
+				lex_ident_or_keyword(l);
+			} else {
+				lex_symbol(l);
+			}
+			return 0;
+		}
+	}
 
-    return 0;
+	return 0;
 }
 
 SrcLoc locate(Source *src, size_t pos) {
@@ -227,12 +236,12 @@ SrcLoc locate(Source *src, size_t pos) {
     // TODO: performance
 
     // single-line
-    if (sb_count(src->line_offs) == 0) {
+    if (arrlen(src->line_offs) == 0) {
         return (SrcLoc){src->filename, 1, pos + 1};
     }
 
     int line;
-    for (line = 0; line < sb_count(src->line_offs); line++) {
+    for (line = 0; line < arrlen(src->line_offs); line++) {
         if (pos < src->line_offs[line]) {
             break;
         }

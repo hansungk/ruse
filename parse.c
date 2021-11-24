@@ -1,5 +1,5 @@
 #include "ruse.h"
-#include "stretchy_buffer.h"
+#include "stb_ds.h"
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -18,7 +18,7 @@ static Node *makenode(Parser *p, enum NodeKind k, Token tok) {
 	}
 	node->kind = k;
 	node->tok = tok;
-	sb_push(p->nodeptrbuf, node);
+	arrput(p->nodeptrbuf, node);
 	return node;
 }
 
@@ -86,17 +86,17 @@ void parser_from_buf(Parser *p, const char *buf, size_t len) {
 }
 
 void parser_cleanup(Parser *p) {
-	for (int i = 0; i < sb_count(p->nodeptrbuf); i++) {
+	for (int i = 0; i < arrlen(p->nodeptrbuf); i++) {
 		Node *n = p->nodeptrbuf[i];
 		if (n) {
 			if (n->stmts)
-				sb_free(n->stmts);
+				arrfree(n->stmts);
 			free(n);
 		}
 	}
 
 	lexer_cleanup(&p->l);
-	sb_free(p->nodeptrbuf);
+	arrfree(p->nodeptrbuf);
 }
 
 static void next(Parser *p) {
@@ -116,8 +116,8 @@ static void error(Parser *p, const char *fmt, ...) {
 	va_end(args);
 
 	SrcLoc loc = locate(&p->l.src, p->tok.range.start);
-	fprintf(stderr, "parse error in %s:%d:%d:(%ld): %s\n",
-			loc.filename, loc.line, loc.col, p->tok.range.start, msg);
+	fprintf(stderr, "%s:%d:%d:(%ld): %s\n", loc.filename, loc.line, loc.col,
+		p->tok.range.start, msg);
 	exit(EXIT_FAILURE);
 }
 
@@ -296,7 +296,7 @@ static Node *parse_assign_or_expr_stmt(Parser *p, Node *expr) {
 }
 
 static Node *parse_stmt(Parser *p) {
-	Node *s;
+	Node *stmt;
 
 	skip_newlines(p);
 
@@ -327,12 +327,12 @@ static Node *parse_stmt(Parser *p) {
 
 	// all productions from now on start with an expression
 	// TODO: exprstmt?
-	s = parse_expr(p);
-	s = parse_assign_or_expr_stmt(p, s);
-	return s;
+	stmt = parse_expr(p);
+	stmt = parse_assign_or_expr_stmt(p, stmt);
+	return stmt;
 }
 
-static Node *parse_function(Parser *p) {
+static Node *parse_func(Parser *p) {
 	expect(p, TOK_FUNC);
 
 	Node *func = makefunc(p, p->tok);
@@ -344,15 +344,21 @@ static Node *parse_function(Parser *p) {
 	expect(p, TOK_RPAREN);
 
 	// return type
-	func->rettypeexpr = NULL;
-	expect_end_of_line(p);
+	// expect(p, TOK_ARROW);
+	// func->rettypeexpr = NULL;
+	// skip_to_end_of_line(p);
 
-	while (p->tok.type != TOK_END) {
-		Node *s = parse_stmt(p);
-		if (s) {
-			sb_push(func->stmts, s);
+	// body
+	expect(p, TOK_LBRACE);
+	while (p->tok.type != TOK_RBRACE) {
+		printf("in while\n");
+
+		Node *stmt = parse_stmt(p);
+		if (stmt) {
+			arrput(func->stmts, stmt);
 		}
 	}
+	printf("out while\n");
 	expect(p, TOK_END);
 
 	return func;
@@ -363,7 +369,7 @@ static Node *parse_toplevel(Parser *p) {
 
 	switch (p->tok.type) {
 	case TOK_FUNC:
-		return parse_function(p);
+		return parse_func(p);
 	default:
 		printf("p->tok=%d\n", p->tok.type);
 		assert(0 && "unreachable");
@@ -376,7 +382,7 @@ Node *parse(Parser *p) {
 
 	while (p->tok.type != TOK_EOF) {
 		Node *func = parse_toplevel(p);
-		sb_push(nodes, func);
+		arrput(nodes, func);
 		skip_newlines(p);
 	}
 

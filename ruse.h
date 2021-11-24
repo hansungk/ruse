@@ -43,12 +43,15 @@ enum TokenType {
     TOK_SLASH = '/',
     TOK_SEMICOLON = ';',
     TOK_QUOTE = '\'',
+    TOK_LBRACE = '{',
+    TOK_RBRACE = '}',
     TOK_ASCII = 256,
 
     TOK_NUM,
     TOK_IDENT,
     TOK_STRING,
     TOK_COMMENT,
+    TOK_ARROW,
 
     TOK_KEYWORDS,
     TOK_VAR,

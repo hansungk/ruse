@@ -1,6 +1,5 @@
-#include "stb_ds.h"
 #include "ruse.h"
-#include "stretchy_buffer.h"
+#include "stb_ds.h"
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -14,12 +13,12 @@ void context_init(struct Context *ctx, Source *src) {
 }
 
 void context_free(struct Context *ctx) {
-	for (int i = 0; i < sb_count(ctx->scope->tab); i++) {
+	for (int i = 0; i < arrlen(ctx->scope->tab); i++) {
 		if (ctx->scope->tab[i].decl) {
 			free(ctx->scope->tab[i].decl);
 		}
 	}
-	sb_free(ctx->scope->tab);
+	arrfree(ctx->scope->tab);
 	free(ctx->scope);
 	arrfree(ctx->valstack.stack);
 }
@@ -44,12 +43,12 @@ struct Decl *push_var(struct Context *ctx, struct Node *n) {
 	struct Decl *val = calloc(sizeof(struct Decl), 1);
 	val->name = n->tok;
 	struct Map map = {.name = n->tok, .decl = val};
-	sb_push(ctx->scope->tab, map);
+	arrput(ctx->scope->tab, map);
 	return val;
 }
 
 struct Decl *lookup_var(struct Context *ctx, struct Node *n) {
-	for (int i = 0; i < sb_count(ctx->scope->tab); i++) {
+	for (int i = 0; i < arrlen(ctx->scope->tab); i++) {
 		if (tokeneq(ctx->src->src, n->tok, ctx->scope->tab[i].name)) {
 			return ctx->scope->tab[i].decl;
 		}
@@ -99,13 +98,13 @@ static void eval_stmt(struct Context *ctx, struct Node *n) {
 void eval(struct Context *ctx, struct Node *n) {
 	switch (n->kind) {
 	case ND_FILE:
-		for (int i = 0; i < sb_count(n->stmts); i++) {
+		for (int i = 0; i < arrlen(n->stmts); i++) {
 			eval(ctx, n->stmts[i]);
 		}
 		break;
 	case ND_FUNC:
 		// TODO: push/pop scope
-		for (int i = 0; i < sb_count(n->stmts); i++) {
+		for (int i = 0; i < arrlen(n->stmts); i++) {
 			eval(ctx, n->stmts[i]);
 		}
 		break;

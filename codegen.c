@@ -1,7 +1,6 @@
 #define STB_DS_IMPLEMENTATION
 #include "stb_ds.h"
 #include "ruse.h"
-#include "stretchy_buffer.h"
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -139,13 +138,13 @@ void codegen(Context *ctx, Node *n) {
     case ND_FILE:
         emit("export function w $main() {\n");
         emit("@start\n");
-        for (int i = 0; i < sb_count(n->stmts); i++) {
+        for (int i = 0; i < arrlen(n->stmts); i++) {
             codegen(ctx, n->stmts[i]);
         }
         emit("}\n");
         break;
     case ND_FUNC:
-        for (int i = 0; i < sb_count(n->stmts); i++) {
+        for (int i = 0; i < arrlen(n->stmts); i++) {
             codegen(ctx, n->stmts[i]);
         }
         break;
