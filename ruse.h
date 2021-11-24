@@ -57,7 +57,7 @@ enum TokenType {
     TOK_VAR,
     TOK_FUNC,
     TOK_RETURN,
-    TOK_END,
+	TOK_INT,
 
     TOK_ERR,
     NUM_TOKENTYPES
@@ -103,19 +103,20 @@ char *tokentypestr(enum TokenType t, char *buf, size_t blen);
 void tokenprint(const char *src, const Token tok);
 
 enum NodeKind {
-    ND_FILE,
-    ND_FUNC,
-    ND_START_EXPR,
-    ND_LITERAL,
-    ND_IDEXPR,
-    ND_BINEXPR,
-    ND_END_EXPR,
-    ND_DECL,
-    ND_START_STMT,
-    ND_EXPRSTMT,
-    ND_ASSIGN,
-    ND_RETURN,
-    ND_END_STMT,
+	ND_FILE,
+	ND_FUNC,
+	ND_START_EXPR,
+	ND_LITERAL,
+	ND_IDEXPR,
+	ND_BINEXPR,
+	ND_END_EXPR,
+	ND_TYPEEXPR,
+	ND_DECL,
+	ND_START_STMT,
+	ND_EXPRSTMT,
+	ND_ASSIGN,
+	ND_RETURN,
+	ND_END_STMT,
 };
 
 typedef struct Node Node;
@@ -132,7 +133,6 @@ struct Node {
     struct Node *rhs;
     // functions
     struct Node *rettypeexpr;
-    // children for body stmts
 };
 
 // Source text = ['tok' 'lookahead...' ...unlexed...]

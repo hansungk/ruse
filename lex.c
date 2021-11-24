@@ -9,13 +9,12 @@
 
 char *token_names[NUM_TOKENTYPES] = {
     [TOK_IDENT] = "identifier", [TOK_NUM] = "number", [TOK_NEWLINE] = "\\n",
-    [TOK_LPAREN] = "(",         [TOK_RPAREN] = ")",   [TOK_COMMENT] = "comment",
-    [TOK_END] = "end",
+    [TOK_LPAREN] = "(",		[TOK_RPAREN] = ")",   [TOK_COMMENT] = "comment",
 };
 
 struct TokenMap keywords[] = {
     {"var", TOK_VAR}, {"func", TOK_FUNC}, {"return", TOK_RETURN},
-    {"end", TOK_END}, {NULL, 0},
+    {"int", TOK_INT}, {NULL, 0},
 };
 
 static char *readfile(const char *filename, long *filesize) {

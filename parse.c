@@ -302,7 +302,6 @@ static Node *parse_stmt(Parser *p) {
 
 	switch (p->tok.type) {
 	case TOK_EOF:
-	case TOK_END:
 		return NULL;
 	case TOK_COMMENT:
 		expect_end_of_line(p);
@@ -332,6 +331,13 @@ static Node *parse_stmt(Parser *p) {
 	return stmt;
 }
 
+static Node *parse_typeexpr(Parser *p) {
+	if (p->tok.type == TOK_INT) {
+		expect(p, TOK_INT);
+	}
+	return makenode(p, ND_TYPEEXPR, p->tok);
+}
+
 static Node *parse_func(Parser *p) {
 	expect(p, TOK_FUNC);
 
@@ -344,9 +350,9 @@ static Node *parse_func(Parser *p) {
 	expect(p, TOK_RPAREN);
 
 	// return type
-	// expect(p, TOK_ARROW);
-	// func->rettypeexpr = NULL;
-	// skip_to_end_of_line(p);
+	if (p->tok.type != TOK_LBRACE) {
+		func->rettypeexpr = parse_typeexpr(p);
+	}
 
 	// body
 	expect(p, TOK_LBRACE);
