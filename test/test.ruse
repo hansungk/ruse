@@ -1,12 +1,12 @@
-proc fibo()
+func fibo() {
     var a = 4
     var b = 3
     var c = 2
-    -- a + b * c
-    -- a + b * c
-    -- (a + b * c)
-    a = b + c
-    -- + 3 -- constant
+    // a + b * c
+    // a + b * c
+    // (a + b * c)
+    a = b + b + c
+    // + 3 -- constant
     return a
-    -- fibo(a - 1) + fibo(a - 2)
-end
+    // fibo(a - 1) + fibo(a - 2)
+}
