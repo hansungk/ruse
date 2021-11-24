@@ -2,5 +2,6 @@
 
 func main() int {
     var a = 4
+	a + a
     return a
 }

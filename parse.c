@@ -376,8 +376,7 @@ static Node *parse_toplevel(Parser *p) {
 	case TOK_FUNC:
 		return parse_func(p);
 	default:
-		printf("p->tok=%d\n", p->tok.type);
-		assert(0 && "unreachable");
+		error(p, "unknown token type %d at toplevel", p->tok.type);
 		return NULL;
 	}
 }
