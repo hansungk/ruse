@@ -13,6 +13,8 @@ $ ./ruse
 
 * repl
 * list eval
+* metaprogramming using macros, e.g. ensuring cycle counters be incremented
+  only once in cycle() in simulators
 
 ## tiny lisps
 

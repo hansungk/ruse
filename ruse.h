@@ -55,6 +55,7 @@ enum TokenType {
 
     TOK_KEYWORDS,
     TOK_VAR,
+    TOK_CONST,
     TOK_FUNC,
     TOK_RETURN,
 	TOK_INT,

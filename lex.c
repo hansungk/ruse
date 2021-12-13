@@ -13,8 +13,8 @@ char *token_names[NUM_TOKENTYPES] = {
 };
 
 struct TokenMap keywords[] = {
-    {"var", TOK_VAR}, {"func", TOK_FUNC}, {"return", TOK_RETURN},
-    {"int", TOK_INT}, {NULL, 0},
+    {"var", TOK_VAR},	    {"const", TOK_CONST}, {"func", TOK_FUNC},
+    {"return", TOK_RETURN}, {"int", TOK_INT},	  {NULL, 0},
 };
 
 static char *readfile(const char *filename, long *filesize) {

@@ -7,6 +7,7 @@
 #include <string.h>
 
 static Node *parse_expr(Parser *p);
+static Node *parse_typeexpr(Parser *p);
 
 static Node *makenode(Parser *p, enum NodeKind k, Token tok) {
 	// TODO: store all nodes in a contiguous buffer for better locality?
@@ -33,16 +34,14 @@ static Node *makefunc(Parser *p, Token name) {
 	return n;
 }
 
-static Node *makebinexpr(Parser *p, Node *lhs,
-				Token op, Node *rhs) {
+static Node *makebinexpr(Parser *p, Node *lhs, Token op, Node *rhs) {
 	Node *n = makenode(p, ND_BINEXPR, op);
 	n->lhs = lhs;
 	n->rhs = rhs;
 	return n;
 }
 
-static Node *makedecl(Parser *p, Token name,
-			     Node *rhs /*TODO: type*/) {
+static Node *makedecl(Parser *p, Token name, Node *rhs /*TODO: type*/) {
 	Node *n = makenode(p, ND_DECL, name);
 	n->rhs = rhs;
 	return n;
@@ -169,10 +168,15 @@ static void tokentypeprint(enum TokenType t) {
 }
 
 static Node *parse_decl(Parser *p) {
-	expect(p, TOK_VAR);
+	assert(p->tok.type == TOK_VAR || p->tok.type == TOK_CONST);
+	next(p);
 
 	Token name = p->tok;
 	next(p);
+
+	if (p->tok.type != TOK_EQUAL) {
+		parse_typeexpr(p);
+	}
 
 	expect(p, TOK_EQUAL);
 
@@ -307,6 +311,7 @@ static Node *parse_stmt(Parser *p) {
 		expect_end_of_line(p);
 		return parse_stmt(p);
 	case TOK_VAR:
+	case TOK_CONST:
 		return parse_decl(p);
 	case TOK_RETURN:
 		return parse_return(p);
