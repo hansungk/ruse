@@ -1,0 +1,27 @@
+// fail
+
+struct S {
+    hi int
+}
+
+func main() {
+    var i int
+    i.lol //~error: type 'int' is not a struct
+
+    var a: S
+    a.lol //~error: unknown field 'lol' in struct 'S'
+
+    S {.hi = 0}
+    S {.notthere = 0} //~error: unknown field 'notthere' in struct 'S'
+
+    let def = S {.hi = 0}
+
+    {
+        struct Inner {
+            a: int
+        }
+        Inner {.a = 3}
+        Inner {.a = S {.hi = 0}} //~error: cannot assign 'S' type to 'int'
+    }
+    Inner {.a = 3} //~error: undeclared identifier 'Inner'
+}

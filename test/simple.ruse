@@ -3,6 +3,7 @@
 func main() int {
     var a int = 4
     const b int = 4
-	a + a
+    a + a
+    main(3)
     return a
 }

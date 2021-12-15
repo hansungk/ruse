@@ -138,14 +138,14 @@ void codegen(Context *ctx, Node *n) {
     case NFILE:
         emit("export function w $main() {\n");
         emit("@start\n");
-        for (int i = 0; i < arrlen(n->stmts); i++) {
-            codegen(ctx, n->stmts[i]);
+        for (int i = 0; i < arrlen(n->children); i++) {
+            codegen(ctx, n->children[i]);
         }
         emit("}\n");
         break;
     case NFUNC:
-        for (int i = 0; i < arrlen(n->stmts); i++) {
-            codegen(ctx, n->stmts[i]);
+        for (int i = 0; i < arrlen(n->children); i++) {
+            codegen(ctx, n->children[i]);
         }
         break;
     case NDECL:

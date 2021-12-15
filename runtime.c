@@ -98,14 +98,14 @@ static void eval_stmt(struct Context *ctx, struct Node *n) {
 void eval(struct Context *ctx, struct Node *n) {
 	switch (n->kind) {
 	case NFILE:
-		for (int i = 0; i < arrlen(n->stmts); i++) {
-			eval(ctx, n->stmts[i]);
+		for (int i = 0; i < arrlen(n->children); i++) {
+			eval(ctx, n->children[i]);
 		}
 		break;
 	case NFUNC:
 		// TODO: push/pop scope
-		for (int i = 0; i < arrlen(n->stmts); i++) {
-			eval(ctx, n->stmts[i]);
+		for (int i = 0; i < arrlen(n->children); i++) {
+			eval(ctx, n->children[i]);
 		}
 		break;
 	case NDECL:

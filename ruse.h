@@ -57,6 +57,7 @@ enum TokenType {
     TOK_VAR,
     TOK_CONST,
     TOK_FUNC,
+    TOK_STRUCT,
     TOK_RETURN,
 	TOK_INT,
 
@@ -107,6 +108,7 @@ void tokenprint(const char *src, const Token tok);
 enum NodeKind {
 	NFILE,
 	NFUNC,
+	NSTRUCT,
 	NEXPR,
 	NLITERAL = NEXPR,
 	NIDEXPR,
@@ -122,13 +124,12 @@ enum NodeKind {
 typedef struct Node Node;
 typedef struct Parser Parser;
 
-// AST node.
 struct Node {
     enum NodeKind kind;
     Token tok;
     long num;
     struct Decl *decl;
-    struct Node **stmts;
+    struct Node **children;
     struct Node *lhs;
     struct Node *rhs;
     // functions

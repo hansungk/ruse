@@ -25,12 +25,17 @@ static Node *makenode(Parser *p, enum NodeKind k, Token tok) {
 
 static Node *makefile(Parser *p, Node **toplevel) {
 	Node *n = makenode(p, NFILE, p->tok);
-	n->stmts = toplevel;
+	n->children = toplevel;
 	return n;
 }
 
 static Node *makefunc(Parser *p, Token name) {
 	Node *n = makenode(p, NFUNC, name);
+	return n;
+}
+
+static Node *makestruct(Parser *p, Token name) {
+	Node *n = makenode(p, NSTRUCT, name);
 	return n;
 }
 
@@ -41,9 +46,9 @@ static Node *makebinexpr(Parser *p, Node *lhs, Token op, Node *rhs) {
 	return n;
 }
 
-static Node *makedecl(Parser *p, Token name, Node *rhs /*TODO: type*/) {
+static Node *makedecl(Parser *p, Token name, Node *initexpr /*TODO: type*/) {
 	Node *n = makenode(p, NDECL, name);
-	n->rhs = rhs;
+	n->rhs = initexpr;
 	return n;
 }
 
@@ -88,8 +93,8 @@ void parser_cleanup(Parser *p) {
 	for (int i = 0; i < arrlen(p->nodeptrbuf); i++) {
 		Node *n = p->nodeptrbuf[i];
 		if (n) {
-			if (n->stmts)
-				arrfree(n->stmts);
+			if (n->children)
+				arrfree(n->children);
 			free(n);
 		}
 	}
@@ -101,7 +106,6 @@ void parser_cleanup(Parser *p) {
 static void next(Parser *p) {
 	if (p->l.tok.type == TOK_EOF)
 		return;
-
 	lex(&p->l);
 	p->tok = p->l.tok;
 }
@@ -236,6 +240,7 @@ static int get_precedence(const Token op) {
 //	 UnaryExpr (op BinaryExpr)*
 //
 // Return the pointer to the node respresenting the reduced binary expression.
+// If this is not a binary expression, just return 'lhs' as-is.
 static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence) {
 	while (1) {
 		int this_prec = get_precedence(p->tok);
@@ -339,6 +344,8 @@ static Node *parse_stmt(Parser *p) {
 static Node *parse_typeexpr(Parser *p) {
 	if (p->tok.type == TOK_INT) {
 		expect(p, TOK_INT);
+	} else {
+		error(p, "expected a type (TODO)");
 	}
 	return makenode(p, NTYPEEXPR, p->tok);
 }
@@ -346,7 +353,7 @@ static Node *parse_typeexpr(Parser *p) {
 static Node *parse_func(Parser *p) {
 	expect(p, TOK_FUNC);
 
-	Node *func = makefunc(p, p->tok);
+	Node *f = makefunc(p, p->tok);
 	next(p);
 
 	// argument list
@@ -356,7 +363,7 @@ static Node *parse_func(Parser *p) {
 
 	// return type
 	if (p->tok.type != TOK_LBRACE) {
-		func->rettypeexpr = parse_typeexpr(p);
+		f->rettypeexpr = parse_typeexpr(p);
 	}
 
 	// body
@@ -364,14 +371,34 @@ static Node *parse_func(Parser *p) {
 	while (p->tok.type != TOK_RBRACE) {
 		Node *stmt = parse_stmt(p);
 		if (stmt) {
-			arrput(func->stmts, stmt);
+			arrput(f->children, stmt);
 		}
 
 		skip_newlines(p);
 	}
 	expect(p, TOK_RBRACE);
 
-	return func;
+	return f;
+}
+
+static Node *parse_struct(Parser *p) {
+	expect(p, TOK_STRUCT);
+
+	Node *s = makestruct(p, p->tok);
+	next(p);
+
+	expect(p, TOK_LBRACE);
+	skip_newlines(p);
+	while (p->tok.type != TOK_RBRACE) {
+		Token tok = p->tok;
+		next(p);
+		parse_typeexpr(p);
+		arrput(s->children, makedecl(p, tok, NULL));
+		skip_newlines(p);
+	}
+	expect(p, TOK_RBRACE);
+
+	return s;
 }
 
 static Node *parse_toplevel(Parser *p) {
@@ -380,6 +407,8 @@ static Node *parse_toplevel(Parser *p) {
 	switch (p->tok.type) {
 	case TOK_FUNC:
 		return parse_func(p);
+	case TOK_STRUCT:
+		return parse_struct(p);
 	default:
 		error(p, "unknown token type %d at toplevel", p->tok.type);
 		return NULL;
