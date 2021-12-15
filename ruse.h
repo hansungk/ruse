@@ -103,21 +103,20 @@ int tokeneq(const char *src, Token t1, Token t2);
 char *tokentypestr(enum TokenType t, char *buf, size_t blen);
 void tokenprint(const char *src, const Token tok);
 
+// Keep NEXPR < NTYPEEXPR < NDECL < NSTMT
 enum NodeKind {
-	ND_FILE,
-	ND_FUNC,
-	ND_START_EXPR,
-	ND_LITERAL,
-	ND_IDEXPR,
-	ND_BINEXPR,
-	ND_END_EXPR,
-	ND_TYPEEXPR,
-	ND_DECL,
-	ND_START_STMT,
-	ND_EXPRSTMT,
-	ND_ASSIGN,
-	ND_RETURN,
-	ND_END_STMT,
+	NFILE,
+	NFUNC,
+	NEXPR,
+	NLITERAL = NEXPR,
+	NIDEXPR,
+	NBINEXPR,
+	NTYPEEXPR,
+	NDECL,
+	NSTMT,
+	NEXPRSTMT = NSTMT,
+	NASSIGN,
+	NRETURN,
 };
 
 typedef struct Node Node;

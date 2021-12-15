@@ -61,16 +61,16 @@ static void eval_expr(struct Context *ctx, struct Node *n) {
 	tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
 
 	switch (n->kind) {
-	case ND_LITERAL:
+	case NLITERAL:
 		break;
-	case ND_IDEXPR:
+	case NIDEXPR:
 		n->decl = lookup_var(ctx, n);
 		if (!n->decl) {
 			error(ctx, n->tok.range.start,
 			      "undeclared variable '%s'", buf);
 		}
 		break;
-	case ND_BINEXPR:
+	case NBINEXPR:
 		eval_expr(ctx, n->lhs);
 		eval_expr(ctx, n->rhs);
 		break;
@@ -81,14 +81,14 @@ static void eval_expr(struct Context *ctx, struct Node *n) {
 
 static void eval_stmt(struct Context *ctx, struct Node *n) {
 	switch (n->kind) {
-	case ND_EXPRSTMT:
+	case NEXPRSTMT:
 		eval_expr(ctx, n->rhs);
 		break;
-	case ND_ASSIGN:
+	case NASSIGN:
 		eval_expr(ctx, n->rhs);
 		eval_expr(ctx, n->lhs);
 		break;
-	case ND_RETURN:
+	case NRETURN:
 		break;
 	default:
 		assert(!"unknown stmt kind");
@@ -97,24 +97,24 @@ static void eval_stmt(struct Context *ctx, struct Node *n) {
 
 void eval(struct Context *ctx, struct Node *n) {
 	switch (n->kind) {
-	case ND_FILE:
+	case NFILE:
 		for (int i = 0; i < arrlen(n->stmts); i++) {
 			eval(ctx, n->stmts[i]);
 		}
 		break;
-	case ND_FUNC:
+	case NFUNC:
 		// TODO: push/pop scope
 		for (int i = 0; i < arrlen(n->stmts); i++) {
 			eval(ctx, n->stmts[i]);
 		}
 		break;
-	case ND_DECL:
+	case NDECL:
 		push_var(ctx, n);
 		break;
 	default:
-		if (ND_START_EXPR < n->kind && n->kind < ND_END_EXPR) {
+		if (NEXPR <= n->kind && n->kind < NDECL) {
 			eval_expr(ctx, n);
-		} else if (ND_START_STMT < n->kind && n->kind < ND_END_STMT) {
+		} else if (NSTMT <= n->kind && n->kind) {
 			eval_stmt(ctx, n);
 		}
 		break;

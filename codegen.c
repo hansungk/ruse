@@ -83,15 +83,15 @@ static void codegen_expr(Context *ctx, Node *n) {
     tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
 
     switch (n->kind) {
-    case ND_LITERAL:
+    case NLITERAL:
         emit("    %%_%d =w add 0, %s\n", ctx->valstack.curr_id, buf);
         valstack_push_and_incr(ctx);
         break;
-    case ND_IDEXPR:
+    case NIDEXPR:
         emit("    %%_%d =w add 0, %%%s\n", ctx->valstack.curr_id, buf);
         valstack_push_and_incr(ctx);
         break;
-    case ND_BINEXPR:
+    case NBINEXPR:
         codegen_expr(ctx, n->lhs);
         codegen_expr(ctx, n->rhs);
 
@@ -112,16 +112,16 @@ static void codegen_stmt(Context *ctx, Node *n) {
     char buf[MAXTOKLEN];
 
     switch (n->kind) {
-    case ND_EXPRSTMT:
+    case NEXPRSTMT:
         codegen(ctx, n->rhs);
         break;
-    case ND_ASSIGN:
+    case NASSIGN:
         codegen(ctx, n->rhs);
         tokenstr(ctx->src->src, n->lhs->decl->name, buf, sizeof(buf));
         emit("    %%%s =w add 0, %%_%d\n", buf,
              arrpop(ctx->valstack.stack));
         break;
-    case ND_RETURN:
+    case NRETURN:
         codegen(ctx, n->rhs);
         emit("    ret %%_%d\n", arrpop(ctx->valstack.stack));
         break;
@@ -135,7 +135,7 @@ void codegen(Context *ctx, Node *n) {
     int id;
 
     switch (n->kind) {
-    case ND_FILE:
+    case NFILE:
         emit("export function w $main() {\n");
         emit("@start\n");
         for (int i = 0; i < arrlen(n->stmts); i++) {
@@ -143,12 +143,12 @@ void codegen(Context *ctx, Node *n) {
         }
         emit("}\n");
         break;
-    case ND_FUNC:
+    case NFUNC:
         for (int i = 0; i < arrlen(n->stmts); i++) {
             codegen(ctx, n->stmts[i]);
         }
         break;
-    case ND_DECL:
+    case NDECL:
         codegen(ctx, n->rhs);
 
         tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
@@ -156,9 +156,9 @@ void codegen(Context *ctx, Node *n) {
         emit("    %%%s =w add 0, %%_%d\n", buf, id);
         break;
     default:
-        if (ND_START_EXPR < n->kind && n->kind < ND_END_EXPR) {
+        if (NEXPR <= n->kind && n->kind < NDECL) {
             codegen_expr(ctx, n);
-        } else if (ND_START_STMT < n->kind && n->kind < ND_END_STMT) {
+        } else if (NSTMT <= n->kind && n->kind) {
             codegen_stmt(ctx, n);
         }
         break;

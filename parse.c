@@ -24,44 +24,44 @@ static Node *makenode(Parser *p, enum NodeKind k, Token tok) {
 }
 
 static Node *makefile(Parser *p, Node **toplevel) {
-	Node *n = makenode(p, ND_FILE, p->tok);
+	Node *n = makenode(p, NFILE, p->tok);
 	n->stmts = toplevel;
 	return n;
 }
 
 static Node *makefunc(Parser *p, Token name) {
-	Node *n = makenode(p, ND_FUNC, name);
+	Node *n = makenode(p, NFUNC, name);
 	return n;
 }
 
 static Node *makebinexpr(Parser *p, Node *lhs, Token op, Node *rhs) {
-	Node *n = makenode(p, ND_BINEXPR, op);
+	Node *n = makenode(p, NBINEXPR, op);
 	n->lhs = lhs;
 	n->rhs = rhs;
 	return n;
 }
 
 static Node *makedecl(Parser *p, Token name, Node *rhs /*TODO: type*/) {
-	Node *n = makenode(p, ND_DECL, name);
+	Node *n = makenode(p, NDECL, name);
 	n->rhs = rhs;
 	return n;
 }
 
 static Node *makeret(Parser *p, Node *rhs) {
-	Node *n = makenode(p, ND_RETURN, p->tok);
+	Node *n = makenode(p, NRETURN, p->tok);
 	n->rhs = rhs;
 	return n;
 }
 
 static Node *makeexprstmt(Parser *p, Node *rhs) {
-	Node *n = makenode(p, ND_EXPRSTMT, p->tok);
+	Node *n = makenode(p, NEXPRSTMT, p->tok);
 	n->rhs = rhs;
 	return n;
 }
 
 static Node *makeassign(Parser *p, Node *lhs,
 			       Node *rhs) {
-	Node *n = makenode(p, ND_ASSIGN, p->tok);
+	Node *n = makenode(p, NASSIGN, p->tok);
 	n->lhs = lhs;
 	n->rhs = rhs;
 	return n;
@@ -198,12 +198,12 @@ static Node *parse_unaryexpr(Parser *p) {
 	case TOK_IDENT:
 		tok = p->tok;
 		next(p);
-		return makenode(p, ND_IDEXPR, tok);
+		return makenode(p, NIDEXPR, tok);
 		// TODO: funccall
 	case TOK_NUM:
 		tok = p->tok;
 		next(p);
-		return makenode(p, ND_LITERAL, tok);
+		return makenode(p, NLITERAL, tok);
 	case TOK_LPAREN:
 		expect(p, TOK_LPAREN);
 		e = parse_expr(p);
@@ -340,7 +340,7 @@ static Node *parse_typeexpr(Parser *p) {
 	if (p->tok.type == TOK_INT) {
 		expect(p, TOK_INT);
 	}
-	return makenode(p, ND_TYPEEXPR, p->tok);
+	return makenode(p, NTYPEEXPR, p->tok);
 }
 
 static Node *parse_func(Parser *p) {
