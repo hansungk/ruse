@@ -35,6 +35,7 @@ enum TokenType {
     TLPAREN = '(',
     TRPAREN = ')',
     TDOT = '.',
+    TCOMMA = ',',
     TCOLON = ':',
     TEQUAL = '=',
     TPLUS = '+',

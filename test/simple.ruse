@@ -5,6 +5,6 @@ func main() int {
     const b int = 4
     a + a
 	a.b.c.d.e
-	a.b(arg).c
+	a.b(a, b, c).c
     return a
 }

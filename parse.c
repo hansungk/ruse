@@ -46,10 +46,11 @@ static Node *makebinexpr(Parser *p, Node *lhs, Token op, Node *rhs) {
 	return n;
 }
 
-static Node *makecall(Parser *p, Node *lhs, Node *arg) {
+static Node *makecall(Parser *p, Node *lhs, Node **args) {
 	Node *n = makenode(p, NCALL, p->tok /*unused*/);
 	n->lhs = lhs;
-	arrput(n->children, arg);
+	assert(!n->children);
+	n->children = args;
 	return n;
 }
 
@@ -207,6 +208,21 @@ static Node *parse_return(Parser *p) {
 	return makeret(p, rhs);
 }
 
+// Assumes enclosing '(' is already consumed.
+// Does not consume ending ')'.
+static Node **parse_callargs(Parser *p) {
+	Node **list = NULL;
+	while (p->tok.type != TRPAREN) {
+		arrput(list, parse_expr(p));
+		if (p->tok.type == TCOMMA) {
+			next(p);
+		} else {
+			break;
+		}
+	}
+	return list;
+}
+
 static Node *parse_unaryexpr(Parser *p) {
 	Node *e = NULL;
 	Token tok;
@@ -242,9 +258,8 @@ static Node *parse_unaryexpr(Parser *p) {
 		} else {
 			next(p);
 			// swap parent with child
-			// TODO: multi arg
-			Node *arg = parse_expr(p);
-			e = makecall(p, e, arg);
+			Node **args = parse_callargs(p);
+			e = makecall(p, e, args);
 			expect(p, TRPAREN);
 		}
 	}
@@ -420,10 +435,11 @@ static Node *parse_struct(Parser *p) {
 
 	expect(p, TLBRACE);
 	skip_newlines(p);
+	// NOTE: similar code to parse_callargs()
 	while (p->tok.type != TRBRACE) {
 		Token tok = p->tok;
-		next(p);
-		parse_typeexpr(p);
+		expect(p, TIDENT);
+		parse_typeexpr(p); // TODO: use result
 		arrput(s->children, makedecl(p, tok, NULL));
 		skip_newlines(p);
 	}
