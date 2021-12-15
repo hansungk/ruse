@@ -46,6 +46,20 @@ static Node *makebinexpr(Parser *p, Node *lhs, Token op, Node *rhs) {
 	return n;
 }
 
+static Node *makecall(Parser *p, Node *lhs, Node *arg) {
+	Node *n = makenode(p, NCALL, p->tok /*unused*/);
+	n->lhs = lhs;
+	arrput(n->children, arg);
+	return n;
+}
+
+// 'lhs' is the 'a.b()' part of 'a.b().c'.
+static Node *makemember(Parser *p, Token member, Node *lhs) {
+	Node *n = makenode(p, NMEMBER, member);
+	n->parent = lhs;
+	return n;
+}
+
 static Node *makedecl(Parser *p, Token name, Node *initexpr /*TODO: type*/) {
 	Node *n = makenode(p, NDECL, name);
 	n->rhs = initexpr;
@@ -64,8 +78,7 @@ static Node *makeexprstmt(Parser *p, Node *rhs) {
 	return n;
 }
 
-static Node *makeassign(Parser *p, Node *lhs,
-			       Node *rhs) {
+static Node *makeassign(Parser *p, Node *lhs, Node *rhs) {
 	Node *n = makenode(p, NASSIGN, p->tok);
 	n->lhs = lhs;
 	n->rhs = rhs;
@@ -202,12 +215,13 @@ static Node *parse_unaryexpr(Parser *p) {
 	case TOK_IDENT:
 		tok = p->tok;
 		next(p);
-		return makenode(p, NIDEXPR, tok);
-		// TODO: funccall
+		e = makenode(p, NIDEXPR, tok);
+		break;
 	case TOK_NUM:
 		tok = p->tok;
 		next(p);
-		return makenode(p, NLITERAL, tok);
+		e = makenode(p, NLITERAL, tok);
+		break;
 	case TOK_LPAREN:
 		expect(p, TOK_LPAREN);
 		e = parse_expr(p);
@@ -216,6 +230,23 @@ static Node *parse_unaryexpr(Parser *p) {
 	default:
 		error(p, "expected an expression");
 		break;
+	}
+
+	// now try to parse any trailing . or ()
+	while (p->tok.type == TOK_DOT || p->tok.type == TOK_LPAREN) {
+		if (p->tok.type == TOK_DOT) {
+			next(p);
+			// swap parent with child
+			e = makemember(p, p->tok, e);
+			expect(p, TOK_IDENT);
+		} else {
+			next(p);
+			// swap parent with child
+			// TODO: multi arg
+			Node *arg = parse_expr(p);
+			e = makecall(p, e, arg);
+			expect(p, TOK_RPAREN);
+		}
 	}
 
 	return e;
@@ -262,7 +293,7 @@ static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence) {
 		// term.
 		Node *rhs = parse_unaryexpr(p);
 		if (!rhs) {
-			error(p, "expected expression");
+			error(p, "expected an expression");
 		}
 		int next_prec = get_precedence(p->tok);
 

@@ -113,6 +113,8 @@ enum NodeKind {
 	NLITERAL = NEXPR,
 	NIDEXPR,
 	NBINEXPR,
+	NCALL,
+	NMEMBER,
 	NTYPEEXPR,
 	NDECL,
 	NSTMT,
@@ -129,6 +131,7 @@ struct Node {
     Token tok;
     long num;
     struct Decl *decl;
+    struct Node *parent; // for memberexpr
     struct Node **children;
     struct Node *lhs;
     struct Node *rhs;
