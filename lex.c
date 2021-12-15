@@ -8,14 +8,14 @@
 #include <string.h>
 
 char *token_names[NUM_TOKENTYPES] = {
-    [TOK_IDENT] = "identifier", [TOK_NUM] = "number", [TOK_NEWLINE] = "\\n",
-    [TOK_LPAREN] = "(",		[TOK_RPAREN] = ")",   [TOK_COMMENT] = "comment",
+    [TIDENT] = "identifier", [TNUM] = "number", [TNEWLINE] = "\\n",
+    [TLPAREN] = "(",		[TRPAREN] = ")",   [TCOMMENT] = "comment",
 };
 
 struct TokenMap keywords[] = {
-    {"var", TOK_VAR},	    {"const", TOK_CONST}, {"func", TOK_FUNC},
-    {"struct", TOK_STRUCT},
-	{"return", TOK_RETURN}, {"int", TOK_INT},	  {NULL, 0},
+    {"var", TVAR},	    {"const", TCONST}, {"func", TFUNC},
+    {"struct", TSTRUCT},
+	{"return", TRETURN}, {"int", TINT},	  {NULL, 0},
 };
 
 static char *readfile(const char *filename, long *filesize) {
@@ -111,7 +111,7 @@ static void lex_ident_or_keyword(Lexer *l) {
     while (isalnum(l->ch) || l->ch == '_') {
         step(l);
     }
-    maketoken(l, TOK_IDENT);
+    maketoken(l, TIDENT);
 }
 
 static void lex_symbol(Lexer *l) {
@@ -143,7 +143,7 @@ static void lex_number(Lexer *l) {
         step(l);
         skip_numbers(l);
     }
-    maketoken(l, TOK_NUM);
+    maketoken(l, TNUM);
 }
 
 static void lex_string(Lexer *l) {
@@ -163,7 +163,7 @@ static void lex_string(Lexer *l) {
         }
     }
 strclose:
-    maketoken(l, TOK_STRING);
+    maketoken(l, TSTRING);
 }
 
 // Lex the next token and place it at l->tok.
@@ -174,7 +174,7 @@ int lex(Lexer *l) {
 
 		switch (l->ch) {
 		case '\0':
-			maketoken(l, TOK_EOF);
+			maketoken(l, TEOF);
 			return EOF;
 		case ' ':
 		case '\t':
@@ -191,7 +191,7 @@ int lex(Lexer *l) {
 				while (l->ch != '\n') {
 					step(l);
 				}
-				maketoken(l, TOK_COMMENT);
+				maketoken(l, TCOMMENT);
 				return 0;
 			} else {
 				maketoken(l, '/');
@@ -200,7 +200,7 @@ int lex(Lexer *l) {
 		case '-':
 			step(l);
 			if (l->ch == '>') {
-				maketoken(l, TOK_ARROW);
+				maketoken(l, TARROW);
 				return 0;
 			} else {
 				maketoken(l, '-');
@@ -273,11 +273,11 @@ int tokeneq(const char *src, Token t1, Token t2) {
 // Different from tokenstr as it does not return the actual text for
 // the token, but the description for the type of the token.
 char *tokentypestr(enum TokenType t, char *buf, size_t blen) {
-    if (t >= TOK_ASCII)
+    if (t >= TASCII)
         snprintf(buf, blen, "%s", token_names[t]);
     else if (t == '\n')
         snprintf(buf, blen, "\\n");
-    else if (t == TOK_EOF)
+    else if (t == TEOF)
         snprintf(buf, blen, "EOF");
     else
         snprintf(buf, blen, "%c", (char)t);
@@ -289,14 +289,14 @@ void tokenprint(const char *src, const Token tok) {
     char buf[MAXTOKLEN];
 
     switch (tok.type) {
-    case TOK_IDENT:
-    case TOK_COMMENT:
-    case TOK_NUM:
-    case TOK_STRING:
+    case TIDENT:
+    case TCOMMENT:
+    case TNUM:
+    case TSTRING:
         printf("%.*s", (int)(tok.range.end - tok.range.start),
                src + tok.range.start);
         break;
-    case TOK_ERR:
+    case TERR:
         printf("error");
         break;
     default:

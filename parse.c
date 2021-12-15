@@ -90,7 +90,7 @@ void parser_from_file(Parser *p, const char *filename) {
 	memset(p, 0, sizeof(Parser));
 	lexer_from_file(&p->l, filename);
 	// start by putting something on p->tok
-	// can't use next() because p->lexer.tok is initialized to TOK_EOF
+	// can't use next() because p->lexer.tok is initialized to TEOF
 	lex(&p->l);
 	p->tok = p->l.tok;
 }
@@ -117,7 +117,7 @@ void parser_cleanup(Parser *p) {
 }
 
 static void next(Parser *p) {
-	if (p->l.tok.type == TOK_EOF)
+	if (p->l.tok.type == TEOF)
 		return;
 	lex(&p->l);
 	p->tok = p->l.tok;
@@ -138,20 +138,20 @@ static void error(Parser *p, const char *fmt, ...) {
 }
 
 static void skip_while(Parser *p, enum TokenType type) {
-	while (p->tok.type != TOK_EOF && p->tok.type == type) {
+	while (p->tok.type != TEOF && p->tok.type == type) {
 		next(p);
 	}
 }
 
 static void skip_newlines(Parser *p) {
-	while (p->tok.type == '\n' || p->tok.type == TOK_COMMENT) {
+	while (p->tok.type == '\n' || p->tok.type == TCOMMENT) {
 		skip_while(p, '\n');
-		skip_while(p, TOK_COMMENT);
+		skip_while(p, TCOMMENT);
 	}
 }
 
 static void skip_to_end_of_line(Parser *p) {
-	while (p->tok.type != TOK_EOF && p->tok.type != TOK_NEWLINE) {
+	while (p->tok.type != TEOF && p->tok.type != TNEWLINE) {
 		next(p);
 	}
 }
@@ -173,8 +173,8 @@ static int expect(Parser *p, enum TokenType t) {
 
 // Expect end of line, skipping over any end-of-line comments.
 static int expect_end_of_line(Parser *p) {
-	skip_while(p, TOK_COMMENT);
-	return expect(p, TOK_NEWLINE);
+	skip_while(p, TCOMMENT);
+	return expect(p, TNEWLINE);
 }
 
 // TODO: remove
@@ -185,24 +185,24 @@ static void tokentypeprint(enum TokenType t) {
 }
 
 static Node *parse_decl(Parser *p) {
-	assert(p->tok.type == TOK_VAR || p->tok.type == TOK_CONST);
+	assert(p->tok.type == TVAR || p->tok.type == TCONST);
 	next(p);
 
 	Token name = p->tok;
 	next(p);
 
-	if (p->tok.type != TOK_EQUAL) {
+	if (p->tok.type != TEQUAL) {
 		parse_typeexpr(p);
 	}
 
-	expect(p, TOK_EQUAL);
+	expect(p, TEQUAL);
 
 	Node *rhs = parse_expr(p);
 	return makedecl(p, name, rhs);
 }
 
 static Node *parse_return(Parser *p) {
-	expect(p, TOK_RETURN);
+	expect(p, TRETURN);
 	Node *rhs = parse_expr(p);
 	return makeret(p, rhs);
 }
@@ -212,20 +212,20 @@ static Node *parse_unaryexpr(Parser *p) {
 	Token tok;
 
 	switch (p->tok.type) {
-	case TOK_IDENT:
+	case TIDENT:
 		tok = p->tok;
 		next(p);
 		e = makenode(p, NIDEXPR, tok);
 		break;
-	case TOK_NUM:
+	case TNUM:
 		tok = p->tok;
 		next(p);
 		e = makenode(p, NLITERAL, tok);
 		break;
-	case TOK_LPAREN:
-		expect(p, TOK_LPAREN);
+	case TLPAREN:
+		expect(p, TLPAREN);
 		e = parse_expr(p);
-		expect(p, TOK_RPAREN);
+		expect(p, TRPAREN);
 		break;
 	default:
 		error(p, "expected an expression");
@@ -233,19 +233,19 @@ static Node *parse_unaryexpr(Parser *p) {
 	}
 
 	// now try to parse any trailing . or ()
-	while (p->tok.type == TOK_DOT || p->tok.type == TOK_LPAREN) {
-		if (p->tok.type == TOK_DOT) {
+	while (p->tok.type == TDOT || p->tok.type == TLPAREN) {
+		if (p->tok.type == TDOT) {
 			next(p);
 			// swap parent with child
 			e = makemember(p, p->tok, e);
-			expect(p, TOK_IDENT);
+			expect(p, TIDENT);
 		} else {
 			next(p);
 			// swap parent with child
 			// TODO: multi arg
 			Node *arg = parse_expr(p);
 			e = makecall(p, e, arg);
-			expect(p, TOK_RPAREN);
+			expect(p, TRPAREN);
 		}
 	}
 
@@ -254,11 +254,11 @@ static Node *parse_unaryexpr(Parser *p) {
 
 static int get_precedence(const Token op) {
 	switch (op.type) {
-	case TOK_STAR:
-	case TOK_SLASH:
+	case TSTAR:
+	case TSLASH:
 		return 1;
-	case TOK_PLUS:
-	case TOK_MINUS:
+	case TPLUS:
+	case TMINUS:
 		return 0;
 	default:
 		return -1; // not an operator
@@ -324,7 +324,7 @@ static Node *parse_expr(Parser *p) {
 static Node *parse_assign_or_expr_stmt(Parser *p, Node *expr) {
 	Node *stmt = NULL;
 
-	if (p->tok.type == TOK_EQUAL) {
+	if (p->tok.type == TEQUAL) {
 		next(p);
 		Node *rhs = parse_expr(p);
 		stmt = makeassign(p, expr, rhs);
@@ -341,15 +341,15 @@ static Node *parse_stmt(Parser *p) {
 	skip_newlines(p);
 
 	switch (p->tok.type) {
-	case TOK_EOF:
+	case TEOF:
 		return NULL;
-	case TOK_COMMENT:
+	case TCOMMENT:
 		expect_end_of_line(p);
 		return parse_stmt(p);
-	case TOK_VAR:
-	case TOK_CONST:
+	case TVAR:
+	case TCONST:
 		return parse_decl(p);
-	case TOK_RETURN:
+	case TRETURN:
 		return parse_return(p);
 	default:
 		break;
@@ -363,7 +363,7 @@ static Node *parse_stmt(Parser *p) {
 	// }
 
 	// skip_to_end_of_line(p);
-	// expect(p, TOK_NEWLINE);
+	// expect(p, TNEWLINE);
 
 	// all productions from now on start with an expression
 	// TODO: exprstmt?
@@ -373,8 +373,8 @@ static Node *parse_stmt(Parser *p) {
 }
 
 static Node *parse_typeexpr(Parser *p) {
-	if (p->tok.type == TOK_INT) {
-		expect(p, TOK_INT);
+	if (p->tok.type == TINT) {
+		expect(p, TINT);
 	} else {
 		error(p, "expected a type (TODO)");
 	}
@@ -382,24 +382,24 @@ static Node *parse_typeexpr(Parser *p) {
 }
 
 static Node *parse_func(Parser *p) {
-	expect(p, TOK_FUNC);
+	expect(p, TFUNC);
 
 	Node *f = makefunc(p, p->tok);
 	next(p);
 
 	// argument list
-	expect(p, TOK_LPAREN);
+	expect(p, TLPAREN);
 	// func->paramdecls = parse_paramdecllist(p);
-	expect(p, TOK_RPAREN);
+	expect(p, TRPAREN);
 
 	// return type
-	if (p->tok.type != TOK_LBRACE) {
+	if (p->tok.type != TLBRACE) {
 		f->rettypeexpr = parse_typeexpr(p);
 	}
 
 	// body
-	expect(p, TOK_LBRACE);
-	while (p->tok.type != TOK_RBRACE) {
+	expect(p, TLBRACE);
+	while (p->tok.type != TRBRACE) {
 		Node *stmt = parse_stmt(p);
 		if (stmt) {
 			arrput(f->children, stmt);
@@ -407,27 +407,27 @@ static Node *parse_func(Parser *p) {
 
 		skip_newlines(p);
 	}
-	expect(p, TOK_RBRACE);
+	expect(p, TRBRACE);
 
 	return f;
 }
 
 static Node *parse_struct(Parser *p) {
-	expect(p, TOK_STRUCT);
+	expect(p, TSTRUCT);
 
 	Node *s = makestruct(p, p->tok);
 	next(p);
 
-	expect(p, TOK_LBRACE);
+	expect(p, TLBRACE);
 	skip_newlines(p);
-	while (p->tok.type != TOK_RBRACE) {
+	while (p->tok.type != TRBRACE) {
 		Token tok = p->tok;
 		next(p);
 		parse_typeexpr(p);
 		arrput(s->children, makedecl(p, tok, NULL));
 		skip_newlines(p);
 	}
-	expect(p, TOK_RBRACE);
+	expect(p, TRBRACE);
 
 	return s;
 }
@@ -436,9 +436,9 @@ static Node *parse_toplevel(Parser *p) {
 	skip_newlines(p);
 
 	switch (p->tok.type) {
-	case TOK_FUNC:
+	case TFUNC:
 		return parse_func(p);
-	case TOK_STRUCT:
+	case TSTRUCT:
 		return parse_struct(p);
 	default:
 		error(p, "unknown token type %d at toplevel", p->tok.type);
@@ -449,7 +449,7 @@ static Node *parse_toplevel(Parser *p) {
 Node *parse(Parser *p) {
 	Node **nodes = NULL;
 
-	while (p->tok.type != TOK_EOF) {
+	while (p->tok.type != TEOF) {
 		Node *func = parse_toplevel(p);
 		arrput(nodes, func);
 		skip_newlines(p);
