@@ -42,7 +42,7 @@ static void error(struct Context *ctx, long loc, const char *fmt, ...) {
 struct Decl *push_var(struct Context *ctx, struct Node *n) {
 	struct Decl *val = calloc(sizeof(struct Decl), 1);
 	val->name = n->tok;
-	struct Map map = {.name = n->tok, .decl = val};
+	struct DeclMap map = {.name = n->tok, .decl = val};
 	arrput(ctx->scope->tab, map);
 	return val;
 }

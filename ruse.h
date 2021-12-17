@@ -153,6 +153,17 @@ void parser_from_buf(Parser *p, const char *buf, size_t len);
 void parser_cleanup(Parser *p);
 struct Node *parse(Parser *p);
 
+typedef struct Map Map;
+
+struct Map {
+	size_t bucketlen;
+	struct Mapkey *buckets;
+};
+
+Map makemap(void);
+void mapput(Map *m, char *str, void *data);
+void *mapget(Map *m, char *str);
+
 enum DeclKind {
     DCL_NUM,
 };
@@ -166,13 +177,13 @@ struct Decl {
     double num;
 };
 
-struct Map {
+struct DeclMap {
     Token name;
     struct Decl *decl;
 };
 
 struct Scope {
-    struct Map *tab;
+    struct DeclMap *tab;
     struct Scope *outer;
 };
 
