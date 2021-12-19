@@ -14,12 +14,7 @@ int main(int argc, char **argv) {
     context_init(&ctx, &p.l.src);
 
     struct Node *n = parse(&p);
-    if (p.tok.type != TEOF) {
-        fprintf(stderr, "terminated abnormally\n");
-        return 1;
-    }
-
-    eval(&ctx, n);
+    typecheck(&ctx, n);
     codegen(&ctx, n);
 
     context_free(&ctx);

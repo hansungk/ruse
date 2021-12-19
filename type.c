@@ -38,7 +38,7 @@ static void error(struct Context *ctx, long loc, const char *fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
-// Push a variable to the current scope.  `n` should be a declaration node.
+// Push a variable to the current scope.  `n` should be a declaration.
 struct Decl *push_var(struct Context *ctx, struct Node *n) {
 	struct Decl *val = calloc(sizeof(struct Decl), 1);
 	val->name = n->tok;
@@ -56,7 +56,7 @@ struct Decl *lookup_var(struct Context *ctx, struct Node *n) {
 	return NULL;
 }
 
-static void eval_expr(struct Context *ctx, struct Node *n) {
+static void typecheck_expr(struct Context *ctx, struct Node *n) {
 	char buf[MAXTOKLEN];
 	tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
 
@@ -71,22 +71,22 @@ static void eval_expr(struct Context *ctx, struct Node *n) {
 		}
 		break;
 	case NBINEXPR:
-		eval_expr(ctx, n->lhs);
-		eval_expr(ctx, n->rhs);
+		typecheck_expr(ctx, n->lhs);
+		typecheck_expr(ctx, n->rhs);
 		break;
 	default:
 		break;
 	}
 }
 
-static void eval_stmt(struct Context *ctx, struct Node *n) {
+static void typecheck_stmt(struct Context *ctx, struct Node *n) {
 	switch (n->kind) {
 	case NEXPRSTMT:
-		eval_expr(ctx, n->rhs);
+		typecheck_expr(ctx, n->rhs);
 		break;
 	case NASSIGN:
-		eval_expr(ctx, n->rhs);
-		eval_expr(ctx, n->lhs);
+		typecheck_expr(ctx, n->rhs);
+		typecheck_expr(ctx, n->lhs);
 		break;
 	case NRETURN:
 		break;
@@ -95,17 +95,17 @@ static void eval_stmt(struct Context *ctx, struct Node *n) {
 	}
 }
 
-void eval(struct Context *ctx, struct Node *n) {
+void typecheck(struct Context *ctx, struct Node *n) {
 	switch (n->kind) {
 	case NFILE:
 		for (int i = 0; i < arrlen(n->children); i++) {
-			eval(ctx, n->children[i]);
+			typecheck(ctx, n->children[i]);
 		}
 		break;
 	case NFUNC:
 		// TODO: push/pop scope
 		for (int i = 0; i < arrlen(n->children); i++) {
-			eval(ctx, n->children[i]);
+			typecheck(ctx, n->children[i]);
 		}
 		break;
 	case NDECL:
@@ -113,9 +113,9 @@ void eval(struct Context *ctx, struct Node *n) {
 		break;
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {
-			eval_expr(ctx, n);
+			typecheck_expr(ctx, n);
 		} else if (NSTMT <= n->kind && n->kind) {
-			eval_stmt(ctx, n);
+			typecheck_stmt(ctx, n);
 		}
 		break;
 	}
