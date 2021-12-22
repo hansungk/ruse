@@ -159,7 +159,7 @@ static void skip_to_end_of_line(Parser *p) {
 
 static int expect(Parser *p, enum TokenType t) {
 	if (p->tok.type != t) {
-		char ebuf[MAXTOKLEN], gbuf[MAXTOKLEN];
+		char ebuf[TOKLEN], gbuf[TOKLEN];
 		tokentypestr(t, ebuf, sizeof(ebuf));
 		tokenstr(p->l.src.buf, p->tok, gbuf, sizeof(gbuf));
 		if (strcmp(gbuf, "\n") == 0) {
@@ -180,7 +180,7 @@ static int expect_end_of_line(Parser *p) {
 
 // TODO: remove
 static void tokentypeprint(enum TokenType t) {
-	char buf[MAXTOKLEN];
+	char buf[TOKLEN];
 	tokentypestr(t, buf, sizeof(buf));
 	printf("i saw %s\n", buf);
 }

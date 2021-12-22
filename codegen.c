@@ -77,7 +77,7 @@ static int valstack_push_and_incr(Context *ctx) {
 }
 
 static void codegen_expr(Context *ctx, Node *n) {
-    char buf[MAXTOKLEN]; // FIXME: stack usage
+    char buf[TOKLEN]; // FIXME: stack usage
     int id_lhs, id_rhs;
 
     tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
@@ -109,7 +109,7 @@ static void codegen_expr(Context *ctx, Node *n) {
 }
 
 static void codegen_stmt(Context *ctx, Node *n) {
-    char buf[MAXTOKLEN];
+    char buf[TOKLEN];
 
     switch (n->kind) {
     case NEXPRSTMT:
@@ -131,7 +131,7 @@ static void codegen_stmt(Context *ctx, Node *n) {
 }
 
 void codegen(Context *ctx, Node *n) {
-    char buf[MAXTOKLEN];
+    char buf[TOKLEN];
     int id;
 
     switch (n->kind) {

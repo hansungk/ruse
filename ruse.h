@@ -4,7 +4,7 @@
 
 #include <stddef.h>
 
-#define MAXTOKLEN 64
+#define TOKLEN 64
 
 typedef struct Source Source;
 typedef struct SrcRange SrcRange;

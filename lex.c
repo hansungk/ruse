@@ -270,7 +270,7 @@ char *tokenstr(const char *src, Token tok, char *buf, size_t blen) {
 
 // Compare the string content of the two tokens.
 int tokeneq(const char *src, Token t1, Token t2) {
-    char buf1[MAXTOKLEN], buf2[MAXTOKLEN];
+    char buf1[TOKLEN], buf2[TOKLEN];
     tokenstr(src, t1, buf1, sizeof(buf1));
     tokenstr(src, t2, buf2, sizeof(buf2));
     return (strcmp(buf1, buf2) == 0);
@@ -293,7 +293,7 @@ char *tokentypestr(enum TokenType t, char *buf, size_t blen) {
 }
 
 void tokenprint(const char *src, const Token tok) {
-    char buf[MAXTOKLEN];
+    char buf[TOKLEN];
 
     switch (tok.type) {
     case TIDENT:
