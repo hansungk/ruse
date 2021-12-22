@@ -123,6 +123,7 @@ enum NodeKind {
 	NSTMT,
 	NEXPRSTMT = NSTMT,
 	NASSIGN,
+	NBLOCKSTMT,
 	NRETURN,
 };
 

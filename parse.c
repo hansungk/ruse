@@ -7,6 +7,7 @@
 #include <string.h>
 
 static Node *parse_expr(Parser *p);
+static Node *parse_stmt(Parser *p);
 static Node *parse_typeexpr(Parser *p);
 
 static Node *makenode(Parser *p, enum NodeKind k, Token tok) {
@@ -67,7 +68,7 @@ static Node *makedecl(Parser *p, Token name, Node *initexpr /*TODO: type*/) {
 	return n;
 }
 
-static Node *makeret(Parser *p, Node *rhs) {
+static Node *makereturn(Parser *p, Node *rhs) {
 	Node *n = makenode(p, NRETURN, p->tok);
 	n->rhs = rhs;
 	return n;
@@ -202,10 +203,23 @@ static Node *parse_decl(Parser *p) {
 	return makedecl(p, name, rhs);
 }
 
+static Node *parse_blockstmt(Parser *p) {
+	Node *n = makenode(p, NBLOCKSTMT, p->tok);
+
+	expect(p, TLBRACE);
+	while (p->tok.type != TRBRACE) {
+		arrput(n->children, parse_stmt(p));
+		skip_newlines(p);
+	}
+	expect(p, TRBRACE);
+
+	return NULL;
+}
+
 static Node *parse_return(Parser *p) {
 	expect(p, TRETURN);
 	Node *rhs = parse_expr(p);
-	return makeret(p, rhs);
+	return makereturn(p, rhs);
 }
 
 // Assumes enclosing '(' is already consumed.
@@ -364,6 +378,8 @@ static Node *parse_stmt(Parser *p) {
 	case TVAR:
 	case TCONST:
 		return parse_decl(p);
+	case TLBRACE:
+		return parse_blockstmt(p);
 	case TRETURN:
 		return parse_return(p);
 	default:

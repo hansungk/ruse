@@ -40,27 +40,30 @@ struct Node *push_var(struct Context *ctx, struct Node *n) {
 	return n;
 }
 
-struct Node *lookup_var(struct Context *ctx, struct Node *n) {
-	struct Node *found = mapget(&ctx->scope->map, n->tok.name);
+struct Node *lookup_var(struct Context *c, struct Node *n) {
+	struct Node *found = mapget(&c->scope->map, n->tok.name);
 	return found;
 }
 
-static void typecheck_expr(struct Context *ctx, struct Node *n) {
+static void typecheck_expr(struct Context *c, struct Node *n) {
 	char buf[TOKLEN];
-	tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
+	tokenstr(c->src->buf, n->tok, buf, sizeof(buf));
 
 	switch (n->kind) {
 	case NLITERAL:
 		break;
 	case NIDEXPR:
-		if (!lookup_var(ctx, n)) {
-			error(ctx, n->tok.range.start,
+		if (!lookup_var(c, n))
+			error(c, n->tok.range.start,
 			      "undeclared variable '%s'", buf);
-		}
 		break;
 	case NBINEXPR:
-		typecheck_expr(ctx, n->lhs);
-		typecheck_expr(ctx, n->rhs);
+		typecheck_expr(c, n->lhs);
+		typecheck_expr(c, n->rhs);
+		break;
+	case NMEMBER:
+		typecheck_expr(c, n->parent);
+		// TODO: existing member check
 		break;
 	default:
 		break;
