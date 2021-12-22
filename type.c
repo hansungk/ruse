@@ -6,21 +6,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-void context_init(struct Context *ctx, Source *src) {
-	memset(ctx, 0, sizeof(struct Context));
-	ctx->src = src;
-	ctx->scope = calloc(sizeof(struct Scope), 1);
-	makemap(&ctx->scope->map);
+void context_init(struct Context *c, Source *src) {
+	memset(c, 0, sizeof(struct Context));
+	c->src = src;
+	c->scope = calloc(sizeof(struct Scope), 1);
+	makemap(&c->scope->map);
 }
 
-void context_free(struct Context *ctx) {
-	freemap(&ctx->scope->map);
-	free(ctx->scope);
-	arrfree(ctx->valstack.stack);
+void context_free(struct Context *c) {
+	freemap(&c->scope->map);
+	free(c->scope);
+	arrfree(c->valstack.stack);
 }
 
 // TODO: merge this with the one in parse.c
-static void error(struct Context *ctx, long loc, const char *fmt, ...) {
+static void error(struct Context *c, long loc, const char *fmt, ...) {
 	static char msg[1024];
 	va_list args;
 
@@ -28,15 +28,15 @@ static void error(struct Context *ctx, long loc, const char *fmt, ...) {
 	vsnprintf(msg, sizeof(msg), fmt, args);
 	va_end(args);
 
-	SrcLoc srcloc = locate(ctx->src, loc);
+	SrcLoc srcloc = locate(c->src, loc);
 	fprintf(stderr, "error in %s:%d:%d:(%ld): %s\n", srcloc.filename,
 		srcloc.line, srcloc.col, loc, msg);
 	exit(EXIT_FAILURE);
 }
 
 // Push a variable to the current scope.  `n` should be a declaration.
-struct Node *push_var(struct Context *ctx, struct Node *n) {
-	mapput(&ctx->scope->map, n->tok.name, n);
+struct Node *push_var(struct Context *c, struct Node *n) {
+	mapput(&c->scope->map, n->tok.name, n);
 	return n;
 }
 
@@ -80,6 +80,7 @@ static void typecheck_stmt(struct Context *c, struct Node *n) {
 		typecheck_expr(c, n->lhs);
 		break;
 	case NBLOCKSTMT:
+		// TODO: push/pop scope
 		for (long i = 0; i < arrlen(n->children); i++) {
 			typecheck(c, n->children[i]);
 		}

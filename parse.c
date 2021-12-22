@@ -208,7 +208,8 @@ static Node *parse_blockstmt(Parser *p) {
 
 	expect(p, TLBRACE);
 	while (p->tok.type != TRBRACE) {
-		arrput(n->children, parse_stmt(p));
+		Node *s = parse_stmt(p);
+		arrput(n->children, s);
 		skip_newlines(p);
 	}
 	expect(p, TRBRACE);
