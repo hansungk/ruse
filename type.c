@@ -13,12 +13,7 @@ void context_init(struct Context *ctx, Source *src) {
 }
 
 void context_free(struct Context *ctx) {
-	for (int i = 0; i < arrlen(ctx->scope->tab); i++) {
-		if (ctx->scope->tab[i].decl) {
-			free(ctx->scope->tab[i].decl);
-		}
-	}
-	arrfree(ctx->scope->tab);
+	freemap(ctx->scope->map);
 	free(ctx->scope);
 	arrfree(ctx->valstack.stack);
 }
@@ -42,16 +37,18 @@ static void error(struct Context *ctx, long loc, const char *fmt, ...) {
 struct Decl *push_var(struct Context *ctx, struct Node *n) {
 	struct Decl *val = calloc(sizeof(struct Decl), 1);
 	val->name = n->tok;
-	struct DeclMap map = {.name = n->tok, .decl = val};
-	arrput(ctx->scope->tab, map);
+	// FIXME
+	// mapput(ctx->scope->map, n->tok, n);
+	// arrput(ctx->scope->map, map);
 	return val;
 }
 
 struct Decl *lookup_var(struct Context *ctx, struct Node *n) {
-	for (int i = 0; i < arrlen(ctx->scope->tab); i++) {
-		if (tokeneq(ctx->src->src, n->tok, ctx->scope->tab[i].name)) {
-			return ctx->scope->tab[i].decl;
-		}
+	for (int i = 0; i < arrlen(ctx->scope->map); i++) {
+		// FIXME
+		// if (tokeneq(ctx->src->src, n->tok, ctx->scope->map[i].name)) {
+		// 	return ctx->scope->map[i].decl;
+		// }
 	}
 	return NULL;
 }

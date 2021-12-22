@@ -81,6 +81,7 @@ typedef struct Lexer Lexer;
 struct Token {
     enum TokenType type;
     struct SrcRange range;
+	char *name;
 };
 
 // Lexer state.
@@ -161,8 +162,9 @@ struct Map {
 };
 
 Map makemap(void);
-void mapput(Map *m, char *str, void *data);
-void *mapget(Map *m, char *str);
+void freemap(struct Map *map);
+void mapput(struct Map *m, char *str, size_t len, void *data);
+void *mapget(struct Map *m, char *str, size_t len);
 
 enum DeclKind {
     DCL_NUM,
@@ -177,13 +179,8 @@ struct Decl {
     double num;
 };
 
-struct DeclMap {
-    Token name;
-    struct Decl *decl;
-};
-
 struct Scope {
-    struct DeclMap *tab;
+    struct Map *map;
     struct Scope *outer;
 };
 
