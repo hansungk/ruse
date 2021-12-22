@@ -89,6 +89,7 @@ void lexer_cleanup(Lexer *l) {
     free(l->src.buf);
 }
 
+// Make a new token and place it at 'l->tok'.
 static void maketoken(Lexer *l, enum TokenType type) {
     memset(&l->tok, 0, sizeof(Token));
     l->tok.type = type;
@@ -103,6 +104,7 @@ static void lex_ident_or_keyword(Lexer *l) {
 			if (m->text[i] == '\0') {
 				consume(l, i);
 				maketoken(l, m->type);
+				l->tok.name = m->text;
 				return;
 			}
 		}

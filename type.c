@@ -10,10 +10,11 @@ void context_init(struct Context *ctx, Source *src) {
 	memset(ctx, 0, sizeof(struct Context));
 	ctx->src = src;
 	ctx->scope = calloc(sizeof(struct Scope), 1);
+	makemap(&ctx->scope->map);
 }
 
 void context_free(struct Context *ctx) {
-	freemap(ctx->scope->map);
+	freemap(&ctx->scope->map);
 	free(ctx->scope);
 	arrfree(ctx->valstack.stack);
 }
@@ -34,23 +35,14 @@ static void error(struct Context *ctx, long loc, const char *fmt, ...) {
 }
 
 // Push a variable to the current scope.  `n` should be a declaration.
-struct Decl *push_var(struct Context *ctx, struct Node *n) {
-	struct Decl *val = calloc(sizeof(struct Decl), 1);
-	val->name = n->tok;
-	// FIXME
-	// mapput(ctx->scope->map, n->tok, n);
-	// arrput(ctx->scope->map, map);
-	return val;
+struct Node *push_var(struct Context *ctx, struct Node *n) {
+	mapput(&ctx->scope->map, n->tok.name, n);
+	return n;
 }
 
-struct Decl *lookup_var(struct Context *ctx, struct Node *n) {
-	for (int i = 0; i < arrlen(ctx->scope->map); i++) {
-		// FIXME
-		// if (tokeneq(ctx->src->src, n->tok, ctx->scope->map[i].name)) {
-		// 	return ctx->scope->map[i].decl;
-		// }
-	}
-	return NULL;
+struct Node *lookup_var(struct Context *ctx, struct Node *n) {
+	struct Node *found = mapget(&ctx->scope->map, n->tok.name);
+	return found;
 }
 
 static void typecheck_expr(struct Context *ctx, struct Node *n) {
@@ -61,8 +53,7 @@ static void typecheck_expr(struct Context *ctx, struct Node *n) {
 	case NLITERAL:
 		break;
 	case NIDEXPR:
-		n->decl = lookup_var(ctx, n);
-		if (!n->decl) {
+		if (!lookup_var(ctx, n)) {
 			error(ctx, n->tok.range.start,
 			      "undeclared variable '%s'", buf);
 		}

@@ -69,7 +69,7 @@ enum TokenType {
 extern char *token_names[NUM_TOKENTYPES];
 
 struct TokenMap {
-    const char *text;
+    char *text;
     enum TokenType type;
 };
 
@@ -162,13 +162,13 @@ struct Map {
 	struct Mapkey *buckets;
 };
 
-Map makemap(void);
+void makemap(struct Map *m);
 void freemap(struct Map *map);
-void mapput(struct Map *m, char *str, size_t len, void *data);
-void *mapget(struct Map *m, char *str, size_t len);
+void mapput(struct Map *m, char *str, void *data);
+void *mapget(struct Map *m, char *str);
 
 enum DeclKind {
-    DCL_NUM,
+    D_NUM,
 };
 
 typedef struct Decl Decl;
@@ -181,7 +181,7 @@ struct Decl {
 };
 
 struct Scope {
-    struct Map *map;
+    struct Map map;
     struct Scope *outer;
 };
 
