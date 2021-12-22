@@ -80,7 +80,7 @@ static void codegen_expr(Context *ctx, Node *n) {
     char buf[MAXTOKLEN]; // FIXME: stack usage
     int id_lhs, id_rhs;
 
-    tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
+    tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
 
     switch (n->kind) {
     case NLITERAL:
@@ -117,7 +117,7 @@ static void codegen_stmt(Context *ctx, Node *n) {
         break;
     case NASSIGN:
         codegen(ctx, n->rhs);
-        tokenstr(ctx->src->src, n->lhs->decl->name, buf, sizeof(buf));
+        tokenstr(ctx->src->buf, n->lhs->decl->name, buf, sizeof(buf));
         emit("    %%%s =w add 0, %%_%d\n", buf,
              arrpop(ctx->valstack.stack));
         break;
@@ -151,7 +151,7 @@ void codegen(Context *ctx, Node *n) {
     case NDECL:
         codegen(ctx, n->rhs);
 
-        tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
+        tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
         id = arrpop(ctx->valstack.stack);
         emit("    %%%s =w add 0, %%_%d\n", buf, id);
         break;

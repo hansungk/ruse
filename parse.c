@@ -161,7 +161,7 @@ static int expect(Parser *p, enum TokenType t) {
 	if (p->tok.type != t) {
 		char ebuf[MAXTOKLEN], gbuf[MAXTOKLEN];
 		tokentypestr(t, ebuf, sizeof(ebuf));
-		tokenstr(p->l.src.src, p->tok, gbuf, sizeof(gbuf));
+		tokenstr(p->l.src.buf, p->tok, gbuf, sizeof(gbuf));
 		if (strcmp(gbuf, "\n") == 0) {
 			strcpy(gbuf, "\\n");
 		}

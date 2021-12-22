@@ -8,14 +8,14 @@
 #include <string.h>
 
 char *token_names[NUM_TOKENTYPES] = {
-    [TIDENT] = "identifier", [TNUM] = "number", [TNEWLINE] = "\\n",
-    [TLPAREN] = "(",		[TRPAREN] = ")",   [TCOMMENT] = "comment",
+	[TIDENT] = "identifier", [TNUM] = "number", [TNEWLINE] = "\\n",
+	[TLPAREN] = "(",         [TRPAREN] = ")",   [TCOMMENT] = "comment",
 };
 
 struct TokenMap keywords[] = {
-    {"var", TVAR},	    {"const", TCONST}, {"func", TFUNC},
-    {"struct", TSTRUCT},
-	{"return", TRETURN}, {"int", TINT},	  {NULL, 0},
+	{"var", TVAR},       {"const", TCONST},   {"func", TFUNC},
+	{"struct", TSTRUCT}, {"return", TRETURN}, {"int", TINT},
+	{NULL, 0},
 };
 
 static char *readfile(const char *filename, long *filesize) {
@@ -40,15 +40,15 @@ static char *readfile(const char *filename, long *filesize) {
 }
 
 static void step(Lexer *l) {
-    if (l->rd_off < l->src.srclen) {
+    if (l->rd_off < l->src.buflen) {
         l->off = l->rd_off;
-        l->ch = l->src.src[l->off];
+        l->ch = l->src.buf[l->off];
         if (l->ch == '\n') {
             arrput(l->src.line_offs, l->off);
         }
         l->rd_off++;
     } else {
-        l->off = l->src.srclen;
+        l->off = l->src.buflen;
         l->ch = 0; // EOF
     }
 }
@@ -60,8 +60,8 @@ static void consume(Lexer *l, long n) {
 }
 
 static char lookn(Lexer *l, long n) {
-    if (l->off + n < l->src.srclen) {
-        return l->src.src[l->off + n];
+    if (l->off + n < l->src.buflen) {
+        return l->src.buf[l->off + n];
     }
     return '\0';
 }
@@ -69,7 +69,7 @@ static char lookn(Lexer *l, long n) {
 int lexer_from_file(Lexer *l, const char *filename) {
     memset(l, 0, sizeof(Lexer));
     strncpy(l->src.filename, filename, 255);
-    l->src.src = readfile(filename, &l->src.srclen);
+    l->src.buf = readfile(filename, &l->src.buflen);
     step(l);
     return 1;
 }
@@ -77,16 +77,16 @@ int lexer_from_file(Lexer *l, const char *filename) {
 int lexer_from_buf(Lexer *l, const char *buf, size_t len) {
     memset(l, 0, sizeof(Lexer));
     strncpy(l->src.filename, "(null)", 255);
-    l->src.srclen = len;
-    l->src.src = calloc(len + 1, 1);
-    strncpy(l->src.src, buf, len);
+    l->src.buflen = len;
+    l->src.buf = calloc(len + 1, 1);
+    strncpy(l->src.buf, buf, len);
     step(l);
     return 1;
 }
 
 void lexer_cleanup(Lexer *l) {
     arrfree(l->src.line_offs);
-    free(l->src.src);
+    free(l->src.buf);
 }
 
 static void maketoken(Lexer *l, enum TokenType type) {
@@ -96,22 +96,27 @@ static void maketoken(Lexer *l, enum TokenType type) {
 }
 
 static void lex_ident_or_keyword(Lexer *l) {
-    // multi-char keywords
-    for (const struct TokenMap *m = &keywords[0]; m->text != NULL; m++) {
-        for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i); i++) {
-            if (m->text[i] == '\0') {
-                consume(l, i);
-                maketoken(l, m->type);
-                return;
-            }
-        }
-    }
+	// multi-char keywords
+	for (const struct TokenMap *m = &keywords[0]; m->text != NULL; m++) {
+		for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i);
+		     i++) {
+			if (m->text[i] == '\0') {
+				consume(l, i);
+				maketoken(l, m->type);
+				return;
+			}
+		}
+	}
 
-    // no keyword match, parse as an identifier
-    while (isalnum(l->ch) || l->ch == '_') {
-        step(l);
-    }
-    maketoken(l, TIDENT);
+	// no keyword match, parse as an identifier
+	while (isalnum(l->ch) || l->ch == '_') {
+		step(l);
+	}
+	maketoken(l, TIDENT);
+	long len = l->off - l->start;
+	l->tok.name = calloc(len + 1, sizeof(char));
+	strncpy(l->tok.name, l->src.buf + l->start, len);
+	l->tok.name[len] = '\0';
 }
 
 static void lex_symbol(Lexer *l) {
@@ -252,7 +257,7 @@ SrcLoc locate(Source *src, size_t pos) {
 }
 
 // Print 'tok' as string into buf.
-// Needs lexer because it needs the source text.
+// Needs 'src' because it needs the source text.
 char *tokenstr(const char *src, Token tok, char *buf, size_t blen) {
     size_t tlen = tok.range.end - tok.range.start;
     size_t strlen = (blen - 1) < tlen ? (blen - 1) : tlen;

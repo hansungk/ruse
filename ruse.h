@@ -11,10 +11,10 @@ typedef struct SrcRange SrcRange;
 typedef struct SrcLoc SrcLoc;
 
 struct Source {
-    char filename[256]; // source filename
-    size_t *line_offs;  // byte offsets of '\n's
-    char *src;          // source text
-    long srclen;        // length of src excluding \0
+	char filename[256]; // source filename
+	size_t *line_offs;  // byte offsets of '\n's
+	char *buf;          // source text
+	long buflen;        // length of src excluding \0
 };
 
 struct SrcRange {
@@ -81,18 +81,19 @@ typedef struct Lexer Lexer;
 struct Token {
     enum TokenType type;
     struct SrcRange range;
+	struct SrcLoc loc;
 	char *name;
 };
 
 // Lexer state.
 struct Lexer {
-    Source src; // program source
-    Token tok;  // currently lexed token
-    char ch;           // lookahead character
-    long off;          // lookahead character offset
-    long rd_off;       // next read character offset
-    long line_off;     // current line offset
-    long start;        // start position of `tok`
+	struct Source src; // program source
+	struct Token tok;  // currently lexed token
+	char ch;           // next character to start lexing at
+	long off;          // byte offset of 'ch'
+	long rd_off;       // byte offset of next read position
+	long line_off;     // current line offset
+	long start;        // start position of 'tok'
 };
 
 int lexer_from_file(Lexer *l, const char *filename);

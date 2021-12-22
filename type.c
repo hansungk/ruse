@@ -55,7 +55,7 @@ struct Decl *lookup_var(struct Context *ctx, struct Node *n) {
 
 static void typecheck_expr(struct Context *ctx, struct Node *n) {
 	char buf[MAXTOKLEN];
-	tokenstr(ctx->src->src, n->tok, buf, sizeof(buf));
+	tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
 
 	switch (n->kind) {
 	case NLITERAL:
