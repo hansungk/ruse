@@ -70,14 +70,19 @@ static void typecheck_expr(struct Context *c, struct Node *n) {
 	}
 }
 
-static void typecheck_stmt(struct Context *ctx, struct Node *n) {
+static void typecheck_stmt(struct Context *c, struct Node *n) {
 	switch (n->kind) {
 	case NEXPRSTMT:
-		typecheck_expr(ctx, n->rhs);
+		typecheck_expr(c, n->rhs);
 		break;
 	case NASSIGN:
-		typecheck_expr(ctx, n->rhs);
-		typecheck_expr(ctx, n->lhs);
+		typecheck_expr(c, n->rhs);
+		typecheck_expr(c, n->lhs);
+		break;
+	case NBLOCKSTMT:
+		for (long i = 0; i < arrlen(n->children); i++) {
+			typecheck(c, n->children[i]);
+		}
 		break;
 	case NRETURN:
 		break;
@@ -86,27 +91,27 @@ static void typecheck_stmt(struct Context *ctx, struct Node *n) {
 	}
 }
 
-void typecheck(struct Context *ctx, struct Node *n) {
+void typecheck(struct Context *c, struct Node *n) {
 	switch (n->kind) {
 	case NFILE:
-		for (int i = 0; i < arrlen(n->children); i++) {
-			typecheck(ctx, n->children[i]);
+		for (long i = 0; i < arrlen(n->children); i++) {
+			typecheck(c, n->children[i]);
 		}
 		break;
 	case NFUNC:
 		// TODO: push/pop scope
-		for (int i = 0; i < arrlen(n->children); i++) {
-			typecheck(ctx, n->children[i]);
+		for (long i = 0; i < arrlen(n->children); i++) {
+			typecheck(c, n->children[i]);
 		}
 		break;
 	case NDECL:
-		push_var(ctx, n);
+		push_var(c, n);
 		break;
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {
-			typecheck_expr(ctx, n);
-		} else if (NSTMT <= n->kind && n->kind) {
-			typecheck_stmt(ctx, n);
+			typecheck_expr(c, n);
+		} else if (NSTMT <= n->kind) {
+			typecheck_stmt(c, n);
 		}
 		break;
 	}

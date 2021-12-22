@@ -213,7 +213,7 @@ static Node *parse_blockstmt(Parser *p) {
 	}
 	expect(p, TRBRACE);
 
-	return NULL;
+	return n;
 }
 
 static Node *parse_return(Parser *p) {
