@@ -8,6 +8,7 @@ func main() int {
 	{
 		var in_scope int = 3
 		in_scope
+		a
 	}
 	in_scope
 

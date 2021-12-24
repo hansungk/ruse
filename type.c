@@ -6,19 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-void context_init(struct Context *c, Source *src) {
-	memset(c, 0, sizeof(struct Context));
-	c->src = src;
-	c->scope = calloc(sizeof(struct Scope), 1);
-	makemap(&c->scope->map);
-}
-
-void context_free(struct Context *c) {
-	freemap(&c->scope->map);
-	free(c->scope);
-	arrfree(c->valstack.stack);
-}
-
 // TODO: merge this with the one in parse.c
 static void error(struct Context *c, long loc, const char *fmt, ...) {
 	static char msg[1024];
@@ -32,6 +19,40 @@ static void error(struct Context *c, long loc, const char *fmt, ...) {
 	fprintf(stderr, "error in %s:%d:%d:(%ld): %s\n", srcloc.filename,
 		srcloc.line, srcloc.col, loc, msg);
 	exit(EXIT_FAILURE);
+}
+
+static struct Scope *makescope(void) {
+	struct Scope *s = calloc(sizeof(struct Scope), 1);
+	makemap(&s->map);
+	return s;
+}
+
+static void freescope(struct Scope *s) {
+	freemap(&s->map);
+	free(s);
+}
+
+void context_init(struct Context *c, Source *src) {
+	memset(c, 0, sizeof(struct Context));
+	c->src = src;
+	c->scope = makescope();
+}
+
+void context_free(struct Context *c) {
+	freescope(c->scope);
+	arrfree(c->valstack.stack);
+}
+
+void push_scope(struct Context *c) {
+	struct Scope *new_scope = makescope();
+	new_scope->outer = c->scope;
+	c->scope = new_scope;
+}
+
+void pop_scope(struct Context *c) {
+	struct Scope *innermost = c->scope;
+	c->scope = c->scope->outer;
+	freescope(innermost);
 }
 
 // Push a variable to the current scope.  `n` should be a declaration.
@@ -80,10 +101,11 @@ static void typecheck_stmt(struct Context *c, struct Node *n) {
 		typecheck_expr(c, n->lhs);
 		break;
 	case NBLOCKSTMT:
-		// TODO: push/pop scope
+		push_scope(c);
 		for (long i = 0; i < arrlen(n->children); i++) {
 			typecheck(c, n->children[i]);
 		}
+		pop_scope(c);
 		break;
 	case NRETURN:
 		break;
