@@ -62,8 +62,14 @@ struct Node *push_var(struct Context *c, struct Node *n) {
 }
 
 struct Node *lookup_var(struct Context *c, struct Node *n) {
-	struct Node *found = mapget(&c->scope->map, n->tok.name);
-	return found;
+	struct Scope *s = c->scope;
+	while (s) {
+		struct Node *found = mapget(&s->map, n->tok.name);
+		if (found)
+			return found;
+		s = s->outer;
+	}
+	return NULL;
 }
 
 static void typecheck_expr(struct Context *c, struct Node *n) {
@@ -122,10 +128,11 @@ void typecheck(struct Context *c, struct Node *n) {
 		}
 		break;
 	case NFUNC:
-		// TODO: push/pop scope
+		push_scope(c);
 		for (long i = 0; i < arrlen(n->children); i++) {
 			typecheck(c, n->children[i]);
 		}
+		pop_scope(c);
 		break;
 	case NDECL:
 		push_var(c, n);
