@@ -6,19 +6,20 @@
 #include <stdlib.h>
 #include <string.h>
 
-// TODO: merge this with the one in parse.c
+// TODO: merge this with the one in parse.c?
 static void error(struct Context *c, long loc, const char *fmt, ...) {
-	static char msg[1024];
+	struct Error e;
 	va_list args;
 
+	e.loc = locate(c->src, loc);
 	va_start(args, fmt);
-	vsnprintf(msg, sizeof(msg), fmt, args);
+	vsnprintf(e.msg, sizeof(e.msg), fmt, args);
 	va_end(args);
+	arrput(c->errors, e);
 
-	SrcLoc srcloc = locate(c->src, loc);
-	fprintf(stderr, "error in %s:%d:%d:(%ld): %s\n", srcloc.filename,
-		srcloc.line, srcloc.col, loc, msg);
-	exit(EXIT_FAILURE);
+	// fprintf(stderr, "error in %s:%d:%d:(%ld): %s\n", srcloc.filename,
+	// 	srcloc.line, srcloc.col, loc, e.msg);
+	// exit(EXIT_FAILURE);
 }
 
 static struct Scope *makescope(void) {
@@ -36,11 +37,14 @@ void context_init(struct Context *c, Source *src) {
 	memset(c, 0, sizeof(struct Context));
 	c->src = src;
 	c->scope = makescope();
+	c->errors = NULL;
 }
 
 void context_free(struct Context *c) {
 	freescope(c->scope);
 	arrfree(c->valstack.stack);
+	// FIXME: free errors[i].msg
+	free(c->errors);
 }
 
 void push_scope(struct Context *c) {

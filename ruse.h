@@ -186,9 +186,15 @@ struct Scope {
     struct Scope *outer;
 };
 
+struct Error {
+	struct SrcLoc loc;
+	char msg[1024];
+};
+
 struct Context {
-    Source *src;
+    struct Source *src;
     struct Scope *scope;
+	struct Error *errors;
     struct Valstack {
         int curr_id; // next id to be pushed to valstack
         int *stack;  // stack of the id of expression results
