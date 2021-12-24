@@ -88,6 +88,11 @@ static void typecheck_expr(struct Context *c, struct Node *n) {
 		typecheck_expr(c, n->lhs);
 		typecheck_expr(c, n->rhs);
 		break;
+	case NCALL:
+		for (long i = 0; i < arrlen(n->children); i++) {
+			typecheck_expr(c, n->children[i]);
+		}
+		break;
 	case NMEMBER:
 		typecheck_expr(c, n->parent);
 		// TODO: existing member check
