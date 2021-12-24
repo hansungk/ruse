@@ -91,9 +91,10 @@ void lexer_cleanup(Lexer *l) {
 
 // Make a new token and place it at 'l->tok'.
 static void maketoken(Lexer *l, enum TokenType type) {
-    memset(&l->tok, 0, sizeof(Token));
-    l->tok.type = type;
-    l->tok.range = (SrcRange){l->start, l->off};
+	memset(&l->tok, 0, sizeof(Token));
+	l->tok.type = type;
+	l->tok.range = (SrcRange){l->start, l->off};
+	l->tok.loc = locate(&l->src, l->start);
 }
 
 static void lex_ident_or_keyword(Lexer *l) {
@@ -261,12 +262,12 @@ SrcLoc locate(Source *src, size_t pos) {
 // Print 'tok' as string into buf.
 // Needs 'src' because it needs the source text.
 // FIXME: use tok.name rather than trying to copy from the whole source
-char *tokenstr(const char *src, Token tok, char *buf, size_t blen) {
-    size_t tlen = tok.range.end - tok.range.start;
-    size_t strlen = (blen - 1) < tlen ? (blen - 1) : tlen;
-    strncpy(buf, src + tok.range.start, strlen);
-    buf[strlen] = '\0';
-    return buf;
+char *tokenstr(const char *src, struct Token tok, char *buf, size_t blen) {
+	size_t tlen = tok.range.end - tok.range.start;
+	size_t strlen = (blen - 1) < tlen ? (blen - 1) : tlen;
+	strncpy(buf, src + tok.range.start, strlen);
+	buf[strlen] = '\0';
+	return buf;
 }
 
 // Compare the string content of the two tokens.

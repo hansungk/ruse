@@ -7,11 +7,11 @@
 #include <string.h>
 
 // TODO: merge this with the one in parse.c?
-static void error(struct Context *c, long loc, const char *fmt, ...) {
+static void error(struct Context *c, struct SrcLoc loc, const char *fmt, ...) {
 	struct Error e;
 	va_list args;
 
-	e.loc = locate(c->src, loc);
+	e.loc = loc;
 	va_start(args, fmt);
 	int len = vsnprintf(e.msg, sizeof(e.msg), fmt, args);
 	va_end(args);
@@ -93,8 +93,7 @@ static void typecheck_expr(struct Context *c, struct Node *n) {
 		break;
 	case NIDEXPR:
 		if (!lookup_var(c, n))
-			error(c, n->tok.range.start,
-			      "undeclared variable '%s'", buf);
+			error(c, n->tok.loc, "undeclared variable '%s'", buf);
 		break;
 	case NBINEXPR:
 		typecheck_expr(c, n->lhs);

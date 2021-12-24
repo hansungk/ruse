@@ -133,9 +133,8 @@ static void error(Parser *p, const char *fmt, ...) {
 	vsnprintf(msg, sizeof(msg), fmt, args);
 	va_end(args);
 
-	SrcLoc loc = locate(&p->l.src, p->tok.range.start);
-	fprintf(stderr, "%s:%d:%d:(%ld): %s\n", loc.filename, loc.line, loc.col,
-		p->tok.range.start, msg);
+	fprintf(stderr, "%s:%d:%d: %s\n", p->tok.loc.filename, p->tok.loc.line,
+	        p->tok.loc.col, msg);
 	exit(EXIT_FAILURE);
 }
 
