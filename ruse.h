@@ -204,6 +204,7 @@ struct Context {
 void context_init(struct Context *ctx, Source *src);
 void context_free(struct Context *ctx);
 void typecheck(struct Context *ctx, struct Node *v);
+void do_errors(struct Context *c);
 
 void codegen(struct Context *ctx, struct Node *n);
 

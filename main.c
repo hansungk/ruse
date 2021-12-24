@@ -3,21 +3,23 @@
 #include <stdlib.h>
 
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        fprintf(stderr, "usage: %s filename\n", argv[0]);
-        return 1;
-    }
+	if (argc < 2) {
+		fprintf(stderr, "usage: %s filename\n", argv[0]);
+		return 1;
+	}
 
-    Parser p;
-    struct Context ctx;
-    parser_from_file(&p, argv[1]);
-    context_init(&ctx, &p.l.src);
+	Parser p;
+	struct Context ctx;
+	parser_from_file(&p, argv[1]);
+	context_init(&ctx, &p.l.src);
 
-    struct Node *n = parse(&p);
-    typecheck(&ctx, n);
-    codegen(&ctx, n);
+	struct Node *n = parse(&p);
+	typecheck(&ctx, n);
+	do_errors(&ctx);
 
-    context_free(&ctx);
-    parser_cleanup(&p);
-    return 0;
+	// codegen(&ctx, n);
+
+	context_free(&ctx);
+	parser_cleanup(&p);
+	return 0;
 }

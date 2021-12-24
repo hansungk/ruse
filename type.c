@@ -13,13 +13,21 @@ static void error(struct Context *c, long loc, const char *fmt, ...) {
 
 	e.loc = locate(c->src, loc);
 	va_start(args, fmt);
-	vsnprintf(e.msg, sizeof(e.msg), fmt, args);
+	int len = vsnprintf(e.msg, sizeof(e.msg), fmt, args);
 	va_end(args);
-	arrput(c->errors, e);
+	assert(len < (int)sizeof(e.msg));
 
-	// fprintf(stderr, "error in %s:%d:%d:(%ld): %s\n", srcloc.filename,
-	// 	srcloc.line, srcloc.col, loc, e.msg);
-	// exit(EXIT_FAILURE);
+	arrput(c->errors, e);
+}
+
+void do_errors(struct Context *c) {
+	for (long i = 0; i < arrlen(c->errors); i++) {
+		struct Error e = c->errors[i];
+		fprintf(stderr, "%s:%d:%d: error: %s\n",
+		        e.loc.filename, e.loc.line, e.loc.col, e.msg);
+	}
+	if (arrlen(c->errors))
+		exit(EXIT_FAILURE);
 }
 
 static struct Scope *makescope(void) {
