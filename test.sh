@@ -17,20 +17,22 @@ _cleanup() {
 _pass() {
     _cleanup
     echo "${GREEN}PASS${RS} $1"
-    exit 0
 }
 
 _fail() {
     _cleanup
     echo "${RED}FAIL${RS} $1"
-    exit 1
 }
 
 _errordiff() {
     grep "error:" /tmp/ruse.out | cut -d':' -f2 >$outputlinefile
     grep -n "// error" $1 | cut -d':' -f1 >$truthlinefile
-    diff /tmp/ruse.out.lines /tmp/ruse.truth.lines || _fail $1
-    _pass $1
+    if diff $outputlinefile $truthlinefile
+    then
+        _pass $1
+    else
+        _fail $1
+    fi
 }
 
 test() {
@@ -53,3 +55,4 @@ test() {
 }
 
 test test/decl.ruse
+test test/struct.ruse
