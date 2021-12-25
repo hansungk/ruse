@@ -412,6 +412,8 @@ static Node *parse_stmt(struct Parser *p) {
 static Node *parse_typeexpr(struct Parser *p) {
 	if (p->tok.type == TINT) {
 		expect(p, TINT);
+	} else if (p->tok.type == TIDENT) {
+		expect(p, TIDENT);
 	} else {
 		error(p, "expected a type (TODO)");
 	}
