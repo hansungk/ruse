@@ -162,14 +162,17 @@ static int expect(struct Parser *p, enum TokenType t) {
 		char ebuf[TOKLEN], gbuf[TOKLEN];
 		tokentypestr(t, ebuf, sizeof(ebuf));
 		tokenstr(p->l.src.buf, p->tok, gbuf, sizeof(gbuf));
-		if (strcmp(gbuf, "\n") == 0) {
+		if (strcmp(gbuf, "\n") == 0)
 			strcpy(gbuf, "\\n");
-		}
 		error(p, "expected '%s', got '%s'", ebuf, gbuf);
 	}
 	// make progress
 	next(p);
 	return 1;
+}
+
+static int end_of_line(struct Parser *p) {
+	return p->tok.type == TNEWLINE || p->tok.type == TCOMMENT;
 }
 
 // Expect end of line, skipping over any end-of-line comments.
@@ -196,9 +199,12 @@ static Node *parse_decl(struct Parser *p) {
 		parse_typeexpr(p);
 	}
 
-	expect(p, TEQUAL);
+	Node *rhs = NULL;
+	if (!end_of_line(p)) {
+		expect(p, TEQUAL);
+		rhs = parse_expr(p);
+	}
 
-	Node *rhs = parse_expr(p);
 	return makedecl(p, name, rhs);
 }
 
