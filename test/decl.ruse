@@ -2,9 +2,10 @@
 
 func main() int {
     var a int
-    var a int = 4
+    var a int = 4 // error
 
     {
-        var b
+        var b int
     }
+    b // error
 }
