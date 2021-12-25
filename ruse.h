@@ -165,7 +165,7 @@ struct Map {
 
 void makemap(struct Map *m);
 void freemap(struct Map *map);
-void mapput(struct Map *m, char *str, void *data);
+int mapput(Map *m, char *str, void *data);
 void *mapget(struct Map *m, char *str);
 
 enum DeclKind {

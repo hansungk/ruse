@@ -69,7 +69,12 @@ void pop_scope(struct Context *c) {
 
 // Push a variable to the current scope.  `n` should be a declaration.
 struct Node *push_var(struct Context *c, struct Node *n) {
-	mapput(&c->scope->map, n->tok.name, n);
+	if (!mapput(&c->scope->map, n->tok.name, n)) {
+		char buf[TOKLEN];
+		tokenstr(c->src->buf, n->tok, buf, sizeof(buf));
+		error(c, n->tok.loc, "'%s' is already declared", buf);
+		return NULL;
+	}
 	return n;
 }
 

@@ -38,7 +38,8 @@ void freemap(struct Map *map) {
 	free(map->buckets);
 }
 
-void mapput(Map *m, char *str, void *data) {
+// Returns 0 if a same key is inserted again.
+int mapput(Map *m, char *str, void *data) {
 	uint64_t hash = strhash(str);
 	size_t i = hash % m->bucketlen;
 	size_t i_orig = i;
@@ -46,7 +47,7 @@ void mapput(Map *m, char *str, void *data) {
 	struct Mapkey *k = &m->buckets[i];
 	while (k->data) {
 		if (hash == k->hash && strcmp(str, k->str) == 0)
-			assert(!"trying to insert the same key");
+			return 0;
 		// linear probing
 		i = (i + 1) % m->bucketlen;
 		k = &m->buckets[i];
@@ -56,6 +57,7 @@ void mapput(Map *m, char *str, void *data) {
 	k->hash = hash;
 	k->str = str;
 	k->data = data;
+	return 1;
 }
 
 void *mapget(Map *m, char *str) {
