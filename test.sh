@@ -35,7 +35,7 @@ _errordiff() {
     fi
 }
 
-test() {
+_test() {
     local ret=0
     local header=$(head -n1 $1)
     echo ${header} | grep -q "fail" && ret=1
@@ -54,5 +54,5 @@ test() {
     fi
 }
 
-test test/decl.ruse
-test test/struct.ruse
+_test test/decl.ruse
+_test test/struct.ruse
