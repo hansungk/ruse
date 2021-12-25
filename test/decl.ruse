@@ -1,6 +1,10 @@
 // fail
 
 func main() int {
-	var a int
+    var a int
     var a int = 4
+
+    {
+        var b
+    }
 }

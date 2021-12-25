@@ -1,21 +1,21 @@
 // exit 4
 
 func main() int {
-	var a int
+    var a int
     var a int = 4
     const b int = 4
-	a
+    a
 
-	{
-		var in_scope int = 3
-		in_scope
-		a
-	}
-	in_scope
+    {
+        var in_scope int = 3
+        in_scope
+        a
+    }
+    in_scope
 
-	b(a, b, c)
+    b(a, b, c)
 
-	a.b.c.d.e
-	a.b(a, b, c).c
+    a.b.c.d.e
+    a.b(a, b, c).c
     return a
 }
