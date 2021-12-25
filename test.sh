@@ -1,7 +1,5 @@
 #!/bin/sh
 
-set -e
-
 GREEN="\033[0;32m"
 RED="\033[0;31m"
 RS="\033[0m"
@@ -15,7 +13,8 @@ test() {
 		ret=$(echo ${header} | awk '{ print $3 }')
 	fi
 
-	./ruse $1
+	./ruse $1 >/dev/null 2>&1
+
 	if [ $? -ne $ret ]
 	then
 		echo "${RED}FAIL${RS} $1"
@@ -25,4 +24,4 @@ test() {
 	fi
 }
 
-test test/simple.ruse
+test test/decl.ruse
