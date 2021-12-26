@@ -131,16 +131,17 @@ typedef struct Node Node;
 typedef struct Parser Parser;
 
 struct Node {
-    enum NodeKind kind;
-    Token tok;
-    long num;
-    struct Decl *decl;
-    struct Node *parent; // for memberexpr
-    struct Node **children;
-    struct Node *lhs;
-    struct Node *rhs;
-    // functions
-    struct Node *rettypeexpr;
+	enum NodeKind kind;
+	Token tok;
+	long num;
+	struct Decl *decl;
+	struct Node *parent; // for memberexpr
+	struct Node **children;
+	struct Node *type;
+	struct Node *lhs;
+	struct Node *rhs;
+	// functions
+	struct Node *rettypeexpr;
 };
 
 // Source text = ['tok' 'lookahead...' ...unlexed...]

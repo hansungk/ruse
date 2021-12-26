@@ -62,9 +62,10 @@ static Node *makemember(struct Parser *p, Token member, Node *lhs) {
 	return n;
 }
 
-static Node *makedecl(struct Parser *p, Token name, Node *initexpr /*TODO: type*/) {
+static Node *makedecl(struct Parser *p, Token name, Node *initexpr, Node *typeexpr) {
 	Node *n = makenode(p, NDECL, name);
 	n->rhs = initexpr;
+	n->type = typeexpr;
 	return n;
 }
 
@@ -196,8 +197,9 @@ static Node *parse_decl(struct Parser *p) {
 	Token name = p->tok;
 	next(p);
 
+	struct Node *type = NULL;
 	if (p->tok.type != TEQUAL) {
-		parse_typeexpr(p);
+		type = parse_typeexpr(p);
 	}
 
 	Node *rhs = NULL;
@@ -206,7 +208,7 @@ static Node *parse_decl(struct Parser *p) {
 		rhs = parse_expr(p);
 	}
 
-	return makedecl(p, name, rhs);
+	return makedecl(p, name, rhs, type);
 }
 
 static Node *parse_blockstmt(struct Parser *p) {
@@ -458,8 +460,8 @@ static Node *parse_struct(struct Parser *p) {
 	while (p->tok.type != TRBRACE) {
 		Token tok = p->tok;
 		expect(p, TIDENT);
-		parse_typeexpr(p); // TODO: use result
-		arrput(s->children, makedecl(p, tok, NULL));
+		struct Node *type = parse_typeexpr(p);
+		arrput(s->children, makedecl(p, tok, NULL, type));
 		skip_newlines(p);
 	}
 	expect(p, TRBRACE);
