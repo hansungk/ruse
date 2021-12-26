@@ -117,7 +117,14 @@ static void typecheck_expr(struct Context *c, struct Node *n) {
 		break;
 	case NMEMBER:
 		typecheck_expr(c, n->parent);
+
 		// TODO: existing member check
+		// Lookup parent's decl
+		assert(n->parent->decl);
+		if (!arrlen(n->parent->decl->children)) {
+			error(c, n->tok.loc, "member access to a non-struct");
+			return;
+		}
 		break;
 	default:
 		break;
