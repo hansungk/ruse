@@ -117,7 +117,8 @@ static void codegen_stmt(Context *ctx, Node *n) {
         break;
     case NASSIGN:
         codegen(ctx, n->rhs);
-        tokenstr(ctx->src->buf, n->lhs->decl->name, buf, sizeof(buf));
+		// FIXME
+        // tokenstr(ctx->src->buf, n->lhs->decl->name, buf, sizeof(buf));
         emit("    %%%s =w add 0, %%_%d\n", buf,
              arrpop(ctx->valstack.stack));
         break;

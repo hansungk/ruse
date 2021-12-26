@@ -93,14 +93,18 @@ struct Node *lookup_var(struct Context *c, struct Node *n) {
 
 static void typecheck_expr(struct Context *c, struct Node *n) {
 	char buf[TOKLEN];
+	struct Node *decl = NULL;
+
 	tokenstr(c->src->buf, n->tok, buf, sizeof(buf));
 
 	switch (n->kind) {
 	case NLITERAL:
 		break;
 	case NIDEXPR:
-		if (!lookup_var(c, n))
+		decl = lookup_var(c, n);
+		if (!decl)
 			error(c, n->tok.loc, "undeclared variable '%s'", buf);
+		n->decl = decl;
 		break;
 	case NBINEXPR:
 		typecheck_expr(c, n->lhs);

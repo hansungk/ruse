@@ -134,7 +134,7 @@ struct Node {
 	enum NodeKind kind;
 	Token tok;
 	long num;
-	struct Decl *decl;
+	struct Node *decl;   // declaration node of this lvalue
 	struct Node *parent; // for memberexpr
 	struct Node **children;
 	struct Node *type;
