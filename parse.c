@@ -110,6 +110,7 @@ void parser_cleanup(struct Parser *p) {
 		if (n) {
 			if (n->children)
 				arrfree(n->children);
+			free(n->tok.name);
 			free(n);
 		}
 	}
@@ -234,11 +235,10 @@ static Node **parse_callargs(struct Parser *p) {
 	Node **list = NULL;
 	while (p->tok.type != TRPAREN) {
 		arrput(list, parse_expr(p));
-		if (p->tok.type == TCOMMA) {
+		if (p->tok.type == TCOMMA)
 			next(p);
-		} else {
+		else
 			break;
-		}
 	}
 	return list;
 }
@@ -315,9 +315,8 @@ static Node *parse_binexpr_rhs(struct Parser *p, Node *lhs, int precedence) {
 		// the precedence level that we are currently parsing in is
 		// finished. This is equivalent to reducing on a shift/reduce
 		// conflict in bottom-up parsing.
-		if (this_prec < precedence) {
+		if (this_prec < precedence)
 			break;
-		}
 
 		Token op = p->tok;
 		next(p);
@@ -327,9 +326,8 @@ static Node *parse_binexpr_rhs(struct Parser *p, Node *lhs, int precedence) {
 		// this, we should look ahead for the operator that follows this
 		// term.
 		Node *rhs = parse_unaryexpr(p);
-		if (!rhs) {
+		if (!rhs)
 			error(p, "expected an expression");
-		}
 		int next_prec = get_precedence(p->tok);
 
 		// If the next operator is indeed higher-level, evaluate the RHS
@@ -340,9 +338,8 @@ static Node *parse_binexpr_rhs(struct Parser *p, Node *lhs, int precedence) {
 		//
 		// If this_prec == next_prec, don't shift, but reduce it with
 		// lhs. This implies left associativity.
-		if (this_prec < next_prec) {
+		if (this_prec < next_prec)
 			rhs = parse_binexpr_rhs(p, rhs, precedence + 1);
-		}
 		lhs = makebinexpr(p, lhs, op, rhs);
 	}
 	return lhs;
@@ -432,17 +429,15 @@ static Node *parse_func(struct Parser *p) {
 	expect(p, TRPAREN);
 
 	// return type
-	if (p->tok.type != TLBRACE) {
+	if (p->tok.type != TLBRACE)
 		f->rettypeexpr = parse_typeexpr(p);
-	}
 
 	// body
 	expect(p, TLBRACE);
 	while (p->tok.type != TRBRACE) {
 		Node *stmt = parse_stmt(p);
-		if (stmt) {
+		if (stmt)
 			arrput(f->children, stmt);
-		}
 
 		skip_newlines(p);
 	}

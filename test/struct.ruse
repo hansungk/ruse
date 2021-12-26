@@ -11,6 +11,6 @@ func main() {
     var a S
     a.b // error
 
-    S {.a = 0}
-    S {.b = 0} // error
+    // S {.a = 0}
+    // S {.b = 0} // error
 }

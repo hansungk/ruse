@@ -67,7 +67,7 @@ void pop_scope(struct Context *c) {
 	freescope(innermost);
 }
 
-// Push a variable to the current scope.  `n` should be a declaration.
+// Pushes a variable to the current scope.  `n` should be a declaration.
 struct Node *push_var(struct Context *c, struct Node *n) {
 	if (!mapput(&c->scope->map, n->tok.name, n)) {
 		char buf[TOKLEN];
@@ -78,6 +78,8 @@ struct Node *push_var(struct Context *c, struct Node *n) {
 	return n;
 }
 
+// Finds the declaration node that first declared the variable referenced by
+// 'n'.
 struct Node *lookup_var(struct Context *c, struct Node *n) {
 	struct Scope *s = c->scope;
 	while (s) {
