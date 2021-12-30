@@ -208,7 +208,7 @@ struct context {
 
 void context_init(struct context *ctx, Source *src);
 void context_free(struct context *ctx);
-void typecheck(struct context *ctx, struct Node *v);
+void check(struct context *ctx, struct Node *v);
 void do_errors(struct context *c);
 
 void codegen(struct context *ctx, struct Node *n);

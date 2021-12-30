@@ -91,7 +91,7 @@ struct Node *lookup_var(struct context *c, struct Node *n) {
 	return NULL;
 }
 
-static void typecheck_expr(struct context *c, struct Node *n) {
+static void check_expr(struct context *c, struct Node *n) {
 	char buf[TOKLEN];
 	struct Node *decl = NULL;
 
@@ -107,16 +107,16 @@ static void typecheck_expr(struct context *c, struct Node *n) {
 		n->decl = decl;
 		break;
 	case NBINEXPR:
-		typecheck_expr(c, n->lhs);
-		typecheck_expr(c, n->rhs);
+		check_expr(c, n->lhs);
+		check_expr(c, n->rhs);
 		break;
 	case NCALL:
 		for (long i = 0; i < arrlen(n->children); i++) {
-			typecheck_expr(c, n->children[i]);
+			check_expr(c, n->children[i]);
 		}
 		break;
 	case NMEMBER:
-		typecheck_expr(c, n->parent);
+		check_expr(c, n->parent);
 
 		// TODO: existing member check
 		// Lookup parent's decl
@@ -134,7 +134,7 @@ static void typecheck_expr(struct context *c, struct Node *n) {
 	}
 }
 
-static void typecheck_decl(struct context *ctx, struct Node *n) {
+static void check_decl(struct context *ctx, struct Node *n) {
 	push_var(ctx, n);
 
 	// TODO: add children of the original struct declaration to 'n' as well
@@ -142,19 +142,19 @@ static void typecheck_decl(struct context *ctx, struct Node *n) {
 	}
 }
 
-static void typecheck_stmt(struct context *c, struct Node *n) {
+static void check_stmt(struct context *c, struct Node *n) {
 	switch (n->kind) {
 	case NEXPRSTMT:
-		typecheck_expr(c, n->rhs);
+		check_expr(c, n->rhs);
 		break;
 	case NASSIGN:
-		typecheck_expr(c, n->rhs);
-		typecheck_expr(c, n->lhs);
+		check_expr(c, n->rhs);
+		check_expr(c, n->lhs);
 		break;
 	case NBLOCKSTMT:
 		push_scope(c);
 		for (long i = 0; i < arrlen(n->children); i++) {
-			typecheck(c, n->children[i]);
+			check(c, n->children[i]);
 		}
 		pop_scope(c);
 		break;
@@ -165,27 +165,27 @@ static void typecheck_stmt(struct context *c, struct Node *n) {
 	}
 }
 
-void typecheck(struct context *c, struct Node *n) {
+void check(struct context *c, struct Node *n) {
 	switch (n->kind) {
 	case NFILE:
 		for (long i = 0; i < arrlen(n->children); i++) {
-			typecheck(c, n->children[i]);
+			check(c, n->children[i]);
 		}
 		break;
 	case NFUNC:
 		push_scope(c);
 		for (long i = 0; i < arrlen(n->children); i++) {
-			typecheck(c, n->children[i]);
+			check(c, n->children[i]);
 		}
 		pop_scope(c);
 		break;
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {
-			typecheck_expr(c, n);
+			check_expr(c, n);
 		} else if (NDECL <= n->kind && n->kind < NSTMT) {
-			typecheck_decl(c, n);
+			check_decl(c, n);
 		} else if (NSTMT <= n->kind) {
-			typecheck_stmt(c, n);
+			check_stmt(c, n);
 		}
 		break;
 	}

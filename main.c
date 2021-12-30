@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
 	context_init(&ctx, &p.l.src);
 
 	struct Node *n = parse(&p);
-	typecheck(&ctx, n);
+	check(&ctx, n);
 	do_errors(&ctx);
 
 	// codegen(&ctx, n);
