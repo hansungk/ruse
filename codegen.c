@@ -108,6 +108,16 @@ static void codegen_expr(Context *ctx, Node *n) {
     }
 }
 
+static void codegen_decl(Context *ctx, Node *n) {
+    char buf[TOKLEN];
+
+	codegen(ctx, n->rhs);
+
+	tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
+	int id = arrpop(ctx->valstack.stack);
+	emit("    %%%s =w add 0, %%_%d\n", buf, id);
+}
+
 static void codegen_stmt(Context *ctx, Node *n) {
     char buf[TOKLEN];
 
@@ -132,36 +142,28 @@ static void codegen_stmt(Context *ctx, Node *n) {
 }
 
 void codegen(Context *ctx, Node *n) {
-    char buf[TOKLEN];
-    int id;
-
-    switch (n->kind) {
-    case NFILE:
-        emit("export function w $main() {\n");
-        emit("@start\n");
-        for (int i = 0; i < arrlen(n->children); i++) {
-            codegen(ctx, n->children[i]);
-        }
-        emit("}\n");
-        break;
-    case NFUNC:
-        for (int i = 0; i < arrlen(n->children); i++) {
-            codegen(ctx, n->children[i]);
-        }
-        break;
-    case NDECL:
-        codegen(ctx, n->rhs);
-
-        tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
-        id = arrpop(ctx->valstack.stack);
-        emit("    %%%s =w add 0, %%_%d\n", buf, id);
-        break;
-    default:
-        if (NEXPR <= n->kind && n->kind < NDECL) {
-            codegen_expr(ctx, n);
-        } else if (NSTMT <= n->kind && n->kind) {
-            codegen_stmt(ctx, n);
-        }
-        break;
-    }
+	switch (n->kind) {
+	case NFILE:
+		emit("export function w $main() {\n");
+		emit("@start\n");
+		for (int i = 0; i < arrlen(n->children); i++) {
+			codegen(ctx, n->children[i]);
+		}
+		emit("}\n");
+		break;
+	case NFUNC:
+		for (int i = 0; i < arrlen(n->children); i++) {
+			codegen(ctx, n->children[i]);
+		}
+		break;
+	default:
+		if (NEXPR <= n->kind && n->kind < NDECL) {
+			codegen_expr(ctx, n);
+		} else if (NDECL <= n->kind && n->kind < NSTMT) {
+			codegen_decl(ctx, n);
+		} else if (NSTMT <= n->kind && n->kind) {
+			codegen_stmt(ctx, n);
+		}
+		break;
+	}
 }

@@ -110,8 +110,7 @@ void tokenprint(const char *src, const Token tok);
 // Keep NEXPR < NTYPEEXPR < NDECL < NSTMT
 enum NodeKind {
 	NFILE,
-	NFUNC,
-	NSTRUCT,
+
 	NEXPR,
 	NLITERAL = NEXPR,
 	NIDEXPR,
@@ -119,7 +118,11 @@ enum NodeKind {
 	NCALL,
 	NMEMBER,
 	NTYPEEXPR,
+
 	NDECL,
+	NFUNC = NDECL,
+	NSTRUCT,
+
 	NSTMT,
 	NEXPRSTMT = NSTMT,
 	NASSIGN,
@@ -137,7 +140,8 @@ struct Node {
 	struct Node *decl;   // declaration node of this lvalue
 	struct Node *parent; // for memberexpr
 	struct Node **children;
-	struct Node *type;
+	struct Node *type; // TODO: check if this should be separate from
+	                   // typeexpr
 	struct Node *lhs;
 	struct Node *rhs;
 	// functions

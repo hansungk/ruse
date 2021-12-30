@@ -125,9 +125,20 @@ static void typecheck_expr(struct Context *c, struct Node *n) {
 			error(c, n->tok.loc, "member access to a non-struct");
 			return;
 		}
+		for (long i = 0; i < arrlen(n->parent->decl->children); i++) {
+			printf("looking at field %s\n", n->parent->decl->children[i]->tok.name);
+		}
 		break;
 	default:
 		break;
+	}
+}
+
+static void typecheck_decl(struct Context *c, struct Node *n) {
+	push_var(c, n);
+
+	// TODO: add children of the original struct declaration to 'n' as well
+	if (n->type) {
 	}
 }
 
@@ -168,12 +179,11 @@ void typecheck(struct Context *c, struct Node *n) {
 		}
 		pop_scope(c);
 		break;
-	case NDECL:
-		push_var(c, n);
-		break;
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {
 			typecheck_expr(c, n);
+		} else if (NDECL <= n->kind && n->kind < NSTMT) {
+			typecheck_decl(c, n);
 		} else if (NSTMT <= n->kind) {
 			typecheck_stmt(c, n);
 		}
