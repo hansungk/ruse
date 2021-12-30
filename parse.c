@@ -8,7 +8,7 @@
 
 static Node *parse_expr(struct Parser *p);
 static Node *parse_stmt(struct Parser *p);
-static Node *parse_typeexpr(struct Parser *p);
+static struct type *parse_type(struct Parser *p);
 
 static Node *makenode(struct Parser *p, enum NodeKind k, Token tok) {
 	// TODO: store all nodes in a contiguous buffer for better locality?
@@ -62,10 +62,10 @@ static Node *makemember(struct Parser *p, Token member, Node *lhs) {
 	return n;
 }
 
-static Node *makedecl(struct Parser *p, Token name, Node *initexpr, Node *typeexpr) {
+static Node *makedecl(struct Parser *p, Token name, Node *initexpr, struct type *type) {
 	Node *n = makenode(p, NDECL, name);
 	n->rhs = initexpr;
-	n->type = typeexpr;
+	n->type = type;
 	return n;
 }
 
@@ -86,6 +86,17 @@ static Node *makeassign(struct Parser *p, Node *lhs, Node *rhs) {
 	n->lhs = lhs;
 	n->rhs = rhs;
 	return n;
+}
+
+static struct type *maketype(struct Parser *p, Token tok) {
+	struct type *t = calloc(1, sizeof(Node));
+	if (!t) {
+		fprintf(stderr, "alloc error\n");
+		exit(1);
+	}
+	t->tok = tok;
+	// arrput(p->nodeptrbuf, node); // FIXME
+	return t;
 }
 
 // Initialize a parser that parses the given filename.
@@ -197,9 +208,9 @@ static Node *parse_decl(struct Parser *p) {
 	Token name = p->tok;
 	next(p);
 
-	struct Node *type = NULL;
+	struct type *type = NULL;
 	if (p->tok.type != TEQUAL) {
-		type = parse_typeexpr(p);
+		type = parse_type(p);
 	}
 
 	Node *rhs = NULL;
@@ -408,7 +419,7 @@ static Node *parse_stmt(struct Parser *p) {
 	return stmt;
 }
 
-static Node *parse_typeexpr(struct Parser *p) {
+static struct type *parse_type(struct Parser *p) {
 	if (p->tok.type == TINT) {
 		expect(p, TINT);
 	} else if (p->tok.type == TIDENT) {
@@ -416,7 +427,7 @@ static Node *parse_typeexpr(struct Parser *p) {
 	} else {
 		error(p, "expected a type (TODO)");
 	}
-	return makenode(p, NTYPEEXPR, p->tok);
+	return maketype(p, p->tok);
 }
 
 static Node *parse_func(struct Parser *p) {
@@ -432,7 +443,7 @@ static Node *parse_func(struct Parser *p) {
 
 	// return type
 	if (p->tok.type != TLBRACE)
-		f->rettypeexpr = parse_typeexpr(p);
+		f->rettype = parse_type(p);
 
 	// body
 	expect(p, TLBRACE);
@@ -460,7 +471,7 @@ static Node *parse_struct(struct Parser *p) {
 	while (p->tok.type != TRBRACE) {
 		Token tok = p->tok;
 		expect(p, TIDENT);
-		struct Node *type = parse_typeexpr(p);
+		struct type *type = parse_type(p);
 		arrput(s->children, makedecl(p, tok, NULL, type));
 		skip_newlines(p);
 	}

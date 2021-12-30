@@ -107,7 +107,7 @@ int tokeneq(const char *src, Token t1, Token t2);
 char *tokentypestr(enum TokenType t, char *buf, size_t blen);
 void tokenprint(const char *src, const Token tok);
 
-// Keep NEXPR < NTYPEEXPR < NDECL < NSTMT
+// Keep NEXPR < NDECL < NSTMT
 enum NodeKind {
 	NFILE,
 
@@ -117,7 +117,6 @@ enum NodeKind {
 	NBINEXPR,
 	NCALL,
 	NMEMBER,
-	NTYPEEXPR,
 
 	NDECL,
 	NFUNC,
@@ -140,12 +139,11 @@ struct Node {
 	struct Node *decl;   // declaration node of this lvalue
 	struct Node *parent; // for memberexpr
 	struct Node **children;
-	struct Node *type; // TODO: check if this should be separate from
-	                   // typeexpr
+	struct type *type; // TODO: should be separate from typeexpr?
 	struct Node *lhs;
 	struct Node *rhs;
 	// functions
-	struct Node *rettypeexpr;
+	struct type *rettype;
 };
 
 // Source text = ['tok' 'lookahead...' ...unlexed...]
@@ -179,6 +177,10 @@ enum DeclKind {
 
 typedef struct Decl Decl;
 typedef struct context Context;
+
+struct type {
+	struct Token tok;
+};
 
 struct Decl {
     enum DeclKind kind;

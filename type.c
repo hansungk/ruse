@@ -140,6 +140,11 @@ static void check_expr(struct context *ctx, struct Node *n) {
 static void check_decl(struct context *ctx, struct Node *n) {
 	n->decl = push_var(ctx, n);
 
+	if (n->kind == NSTRUCT) {
+		for (long i = 0; i < arrlen(n->children); i++) {
+		}
+	}
+
 	// TODO: add children of the original struct declaration to 'n' as well
 	if (n->type) {
 	}
