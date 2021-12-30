@@ -76,7 +76,7 @@ static int valstack_push_and_incr(Context *ctx) {
     return ctx->valstack.curr_id++;
 }
 
-static void codegen_expr(Context *ctx, Node *n) {
+static void codegen_expr(Context *ctx, struct node *n) {
     char buf[TOKLEN]; // FIXME: stack usage
     int id_lhs, id_rhs;
 
@@ -108,7 +108,7 @@ static void codegen_expr(Context *ctx, Node *n) {
     }
 }
 
-static void codegen_decl(Context *ctx, Node *n) {
+static void codegen_decl(Context *ctx, struct node *n) {
     char buf[TOKLEN];
 
 	codegen(ctx, n->rhs);
@@ -118,7 +118,7 @@ static void codegen_decl(Context *ctx, Node *n) {
 	emit("    %%%s =w add 0, %%_%d\n", buf, id);
 }
 
-static void codegen_stmt(Context *ctx, Node *n) {
+static void codegen_stmt(Context *ctx, struct node *n) {
     char buf[TOKLEN];
 
     switch (n->kind) {
@@ -141,7 +141,7 @@ static void codegen_stmt(Context *ctx, Node *n) {
     }
 }
 
-void codegen(Context *ctx, Node *n) {
+void codegen(Context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NFILE:
 		emit("export function w $main() {\n");

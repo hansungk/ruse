@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
 	parser_from_file(&p, argv[1]);
 	context_init(&ctx, &p.l.src);
 
-	struct Node *n = parse(&p);
+	struct node *n = parse(&p);
 	check(&ctx, n);
 	do_errors(&ctx);
 

@@ -68,7 +68,7 @@ void pop_scope(struct context *ctx) {
 }
 
 // Pushes a variable to the current scope.  `n` should be a declaration.
-struct Node *push_var(struct context *ctx, struct Node *n) {
+struct node *push_var(struct context *ctx, struct node *n) {
 	if (!mapput(&ctx->scope->map, n->tok.name, n)) {
 		char buf[TOKLEN];
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
@@ -80,10 +80,10 @@ struct Node *push_var(struct context *ctx, struct Node *n) {
 
 // Finds the declaration node that first declared the variable referenced by
 // 'n'.
-struct Node *lookup_var(struct context *ctx, struct Node *n) {
+struct node *lookup_var(struct context *ctx, struct node *n) {
 	struct Scope *s = ctx->scope;
 	while (s) {
-		struct Node *found = mapget(&s->map, n->tok.name);
+		struct node *found = mapget(&s->map, n->tok.name);
 		if (found)
 			return found;
 		s = s->outer;
@@ -91,9 +91,9 @@ struct Node *lookup_var(struct context *ctx, struct Node *n) {
 	return NULL;
 }
 
-static void check_expr(struct context *ctx, struct Node *n) {
+static void check_expr(struct context *ctx, struct node *n) {
 	char buf[TOKLEN];
-	struct Node *decl = NULL;
+	struct node *decl = NULL;
 
 	tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
 
@@ -137,7 +137,7 @@ static void check_expr(struct context *ctx, struct Node *n) {
 	}
 }
 
-static void check_decl(struct context *ctx, struct Node *n) {
+static void check_decl(struct context *ctx, struct node *n) {
 	n->decl = push_var(ctx, n);
 
 	if (n->kind == NSTRUCT) {
@@ -150,7 +150,7 @@ static void check_decl(struct context *ctx, struct Node *n) {
 	}
 }
 
-static void check_stmt(struct context *ctx, struct Node *n) {
+static void check_stmt(struct context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NEXPRSTMT:
 		check_expr(ctx, n->rhs);
@@ -173,7 +173,7 @@ static void check_stmt(struct context *ctx, struct Node *n) {
 	}
 }
 
-void check(struct context *ctx, struct Node *n) {
+void check(struct context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NFILE:
 		for (long i = 0; i < arrlen(n->children); i++) {

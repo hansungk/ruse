@@ -129,19 +129,18 @@ enum NodeKind {
 	NRETURN,
 };
 
-typedef struct Node Node;
 typedef struct Parser Parser;
 
-struct Node {
+struct node {
 	enum NodeKind kind;
 	Token tok;
 	long num;
-	struct Node *decl;   // declaration node of this lvalue
-	struct Node *parent; // for memberexpr
-	struct Node **children;
+	struct node *decl;   // declaration node of this lvalue
+	struct node *parent; // for memberexpr
+	struct node **children;
 	struct type *type; // TODO: should be separate from typeexpr?
-	struct Node *lhs;
-	struct Node *rhs;
+	struct node *lhs;
+	struct node *rhs;
 	// functions
 	struct type *rettype;
 };
@@ -151,13 +150,13 @@ struct Parser {
     Lexer l;           // lexer driven by this parser
     Token tok;         // current token
     Token *lookahead;  // lookahead tokens
-    struct Node **nodeptrbuf; // pointers to the allocated nodes
+    struct node **nodeptrbuf; // pointers to the allocated nodes
 };
 
 void parser_from_file(Parser *p, const char *filename);
 void parser_from_buf(Parser *p, const char *buf, size_t len);
 void parser_cleanup(Parser *p);
-struct Node *parse(Parser *p);
+struct node *parse(Parser *p);
 
 typedef struct Map Map;
 
@@ -210,9 +209,9 @@ struct context {
 
 void context_init(struct context *ctx, Source *src);
 void context_free(struct context *ctx);
-void check(struct context *ctx, struct Node *v);
+void check(struct context *ctx, struct node *v);
 void do_errors(struct context *c);
 
-void codegen(struct context *ctx, struct Node *n);
+void codegen(struct context *ctx, struct node *n);
 
 #endif
