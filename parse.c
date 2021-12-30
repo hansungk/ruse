@@ -69,7 +69,7 @@ static struct node *makemember(struct Parser *p, Token member,
 
 static struct node *makedecl(struct Parser *p, Token name,
                              struct node *initexpr, struct type *type) {
-	struct node *n = makenode(p, NDECL, name);
+	struct node *n = makenode(p, NVAR, name);
 	n->rhs = initexpr;
 	n->type = type;
 	return n;

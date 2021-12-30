@@ -118,7 +118,8 @@ enum NodeKind {
 	NCALL,
 	NMEMBER,
 
-	NDECL, // TODO: rename to NVAR
+	NDECL,
+	NVAR = NDECL,
 	NFUNC,
 	NSTRUCT,
 

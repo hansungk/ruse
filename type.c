@@ -139,8 +139,9 @@ static void check_expr(struct context *ctx, struct node *n) {
 
 static void check_decl(struct context *ctx, struct node *n) {
 	switch (n->kind) {
-	case NDECL:
+	case NVAR:
 		n->decl = push_var(ctx, n);
+		// TODO: what about my type?
 		break;
 	case NSTRUCT:
 		for (long i = 0; i < arrlen(n->children); i++) {
