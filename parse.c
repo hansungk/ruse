@@ -13,7 +13,7 @@ static struct type *parse_type(struct Parser *p);
 static struct node *makenode(struct Parser *p, enum NodeKind k, Token tok) {
 	// TODO: store all nodes in a contiguous buffer for better locality?
 	// should be careful about node pointers going stale though
-	struct node *node = calloc(1, sizeof(node));
+	struct node *node = calloc(1, sizeof(struct node));
 	if (!node) {
 		fprintf(stderr, "alloc error\n");
 		exit(1);
