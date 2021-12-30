@@ -178,7 +178,7 @@ enum DeclKind {
 };
 
 typedef struct Decl Decl;
-typedef struct Context Context;
+typedef struct context Context;
 
 struct Decl {
     enum DeclKind kind;
@@ -196,7 +196,7 @@ struct Error {
 	char msg[1024];
 };
 
-struct Context {
+struct context {
     struct Source *src;
     struct Scope *scope;
 	struct Error *errors;
@@ -206,11 +206,11 @@ struct Context {
     } valstack;
 };
 
-void context_init(struct Context *ctx, Source *src);
-void context_free(struct Context *ctx);
-void typecheck(struct Context *ctx, struct Node *v);
-void do_errors(struct Context *c);
+void context_init(struct context *ctx, Source *src);
+void context_free(struct context *ctx);
+void typecheck(struct context *ctx, struct Node *v);
+void do_errors(struct context *c);
 
-void codegen(struct Context *ctx, struct Node *n);
+void codegen(struct context *ctx, struct Node *n);
 
 #endif
