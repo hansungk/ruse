@@ -138,15 +138,21 @@ static void check_expr(struct context *ctx, struct node *n) {
 }
 
 static void check_decl(struct context *ctx, struct node *n) {
-	n->decl = push_var(ctx, n);
-
-	if (n->kind == NSTRUCT) {
+	switch (n->kind) {
+	case NDECL:
+		n->decl = push_var(ctx, n);
+		break;
+	case NSTRUCT:
 		for (long i = 0; i < arrlen(n->children); i++) {
+			struct node *child = n->children[i];
+			check_decl(ctx, child);
+			assert(child->decl);
+			arrput(n->type->members, child);
 		}
-	}
-
-	// TODO: add children of the original struct declaration to 'n' as well
-	if (n->type) {
+		break;
+	default:
+		printf("n->kind=%d\n", n->kind);
+		assert(!"TODO");
 	}
 }
 

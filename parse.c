@@ -35,8 +35,10 @@ static struct node *makefunc(struct Parser *p, Token name) {
 	return n;
 }
 
-static struct node *makestruct(struct Parser *p, Token name) {
+static struct node *makestruct(struct Parser *p, Token name,
+                               struct type *type) {
 	struct node *n = makenode(p, NSTRUCT, name);
+	n->type = type;
 	return n;
 }
 
@@ -468,7 +470,8 @@ static struct node *parse_func(struct Parser *p) {
 static struct node *parse_struct(struct Parser *p) {
 	expect(p, TSTRUCT);
 
-	struct node *s = makestruct(p, p->tok);
+	struct type *ty = maketype(p, p->tok);
+	struct node *s = makestruct(p, p->tok, ty);
 	next(p);
 
 	expect(p, TLBRACE);

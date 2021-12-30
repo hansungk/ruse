@@ -118,7 +118,7 @@ enum NodeKind {
 	NCALL,
 	NMEMBER,
 
-	NDECL,
+	NDECL, // TODO: rename to NVAR
 	NFUNC,
 	NSTRUCT,
 
@@ -179,6 +179,7 @@ typedef struct context Context;
 
 struct type {
 	struct Token tok;
+	struct node **members;
 };
 
 struct Decl {
