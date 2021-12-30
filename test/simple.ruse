@@ -15,7 +15,7 @@ func main() int {
 
     b(a, b, c)
 
-    a.b.c.d.e
+    a.b.c.d.e // error
     a.b(a, b, c).c
     return a
 }

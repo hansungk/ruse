@@ -120,7 +120,7 @@ enum NodeKind {
 	NTYPEEXPR,
 
 	NDECL,
-	NFUNC = NDECL,
+	NFUNC,
 	NSTRUCT,
 
 	NSTMT,

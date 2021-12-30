@@ -7,7 +7,7 @@
 #include <string.h>
 
 // TODO: merge this with the one in parse.c?
-static void error(struct context *c, struct SrcLoc loc, const char *fmt, ...) {
+static void error(struct context *ctx, struct SrcLoc loc, const char *fmt, ...) {
 	struct Error e;
 	va_list args;
 
@@ -17,16 +17,16 @@ static void error(struct context *c, struct SrcLoc loc, const char *fmt, ...) {
 	va_end(args);
 	assert(len < (int)sizeof(e.msg));
 
-	arrput(c->errors, e);
+	arrput(ctx->errors, e);
 }
 
-void do_errors(struct context *c) {
-	for (long i = 0; i < arrlen(c->errors); i++) {
-		struct Error e = c->errors[i];
+void do_errors(struct context *ctx) {
+	for (long i = 0; i < arrlen(ctx->errors); i++) {
+		struct Error e = ctx->errors[i];
 		fprintf(stderr, "%s:%d:%d: error: %s\n",
 		        e.loc.filename, e.loc.line, e.loc.col, e.msg);
 	}
-	if (arrlen(c->errors))
+	if (arrlen(ctx->errors))
 		exit(EXIT_FAILURE);
 }
 
@@ -41,38 +41,38 @@ static void freescope(struct Scope *s) {
 	free(s);
 }
 
-void context_init(struct context *c, Source *src) {
-	memset(c, 0, sizeof(struct context));
-	c->src = src;
-	c->scope = makescope();
-	c->errors = NULL;
+void context_init(struct context *ctx, Source *src) {
+	memset(ctx, 0, sizeof(struct context));
+	ctx->src = src;
+	ctx->scope = makescope();
+	ctx->errors = NULL;
 }
 
-void context_free(struct context *c) {
-	freescope(c->scope);
-	arrfree(c->valstack.stack);
+void context_free(struct context *ctx) {
+	freescope(ctx->scope);
+	arrfree(ctx->valstack.stack);
 	// FIXME: free errors[i].msg
-	free(c->errors);
+	free(ctx->errors);
 }
 
-void push_scope(struct context *c) {
+void push_scope(struct context *ctx) {
 	struct Scope *new_scope = makescope();
-	new_scope->outer = c->scope;
-	c->scope = new_scope;
+	new_scope->outer = ctx->scope;
+	ctx->scope = new_scope;
 }
 
-void pop_scope(struct context *c) {
-	struct Scope *innermost = c->scope;
-	c->scope = c->scope->outer;
+void pop_scope(struct context *ctx) {
+	struct Scope *innermost = ctx->scope;
+	ctx->scope = ctx->scope->outer;
 	freescope(innermost);
 }
 
 // Pushes a variable to the current scope.  `n` should be a declaration.
-struct Node *push_var(struct context *c, struct Node *n) {
-	if (!mapput(&c->scope->map, n->tok.name, n)) {
+struct Node *push_var(struct context *ctx, struct Node *n) {
+	if (!mapput(&ctx->scope->map, n->tok.name, n)) {
 		char buf[TOKLEN];
-		tokenstr(c->src->buf, n->tok, buf, sizeof(buf));
-		error(c, n->tok.loc, "'%s' is already declared", buf);
+		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
+		error(ctx, n->tok.loc, "'%s' is already declared", buf);
 		return NULL;
 	}
 	return n;
@@ -80,8 +80,8 @@ struct Node *push_var(struct context *c, struct Node *n) {
 
 // Finds the declaration node that first declared the variable referenced by
 // 'n'.
-struct Node *lookup_var(struct context *c, struct Node *n) {
-	struct Scope *s = c->scope;
+struct Node *lookup_var(struct context *ctx, struct Node *n) {
+	struct Scope *s = ctx->scope;
 	while (s) {
 		struct Node *found = mapget(&s->map, n->tok.name);
 		if (found)
@@ -91,38 +91,41 @@ struct Node *lookup_var(struct context *c, struct Node *n) {
 	return NULL;
 }
 
-static void check_expr(struct context *c, struct Node *n) {
+static void check_expr(struct context *ctx, struct Node *n) {
 	char buf[TOKLEN];
 	struct Node *decl = NULL;
 
-	tokenstr(c->src->buf, n->tok, buf, sizeof(buf));
+	tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
 
 	switch (n->kind) {
 	case NLITERAL:
 		break;
 	case NIDEXPR:
-		decl = lookup_var(c, n);
-		if (!decl)
-			error(c, n->tok.loc, "undeclared variable '%s'", buf);
+		decl = lookup_var(ctx, n);
+		if (!decl) {
+			error(ctx, n->tok.loc, "undeclared variable '%s'", buf);
+			return;
+		}
 		n->decl = decl;
 		break;
 	case NBINEXPR:
-		check_expr(c, n->lhs);
-		check_expr(c, n->rhs);
+		check_expr(ctx, n->lhs);
+		check_expr(ctx, n->rhs);
 		break;
 	case NCALL:
 		for (long i = 0; i < arrlen(n->children); i++) {
-			check_expr(c, n->children[i]);
+			check_expr(ctx, n->children[i]);
 		}
 		break;
 	case NMEMBER:
-		check_expr(c, n->parent);
+		check_expr(ctx, n->parent);
 
 		// TODO: existing member check
 		// Lookup parent's decl
-		assert(n->parent->decl);
+		if (!n->parent->decl)
+			return;
 		if (!arrlen(n->parent->decl->children)) {
-			error(c, n->tok.loc, "member access to a non-struct");
+			error(ctx, n->tok.loc, "member access to a non-struct");
 			return;
 		}
 		for (long i = 0; i < arrlen(n->parent->decl->children); i++) {
@@ -135,28 +138,28 @@ static void check_expr(struct context *c, struct Node *n) {
 }
 
 static void check_decl(struct context *ctx, struct Node *n) {
-	push_var(ctx, n);
+	n->decl = push_var(ctx, n);
 
 	// TODO: add children of the original struct declaration to 'n' as well
 	if (n->type) {
 	}
 }
 
-static void check_stmt(struct context *c, struct Node *n) {
+static void check_stmt(struct context *ctx, struct Node *n) {
 	switch (n->kind) {
 	case NEXPRSTMT:
-		check_expr(c, n->rhs);
+		check_expr(ctx, n->rhs);
 		break;
 	case NASSIGN:
-		check_expr(c, n->rhs);
-		check_expr(c, n->lhs);
+		check_expr(ctx, n->rhs);
+		check_expr(ctx, n->lhs);
 		break;
 	case NBLOCKSTMT:
-		push_scope(c);
+		push_scope(ctx);
 		for (long i = 0; i < arrlen(n->children); i++) {
-			check(c, n->children[i]);
+			check(ctx, n->children[i]);
 		}
-		pop_scope(c);
+		pop_scope(ctx);
 		break;
 	case NRETURN:
 		break;
@@ -165,27 +168,29 @@ static void check_stmt(struct context *c, struct Node *n) {
 	}
 }
 
-void check(struct context *c, struct Node *n) {
+void check(struct context *ctx, struct Node *n) {
 	switch (n->kind) {
 	case NFILE:
 		for (long i = 0; i < arrlen(n->children); i++) {
-			check(c, n->children[i]);
+			check(ctx, n->children[i]);
 		}
 		break;
 	case NFUNC:
-		push_scope(c);
+		push_scope(ctx);
 		for (long i = 0; i < arrlen(n->children); i++) {
-			check(c, n->children[i]);
+			check(ctx, n->children[i]);
 		}
-		pop_scope(c);
+		pop_scope(ctx);
 		break;
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {
-			check_expr(c, n);
+			check_expr(ctx, n);
 		} else if (NDECL <= n->kind && n->kind < NSTMT) {
-			check_decl(c, n);
+			check_decl(ctx, n);
 		} else if (NSTMT <= n->kind) {
-			check_stmt(c, n);
+			check_stmt(ctx, n);
+		} else {
+			assert(!"unknown node kind");
 		}
 		break;
 	}
