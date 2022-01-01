@@ -6,8 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+static Type *push_type(Context *ctx, Type *ty);
+
 // TODO: merge this with the one in parse.c?
-static void error(struct context *ctx, struct SrcLoc loc, const char *fmt, ...) {
+static void error(Context *ctx, struct SrcLoc loc, const char *fmt, ...) {
 	struct Error e;
 	va_list args;
 
@@ -20,7 +22,7 @@ static void error(struct context *ctx, struct SrcLoc loc, const char *fmt, ...) 
 	arrput(ctx->errors, e);
 }
 
-void do_errors(struct context *ctx) {
+void do_errors(Context *ctx) {
 	for (long i = 0; i < arrlen(ctx->errors); i++) {
 		struct Error e = ctx->errors[i];
 		fprintf(stderr, "%s:%d:%d: error: %s\n",
@@ -41,29 +43,37 @@ static void freescope(struct Scope *s) {
 	free(s);
 }
 
-void context_init(struct context *ctx, Source *src) {
-	memset(ctx, 0, sizeof(struct context));
+static void init_builtin_types(Context *ctx) {
+	// FIXME: free(ty_int)
+	Type *ty_int = calloc(1, sizeof(Type));
+	ty_int->tok = (Token){.type = TINT, .name = "int"};
+	push_type(ctx, ty_int);
+}
+
+void context_init(Context *ctx, Source *src) {
+	memset(ctx, 0, sizeof(Context));
 	ctx->src = src;
 	ctx->scope = makescope();
 	ctx->typescope = makescope();
 	ctx->errors = NULL;
+	init_builtin_types(ctx);
 }
 
-void context_free(struct context *ctx) {
+void context_free(Context *ctx) {
 	freescope(ctx->scope);
 	arrfree(ctx->valstack.stack);
 	// FIXME: free errors[i].msg
 	free(ctx->errors);
 }
 
-void push_scope(struct context *ctx) {
+void push_scope(Context *ctx) {
 	struct Scope *new_scope = makescope();
 	new_scope->outer = ctx->scope;
 	ctx->scope = new_scope;
 	// TODO: typescope
 }
 
-void pop_scope(struct context *ctx) {
+void pop_scope(Context *ctx) {
 	struct Scope *innermost = ctx->scope;
 	ctx->scope = ctx->scope->outer;
 	freescope(innermost);
@@ -71,7 +81,7 @@ void pop_scope(struct context *ctx) {
 }
 
 // Pushes a variable to the current scope.  `n` should be a declaration.
-struct node *push_var(struct context *ctx, struct node *n) {
+struct node *push_var(Context *ctx, struct node *n) {
 	if (!mapput(&ctx->scope->map, n->tok.name, n)) {
 		char buf[TOKLEN];
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
@@ -83,7 +93,7 @@ struct node *push_var(struct context *ctx, struct node *n) {
 
 // Finds the declaration node that first declared the variable referenced by
 // 'n'.
-struct node *lookup_var(struct context *ctx, struct node *n) {
+struct node *lookup_var(Context *ctx, struct node *n) {
 	struct Scope *s = ctx->scope;
 	while (s) {
 		struct node *found = mapget(&s->map, n->tok.name);
@@ -95,7 +105,7 @@ struct node *lookup_var(struct context *ctx, struct node *n) {
 }
 
 // Pushes a new type to the current scope.
-Type *push_type(struct context *ctx, Type *ty) {
+static Type *push_type(Context *ctx, Type *ty) {
 	if (!mapput(&ctx->typescope->map, ty->tok.name, ty)) {
 		char buf[TOKLEN];
 		tokenstr(ctx->src->buf, ty->tok, buf, sizeof(buf));
@@ -106,7 +116,7 @@ Type *push_type(struct context *ctx, Type *ty) {
 }
 
 // Finds the type object that first declared the type whose name is 'name'.
-Type *lookup_type(struct context *ctx, const char *name) {
+Type *lookup_type(Context *ctx, const char *name) {
 	struct Scope *s = ctx->typescope;
 	while (s) {
 		Type *found = mapget(&s->map, name);
@@ -117,7 +127,7 @@ Type *lookup_type(struct context *ctx, const char *name) {
 	return NULL;
 }
 
-static void check_expr(struct context *ctx, struct node *n) {
+static void check_expr(Context *ctx, struct node *n) {
 	char buf[TOKLEN];
 	struct node *decl = NULL;
 
@@ -156,8 +166,10 @@ static void check_expr(struct context *ctx, struct node *n) {
 			return;
 		}
 		for (long i = 0; i < arrlen(n->parent->type->members); i++) {
-			printf("looking at field %s\n",
-			       n->parent->type->members[i]->tok.name);
+			printf("looking at field '%s' of parent '%s' (%ld members)\n",
+			       n->parent->type->members[i]->tok.name,
+				   n->parent->type->tok.name,
+				   arrlen(n->parent->type->members));
 		}
 		break;
 	default:
@@ -165,7 +177,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 	}
 }
 
-static void check_decl(struct context *ctx, struct node *n) {
+static void check_decl(Context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NVAR:
 		if (!(n->decl = push_var(ctx, n)))
@@ -184,8 +196,10 @@ static void check_decl(struct context *ctx, struct node *n) {
 		assert(n->type);
 		Type *orig_ty = lookup_type(ctx, n->type->tok.name);
 		if (!orig_ty)
-			return error(ctx, n->type->tok.loc, "unknown type %s",
+			return error(ctx, n->type->tok.loc, "unknown type '%s'",
 			             n->type->tok.name);
+		// copy over members from original type object
+		// TODO: generalize this for other members of struct Type
 		n->type->members = orig_ty->members;
 		break;
 	case NSTRUCT:
@@ -203,7 +217,7 @@ static void check_decl(struct context *ctx, struct node *n) {
 	}
 }
 
-static void check_stmt(struct context *ctx, struct node *n) {
+static void check_stmt(Context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NEXPRSTMT:
 		check_expr(ctx, n->rhs);
@@ -226,7 +240,7 @@ static void check_stmt(struct context *ctx, struct node *n) {
 	}
 }
 
-void check(struct context *ctx, struct node *n) {
+void check(Context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NFILE:
 		for (long i = 0; i < arrlen(n->children); i++) {
