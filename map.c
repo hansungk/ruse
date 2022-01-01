@@ -6,7 +6,7 @@
 
 struct Mapkey {
 	uint64_t hash;
-	char *str;
+	const char *str;
 	void *data; // if NULL, this key is empty
 };
 
@@ -39,7 +39,7 @@ void freemap(struct Map *map) {
 }
 
 // Returns 0 if a same key is inserted again.
-int mapput(Map *m, char *str, void *data) {
+int mapput(Map *m, const char *str, void *data) {
 	uint64_t hash = strhash(str);
 	size_t i = hash % m->bucketlen;
 	size_t i_orig = i;
@@ -60,7 +60,7 @@ int mapput(Map *m, char *str, void *data) {
 	return 1;
 }
 
-void *mapget(Map *m, char *str) {
+void *mapget(Map *m, const char *str) {
 	uint64_t hash = strhash(str);
 	size_t i = hash % m->bucketlen;
 	size_t i_orig = i;

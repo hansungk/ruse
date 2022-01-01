@@ -45,6 +45,7 @@ void context_init(struct context *ctx, Source *src) {
 	memset(ctx, 0, sizeof(struct context));
 	ctx->src = src;
 	ctx->scope = makescope();
+	ctx->typescope = makescope();
 	ctx->errors = NULL;
 }
 
@@ -59,12 +60,14 @@ void push_scope(struct context *ctx) {
 	struct Scope *new_scope = makescope();
 	new_scope->outer = ctx->scope;
 	ctx->scope = new_scope;
+	// TODO: typescope
 }
 
 void pop_scope(struct context *ctx) {
 	struct Scope *innermost = ctx->scope;
 	ctx->scope = ctx->scope->outer;
 	freescope(innermost);
+	// TODO: typescope
 }
 
 // Pushes a variable to the current scope.  `n` should be a declaration.
@@ -91,6 +94,29 @@ struct node *lookup_var(struct context *ctx, struct node *n) {
 	return NULL;
 }
 
+// Pushes a new type to the current scope.
+Type *push_type(struct context *ctx, Type *ty) {
+	if (!mapput(&ctx->typescope->map, ty->tok.name, ty)) {
+		char buf[TOKLEN];
+		tokenstr(ctx->src->buf, ty->tok, buf, sizeof(buf));
+		error(ctx, ty->tok.loc, "'%s' is already declared", buf);
+		return NULL;
+	}
+	return ty;
+}
+
+// Finds the type object that first declared the type whose name is 'name'.
+Type *lookup_type(struct context *ctx, const char *name) {
+	struct Scope *s = ctx->typescope;
+	while (s) {
+		Type *found = mapget(&s->map, name);
+		if (found)
+			return found;
+		s = s->outer;
+	}
+	return NULL;
+}
+
 static void check_expr(struct context *ctx, struct node *n) {
 	char buf[TOKLEN];
 	struct node *decl = NULL;
@@ -107,6 +133,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 			return;
 		}
 		n->decl = decl;
+		n->type = decl->type;
 		break;
 	case NBINEXPR:
 		check_expr(ctx, n->lhs);
@@ -122,14 +149,15 @@ static void check_expr(struct context *ctx, struct node *n) {
 
 		// TODO: existing member check
 		// Lookup parent's decl
-		if (!n->parent->decl)
+		if (!n->parent->type)
 			return;
-		if (!arrlen(n->parent->decl->children)) {
+		if (!arrlen(n->parent->type->members)) {
 			error(ctx, n->tok.loc, "member access to a non-struct");
 			return;
 		}
-		for (long i = 0; i < arrlen(n->parent->decl->children); i++) {
-			printf("looking at field %s\n", n->parent->decl->children[i]->tok.name);
+		for (long i = 0; i < arrlen(n->parent->type->members); i++) {
+			assert(0);
+			// printf("looking at field %s\n", n->parent->decl->children[i]->tok.name);
 		}
 		break;
 	default:
@@ -140,10 +168,28 @@ static void check_expr(struct context *ctx, struct node *n) {
 static void check_decl(struct context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NVAR:
-		n->decl = push_var(ctx, n);
-		// TODO: what about my type?
+		if (!(n->decl = push_var(ctx, n)))
+			return;
+		if (!n->type) {
+			// TODO: What about my type?  Can't get n->decl->type
+			// because this is the first place that this variable is
+			// declared.
+
+			assert(!"TODO");
+		}
+		// n->type might not be the same as the Type object of the original
+		// type declaration, because n->type has been constructed as a new AST
+		// node in the parsing stage.  Therefore we have to be more mindful
+		// when looking up the members.
+		assert(n->type);
+		Type *orig_ty = lookup_type(ctx, n->type->tok.name);
+		if (!orig_ty) {
+			error(ctx, n->type->tok.loc, "unknown type %s", n->type->tok.name);
+		}
+		// n->type->members = ;
 		break;
 	case NSTRUCT:
+		push_type(ctx, n->type);
 		for (long i = 0; i < arrlen(n->children); i++) {
 			struct node *child = n->children[i];
 			check_decl(ctx, child);

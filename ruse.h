@@ -168,14 +168,17 @@ struct Map {
 
 void makemap(struct Map *m);
 void freemap(struct Map *map);
-int mapput(Map *m, char *str, void *data);
-void *mapget(struct Map *m, char *str);
+int mapput(Map *m, const char *str, void *data);
+void *mapget(struct Map *m, const char *str);
 
 enum DeclKind {
     D_NUM,
 };
 
+typedef struct type Type;
 typedef struct Decl Decl;
+typedef struct Scope Scope;
+typedef struct Error Error;
 typedef struct context Context;
 
 struct type {
@@ -200,13 +203,14 @@ struct Error {
 };
 
 struct context {
-    struct Source *src;
-    struct Scope *scope;
-	struct Error *errors;
-    struct Valstack {
-        int curr_id; // next id to be pushed to valstack
-        int *stack;  // stack of the id of expression results
-    } valstack;
+	Source *src;
+	Scope *scope;
+	Scope *typescope;
+	Error *errors;
+	struct Valstack {
+		int curr_id; // next id to be pushed to valstack
+		int *stack;  // stack of the id of expression results
+	} valstack;
 };
 
 void context_init(struct context *ctx, Source *src);
