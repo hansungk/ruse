@@ -179,7 +179,7 @@ typedef struct type Type;
 typedef struct Decl Decl;
 typedef struct Scope Scope;
 typedef struct Error Error;
-typedef struct context Context;
+typedef struct Context Context;
 
 struct type {
 	struct Token tok;
@@ -202,7 +202,7 @@ struct Error {
 	char msg[1024];
 };
 
-struct context {
+struct Context {
 	Source *src;
 	Scope *scope;
 	Scope *typescope;
@@ -213,11 +213,11 @@ struct context {
 	} valstack;
 };
 
-void context_init(struct context *ctx, Source *src);
-void context_free(struct context *ctx);
-void check(struct context *ctx, struct node *v);
-void do_errors(struct context *c);
+void context_init(Context *ctx, Source *src);
+void context_free(Context *ctx);
+void check(Context *ctx, struct node *v);
+void do_errors(Context *c);
 
-void codegen(struct context *ctx, struct node *n);
+void codegen(Context *ctx, struct node *n);
 
 #endif
