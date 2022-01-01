@@ -165,10 +165,6 @@ static void check_expr(Context *ctx, struct node *n) {
 			return error(ctx, n->tok.loc, "member access to a non-struct");
 		struct node *member_match = NULL;
 		for (long i = 0; i < arrlen(n->parent->type->members); i++) {
-			printf("looking at field '%s' of parent '%s' (%ld members)\n",
-			       n->parent->type->members[i]->tok.name,
-				   n->parent->type->tok.name,
-				   arrlen(n->parent->type->members));
 			struct node *m = n->parent->type->members[i];
 			if (strcmp(m->tok.name, n->tok.name) == 0) {
 				member_match = m;

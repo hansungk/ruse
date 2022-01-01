@@ -12,5 +12,5 @@ func main() {
     a.b // error
 
     // S {.a = 0}
-    // S {.b = 0} // error
+    // S {.b = 0} //!error
 }
