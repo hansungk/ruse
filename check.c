@@ -161,15 +161,23 @@ static void check_expr(Context *ctx, struct node *n) {
 		// Lookup parent's decl
 		if (!n->parent->type)
 			return;
-		if (!arrlen(n->parent->type->members)) {
-			error(ctx, n->tok.loc, "member access to a non-struct");
-			return;
-		}
+		if (!arrlen(n->parent->type->members))
+			return error(ctx, n->tok.loc, "member access to a non-struct");
+		struct node *member_match = NULL;
 		for (long i = 0; i < arrlen(n->parent->type->members); i++) {
 			printf("looking at field '%s' of parent '%s' (%ld members)\n",
 			       n->parent->type->members[i]->tok.name,
 				   n->parent->type->tok.name,
 				   arrlen(n->parent->type->members));
+			struct node *m = n->parent->type->members[i];
+			if (strcmp(m->tok.name, n->tok.name) == 0) {
+				member_match = m;
+			}
+		}
+		if (!member_match) {
+			return error(ctx, n->tok.loc,
+			             "'%s' is not a member of type '%s'",
+			             n->tok.name, n->parent->type->tok.name);
 		}
 		break;
 	default:
