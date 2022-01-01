@@ -208,7 +208,7 @@ static void tokentypeprint(enum TokenType t) {
 	printf("i saw %s\n", buf);
 }
 
-static struct node *parse_decl(struct Parser *p) {
+static struct node *parse_vardecl(struct Parser *p) {
 	assert(p->tok.type == TVAR || p->tok.type == TCONST);
 	next(p);
 
@@ -401,7 +401,7 @@ static struct node *parse_stmt(struct Parser *p) {
 		return parse_stmt(p);
 	case TVAR:
 	case TCONST:
-		return parse_decl(p);
+		return parse_vardecl(p);
 	case TLBRACE:
 		return parse_blockstmt(p);
 	case TRETURN:
@@ -428,6 +428,7 @@ static struct node *parse_stmt(struct Parser *p) {
 }
 
 static struct type *parse_type(struct Parser *p) {
+	Token tok = p->tok;
 	if (p->tok.type == TINT) {
 		expect(p, TINT);
 	} else if (p->tok.type == TIDENT) {
@@ -435,7 +436,7 @@ static struct type *parse_type(struct Parser *p) {
 	} else {
 		error(p, "expected a type (TODO)");
 	}
-	return maketype(p, p->tok);
+	return maketype(p, tok);
 }
 
 static struct node *parse_func(struct Parser *p) {
