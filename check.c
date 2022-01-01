@@ -156,25 +156,24 @@ static void check_expr(Context *ctx, struct node *n) {
 		break;
 	case NMEMBER:
 		check_expr(ctx, n->parent);
-
-		// TODO: existing member check
-		// Lookup parent's decl
 		if (!n->parent->type)
 			return;
 		if (!arrlen(n->parent->type->members))
-			return error(ctx, n->tok.loc, "member access to a non-struct");
+			return error(ctx, n->tok.loc,
+			             "member access to a non-struct");
 		struct node *member_match = NULL;
 		for (long i = 0; i < arrlen(n->parent->type->members); i++) {
 			struct node *m = n->parent->type->members[i];
 			if (strcmp(m->tok.name, n->tok.name) == 0) {
 				member_match = m;
+				break;
 			}
 		}
-		if (!member_match) {
+		if (!member_match)
 			return error(ctx, n->tok.loc,
 			             "'%s' is not a member of type '%s'",
 			             n->tok.name, n->parent->type->tok.name);
-		}
+		n->type = member_match->type;
 		break;
 	default:
 		break;
