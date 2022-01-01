@@ -156,8 +156,8 @@ static void check_expr(struct context *ctx, struct node *n) {
 			return;
 		}
 		for (long i = 0; i < arrlen(n->parent->type->members); i++) {
-			assert(0);
-			// printf("looking at field %s\n", n->parent->decl->children[i]->tok.name);
+			printf("looking at field %s\n",
+			       n->parent->type->members[i]->tok.name);
 		}
 		break;
 	default:
@@ -183,10 +183,10 @@ static void check_decl(struct context *ctx, struct node *n) {
 		// when looking up the members.
 		assert(n->type);
 		Type *orig_ty = lookup_type(ctx, n->type->tok.name);
-		if (!orig_ty) {
-			error(ctx, n->type->tok.loc, "unknown type %s", n->type->tok.name);
-		}
-		// n->type->members = ;
+		if (!orig_ty)
+			return error(ctx, n->type->tok.loc, "unknown type %s",
+			             n->type->tok.name);
+		n->type->members = orig_ty->members;
 		break;
 	case NSTRUCT:
 		push_type(ctx, n->type);
