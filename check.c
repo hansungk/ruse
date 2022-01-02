@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+static Type *ty_int;
+
 static Type *push_type(Context *ctx, Type *ty);
 
 // TODO: merge this with the one in parse.c?
@@ -45,7 +47,7 @@ static void freescope(struct Scope *s) {
 
 static void init_builtin_types(Context *ctx) {
 	// FIXME: free(ty_int)
-	Type *ty_int = calloc(1, sizeof(Type));
+	ty_int = calloc(1, sizeof(Type));
 	ty_int->tok = (Token){.type = TINT, .name = "int"};
 	push_type(ctx, ty_int);
 }
@@ -135,7 +137,8 @@ static void check_expr(Context *ctx, struct node *n) {
 
 	switch (n->kind) {
 	case NLITERAL:
-		assert(0);
+		// FIXME: non-int literals
+		n->type = ty_int;
 		break;
 	case NIDEXPR:
 		decl = lookup_var(ctx, n);
