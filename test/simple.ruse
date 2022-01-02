@@ -2,7 +2,7 @@
 
 func main() int {
     var a int
-    var a int = 4
+    var a int = 4 // error
     const b int = 4
     a
 
@@ -11,11 +11,11 @@ func main() int {
         in_scope
         a
     }
-    in_scope
+    in_scope // error
 
-    b(a, b, c)
+    b(a, b, c) // error
 
     a.b.c.d.e // error
-    a.b(a, b, c).c
+    a.b(a, b, c).c // error
     return a
 }

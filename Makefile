@@ -14,11 +14,10 @@ $(PROG): $(OBJS)
 .c.o:
 	$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
 
-.PHONY: test
+.PHONY: test clean
 test: $(PROG)
 	./test.sh
 
-.PHONY: clean
 clean:
 	rm -f $(OBJS) $(DEPS) $(PROG)
 
