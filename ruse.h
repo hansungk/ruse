@@ -141,7 +141,7 @@ struct node {
 	struct node **children;
 	struct type *type; // TODO: should be separate from typeexpr?
 	struct node *lhs;
-	struct node *rhs;
+	struct node *rhs; // assign expr
 	// functions
 	struct type *rettype;
 };

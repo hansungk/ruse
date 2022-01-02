@@ -4,6 +4,7 @@ func main() int {
     var a int
     var a int = 4 // error
     var b = 4
+    b.mem // error
 
     {
         var c int

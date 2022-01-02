@@ -135,6 +135,7 @@ static void check_expr(Context *ctx, struct node *n) {
 
 	switch (n->kind) {
 	case NLITERAL:
+		assert(0);
 		break;
 	case NIDEXPR:
 		decl = lookup_var(ctx, n);
@@ -186,11 +187,12 @@ static void check_decl(Context *ctx, struct node *n) {
 		if (!(n->decl = push_var(ctx, n)))
 			return;
 		if (!n->type) {
-			// TODO: What about my type?  Can't get n->decl->type
-			// because this is the first place that this variable is
-			// declared.
-
-			assert(!"TODO");
+			// when there was no explicit type specification, e.g. var i = 4
+			assert(n->rhs);
+			check_expr(ctx, n->rhs);
+			if (!n->rhs->type)
+				return;
+			n->type = n->rhs->type;
 		}
 		// n->type might not be the same as the Type object of the original
 		// type declaration, because n->type has been constructed as a new AST
