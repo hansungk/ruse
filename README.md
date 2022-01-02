@@ -11,7 +11,7 @@ $ ./ruse
 
 ## todo
 
-* structs
+* functions
 * strings
 * interop with C
 * metaprogramming using macros, e.g. ensuring cycle counters be incremented
