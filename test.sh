@@ -56,4 +56,5 @@ _test() {
 
 _test test/simple.ruse
 _test test/decl.ruse
+_test test/func.ruse
 _test test/struct.ruse

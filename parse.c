@@ -6,11 +6,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-static struct node *parse_expr(struct Parser *p);
-static struct node *parse_stmt(struct Parser *p);
-static struct type *parse_type(struct Parser *p);
+static struct node *parse_expr(Parser *p);
+static struct node *parse_stmt(Parser *p);
+static Type *parse_type(Parser *p);
 
-static struct node *makenode(struct Parser *p, enum NodeKind k, Token tok) {
+static struct node *makenode(Parser *p, enum NodeKind k, Token tok) {
 	// TODO: store all nodes in a contiguous buffer for better locality?
 	// should be careful about node pointers going stale though
 	struct node *node = calloc(1, sizeof(struct node));
@@ -24,25 +24,25 @@ static struct node *makenode(struct Parser *p, enum NodeKind k, Token tok) {
 	return node;
 }
 
-static struct node *makefile(struct Parser *p, struct node **toplevel) {
+static struct node *makefile(Parser *p, struct node **toplevel) {
 	struct node *n = makenode(p, NFILE, p->tok);
 	n->children = toplevel;
 	return n;
 }
 
-static struct node *makefunc(struct Parser *p, Token name) {
+static struct node *makefunc(Parser *p, Token name) {
 	struct node *n = makenode(p, NFUNC, name);
 	return n;
 }
 
-static struct node *makestruct(struct Parser *p, Token name,
-                               struct type *type) {
+static struct node *makestruct(Parser *p, Token name,
+                               Type *type) {
 	struct node *n = makenode(p, NSTRUCT, name);
 	n->type = type;
 	return n;
 }
 
-static struct node *makebinexpr(struct Parser *p, struct node *lhs, Token op,
+static struct node *makebinexpr(Parser *p, struct node *lhs, Token op,
                                 struct node *rhs) {
 	struct node *n = makenode(p, NBINEXPR, op);
 	n->lhs = lhs;
@@ -50,7 +50,7 @@ static struct node *makebinexpr(struct Parser *p, struct node *lhs, Token op,
 	return n;
 }
 
-static struct node *makecall(struct Parser *p, struct node *lhs,
+static struct node *makecall(Parser *p, struct node *lhs,
                              struct node **args) {
 	struct node *n = makenode(p, NCALL, p->tok /*unused*/);
 	n->lhs = lhs;
@@ -60,34 +60,34 @@ static struct node *makecall(struct Parser *p, struct node *lhs,
 }
 
 // 'lhs' is the 'a.b()' part of 'a.b().c'.
-static struct node *makemember(struct Parser *p, Token member,
+static struct node *makemember(Parser *p, Token member,
                                struct node *lhs) {
 	struct node *n = makenode(p, NMEMBER, member);
 	n->parent = lhs;
 	return n;
 }
 
-static struct node *makedecl(struct Parser *p, Token name,
-                             struct node *initexpr, struct type *type) {
+static struct node *makedecl(Parser *p, Token name,
+                             struct node *initexpr, Type *type) {
 	struct node *n = makenode(p, NVAR, name);
 	n->rhs = initexpr;
 	n->type = type;
 	return n;
 }
 
-static struct node *makereturn(struct Parser *p, struct node *rhs) {
+static struct node *makereturn(Parser *p, struct node *rhs) {
 	struct node *n = makenode(p, NRETURN, p->tok);
 	n->rhs = rhs;
 	return n;
 }
 
-static struct node *makeexprstmt(struct Parser *p, struct node *rhs) {
+static struct node *makeexprstmt(Parser *p, struct node *rhs) {
 	struct node *n = makenode(p, NEXPRSTMT, p->tok);
 	n->rhs = rhs;
 	return n;
 }
 
-static struct node *makeassign(struct Parser *p, struct node *lhs,
+static struct node *makeassign(Parser *p, struct node *lhs,
                                struct node *rhs) {
 	struct node *n = makenode(p, NASSIGN, p->tok);
 	n->lhs = lhs;
@@ -95,8 +95,8 @@ static struct node *makeassign(struct Parser *p, struct node *lhs,
 	return n;
 }
 
-static struct type *maketype(struct Parser *p, Token tok) {
-	struct type *t = calloc(1, sizeof(struct node));
+static Type *maketype(Parser *p, Token tok) {
+	Type *t = calloc(1, sizeof(struct node));
 	if (!t) {
 		fprintf(stderr, "alloc error\n");
 		exit(1);
@@ -107,7 +107,7 @@ static struct type *maketype(struct Parser *p, Token tok) {
 }
 
 // Initialize a parser that parses the given filename.
-void parser_from_file(struct Parser *p, const char *filename) {
+void parser_from_file(Parser *p, const char *filename) {
 	memset(p, 0, sizeof(Parser));
 	lexer_from_file(&p->l, filename);
 	// start by putting something on p->tok
@@ -116,14 +116,14 @@ void parser_from_file(struct Parser *p, const char *filename) {
 	p->tok = p->l.tok;
 }
 
-void parser_from_buf(struct Parser *p, const char *buf, size_t len) {
+void parser_from_buf(Parser *p, const char *buf, size_t len) {
 	memset(p, 0, sizeof(Parser));
 	lexer_from_buf(&p->l, buf, len);
 	lex(&p->l);
 	p->tok = p->l.tok;
 }
 
-void parser_cleanup(struct Parser *p) {
+void parser_cleanup(Parser *p) {
 	for (int i = 0; i < arrlen(p->nodeptrbuf); i++) {
 		struct node *n = p->nodeptrbuf[i];
 		if (n) {
@@ -138,14 +138,14 @@ void parser_cleanup(struct Parser *p) {
 	arrfree(p->nodeptrbuf);
 }
 
-static void next(struct Parser *p) {
+static void next(Parser *p) {
 	if (p->l.tok.type == TEOF)
 		return;
 	lex(&p->l);
 	p->tok = p->l.tok;
 }
 
-static void error(struct Parser *p, const char *fmt, ...) {
+static void error(Parser *p, const char *fmt, ...) {
 	static char msg[1024];
 	va_list args;
 
@@ -158,26 +158,26 @@ static void error(struct Parser *p, const char *fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
-static void skip_while(struct Parser *p, enum TokenType type) {
+static void skip_while(Parser *p, enum TokenType type) {
 	while (p->tok.type != TEOF && p->tok.type == type) {
 		next(p);
 	}
 }
 
-static void skip_newlines(struct Parser *p) {
+static void skip_newlines(Parser *p) {
 	while (p->tok.type == '\n' || p->tok.type == TCOMMENT) {
 		skip_while(p, '\n');
 		skip_while(p, TCOMMENT);
 	}
 }
 
-static void skip_to_end_of_line(struct Parser *p) {
+static void skip_to_end_of_line(Parser *p) {
 	while (p->tok.type != TEOF && p->tok.type != TNEWLINE) {
 		next(p);
 	}
 }
 
-static int expect(struct Parser *p, enum TokenType t) {
+static int expect(Parser *p, enum TokenType t) {
 	if (p->tok.type != t) {
 		char ebuf[TOKLEN], gbuf[TOKLEN];
 		tokentypestr(t, ebuf, sizeof(ebuf));
@@ -185,18 +185,19 @@ static int expect(struct Parser *p, enum TokenType t) {
 		if (strcmp(gbuf, "\n") == 0)
 			strcpy(gbuf, "\\n");
 		error(p, "expected '%s', got '%s'", ebuf, gbuf);
+		return 0;
 	}
 	// make progress
 	next(p);
 	return 1;
 }
 
-static int end_of_line(struct Parser *p) {
+static int end_of_line(Parser *p) {
 	return p->tok.type == TNEWLINE || p->tok.type == TCOMMENT;
 }
 
 // Expect end of line, skipping over any end-of-line comments.
-static int expect_end_of_line(struct Parser *p) {
+static int expect_end_of_line(Parser *p) {
 	skip_while(p, TCOMMENT);
 	return expect(p, TNEWLINE);
 }
@@ -208,14 +209,14 @@ static void tokentypeprint(enum TokenType t) {
 	printf("i saw %s\n", buf);
 }
 
-static struct node *parse_vardecl(struct Parser *p) {
+static struct node *parse_vardecl(Parser *p) {
 	assert(p->tok.type == TVAR || p->tok.type == TCONST);
 	next(p);
 
 	Token name = p->tok;
 	next(p);
 
-	struct type *ty = NULL;
+	Type *ty = NULL;
 	if (p->tok.type != TEQUAL) {
 		ty = parse_type(p);
 	}
@@ -229,7 +230,7 @@ static struct node *parse_vardecl(struct Parser *p) {
 	return makedecl(p, name, rhs, ty);
 }
 
-static struct node *parse_blockstmt(struct Parser *p) {
+static struct node *parse_blockstmt(Parser *p) {
 	struct node *n = makenode(p, NBLOCKSTMT, p->tok);
 
 	expect(p, TLBRACE);
@@ -243,7 +244,7 @@ static struct node *parse_blockstmt(struct Parser *p) {
 	return n;
 }
 
-static struct node *parse_return(struct Parser *p) {
+static struct node *parse_return(Parser *p) {
 	expect(p, TRETURN);
 	struct node *rhs = parse_expr(p);
 	return makereturn(p, rhs);
@@ -251,7 +252,7 @@ static struct node *parse_return(struct Parser *p) {
 
 // Assumes enclosing '(' is already consumed.
 // Does not consume ending ')'.
-static struct node **parse_callargs(struct Parser *p) {
+static struct node **parse_callargs(Parser *p) {
 	struct node **list = NULL;
 	while (p->tok.type != TRPAREN) {
 		arrput(list, parse_expr(p));
@@ -263,7 +264,7 @@ static struct node **parse_callargs(struct Parser *p) {
 	return list;
 }
 
-static struct node *parse_unaryexpr(struct Parser *p) {
+static struct node *parse_unaryexpr(Parser *p) {
 	struct node *e = NULL;
 	Token tok;
 
@@ -327,7 +328,7 @@ static int get_precedence(const Token op) {
 //
 // Return the pointer to the node respresenting the reduced binary expression.
 // If this is not a binary expression, just return 'lhs' as-is.
-static struct node *parse_binexpr_rhs(struct Parser *p, struct node *lhs,
+static struct node *parse_binexpr_rhs(Parser *p, struct node *lhs,
                                       int precedence) {
 	while (1) {
 		int this_prec = get_precedence(p->tok);
@@ -366,7 +367,7 @@ static struct node *parse_binexpr_rhs(struct Parser *p, struct node *lhs,
 	return lhs;
 }
 
-static struct node *parse_expr(struct Parser *p) {
+static struct node *parse_expr(Parser *p) {
 	struct node *e = parse_unaryexpr(p);
 	e = parse_binexpr_rhs(p, e, 0);
 	return e;
@@ -374,7 +375,7 @@ static struct node *parse_expr(struct Parser *p) {
 
 // Possibly parse the equal and RHS expression of an expression.
 // 'expr' is already consumed.
-static struct node *parse_assign_or_expr_stmt(struct Parser *p, struct node *expr) {
+static struct node *parse_assign_or_expr_stmt(Parser *p, struct node *expr) {
 	struct node *stmt = NULL;
 
 	if (p->tok.type == TEQUAL) {
@@ -388,7 +389,7 @@ static struct node *parse_assign_or_expr_stmt(struct Parser *p, struct node *exp
 	return stmt;
 }
 
-static struct node *parse_stmt(struct Parser *p) {
+static struct node *parse_stmt(Parser *p) {
 	struct node *stmt;
 
 	skip_newlines(p);
@@ -427,7 +428,7 @@ static struct node *parse_stmt(struct Parser *p) {
 	return stmt;
 }
 
-static struct type *parse_type(struct Parser *p) {
+static Type *parse_type(Parser *p) {
 	Token tok = p->tok;
 	if (p->tok.type == TINT) {
 		expect(p, TINT);
@@ -439,15 +440,23 @@ static struct type *parse_type(struct Parser *p) {
 	return maketype(p, tok);
 }
 
-static struct node *parse_func(struct Parser *p) {
+static struct node *parse_func(Parser *p) {
 	expect(p, TFUNC);
 
 	struct node *f = makefunc(p, p->tok);
 	next(p);
 
 	// argument list
+	// NOTE: similar code to parse_struct()
 	expect(p, TLPAREN);
-	// func->paramdecls = parse_paramdecllist(p);
+	while (p->tok.type != TRPAREN) {
+		Token tok = p->tok;
+		expect(p, TIDENT);
+		Type *ty = parse_type(p);
+		arrput(f->children, makedecl(p, tok, NULL, ty));
+		if (p->tok.type != TRPAREN)
+			expect(p, TCOMMA);
+	}
 	expect(p, TRPAREN);
 
 	// return type
@@ -468,10 +477,10 @@ static struct node *parse_func(struct Parser *p) {
 	return f;
 }
 
-static struct node *parse_struct(struct Parser *p) {
+static struct node *parse_struct(Parser *p) {
 	expect(p, TSTRUCT);
 
-	struct type *ty = maketype(p, p->tok);
+	Type *ty = maketype(p, p->tok);
 	struct node *s = makestruct(p, p->tok, ty);
 	next(p);
 
@@ -481,7 +490,7 @@ static struct node *parse_struct(struct Parser *p) {
 	while (p->tok.type != TRBRACE) {
 		Token tok = p->tok;
 		expect(p, TIDENT);
-		struct type *ty = parse_type(p);
+		Type *ty = parse_type(p);
 		arrput(s->children, makedecl(p, tok, NULL, ty));
 		skip_newlines(p);
 	}
@@ -490,7 +499,7 @@ static struct node *parse_struct(struct Parser *p) {
 	return s;
 }
 
-static struct node *parse_toplevel(struct Parser *p) {
+static struct node *parse_toplevel(Parser *p) {
 	skip_newlines(p);
 
 	switch (p->tok.type) {
@@ -504,7 +513,7 @@ static struct node *parse_toplevel(struct Parser *p) {
 	}
 }
 
-struct node *parse(struct Parser *p) {
+struct node *parse(Parser *p) {
 	struct node **nodes = NULL;
 
 	while (p->tok.type != TEOF) {

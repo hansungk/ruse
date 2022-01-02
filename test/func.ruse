@@ -1,0 +1,12 @@
+// fail
+
+func wrong(a int a) int { // error
+}
+
+func f(a int) int {
+    a
+}
+
+func main() int {
+    f() // error
+}

@@ -130,6 +130,7 @@ enum NodeKind {
 	NRETURN,
 };
 
+typedef struct node Node;
 typedef struct Parser Parser;
 
 struct node {
