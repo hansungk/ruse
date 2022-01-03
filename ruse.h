@@ -215,7 +215,7 @@ struct Context {
 	} valstack;
 };
 
-void context_init(Context *ctx, Source *src);
+void context_init(Context *ctx, Parser *p);
 void context_free(Context *ctx);
 void check(Context *ctx, struct node *v);
 void do_errors(const Error *errors);

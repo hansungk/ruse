@@ -52,12 +52,17 @@ static void init_builtin_types(Context *ctx) {
 	push_type(ctx, ty_int);
 }
 
-void context_init(Context *ctx, Source *src) {
+// NOTE: This *has* to be called after parse(), as it copies over the error
+// list from the parser.
+void context_init(Context *ctx, Parser *p) {
 	memset(ctx, 0, sizeof(Context));
-	ctx->src = src;
+	ctx->src = &p->l.src;
 	ctx->scope = makescope();
 	ctx->typescope = makescope();
-	ctx->errors = NULL;
+	// copy over errors
+	for (long i = 0; i < arrlen(p->errors); i++) {
+		arrput(ctx->errors, p->errors[i]);
+	}
 	init_builtin_types(ctx);
 }
 
@@ -211,7 +216,6 @@ static void check_decl(Context *ctx, struct node *n) {
 		n->type->members = orig_ty->members;
 		break;
 	case NFUNC:
-		assert(0);
 		push_scope(ctx);
 		for (long i = 0; i < arrlen(n->children); i++) {
 			check(ctx, n->children[i]);

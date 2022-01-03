@@ -9,13 +9,13 @@ int main(int argc, char **argv) {
 	}
 
 	Parser p;
-	struct Context ctx;
 	parser_from_file(&p, argv[1]);
-	context_init(&ctx, &p.l.src);
-
 	struct node *n = parse(&p);
-	do_errors(p.errors);
+
+	struct Context ctx;
+	context_init(&ctx, &p);
 	check(&ctx, n);
+
 	do_errors(ctx.errors);
 
 	// codegen(&ctx, n);
