@@ -461,10 +461,9 @@ static struct node *parse_func(Parser *p) {
 		Type *ty = parse_type(p);
 		arrput(f->children, makedecl(p, tok, NULL, ty));
 		if (p->tok.type != TRPAREN) {
-			if (!expect(p, TCOMMA)) {
+			if (!expect(p, TCOMMA))
 				// recover up to rparen
 				skip_to(p, TRPAREN);
-			}
 		}
 	}
 	expect(p, TRPAREN);
@@ -475,6 +474,7 @@ static struct node *parse_func(Parser *p) {
 
 	// body
 	expect(p, TLBRACE);
+	skip_newlines(p);
 	while (p->tok.type != TRBRACE) {
 		struct node *stmt = parse_stmt(p);
 		if (stmt)
