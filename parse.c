@@ -171,6 +171,12 @@ static void skip_newlines(Parser *p) {
 	}
 }
 
+static void skip_to(Parser *p, enum TokenType type) {
+	while (p->tok.type != TEOF && p->tok.type != type) {
+		next(p);
+	}
+}
+
 static void skip_to_end_of_line(Parser *p) {
 	while (p->tok.type != TEOF && p->tok.type != TNEWLINE) {
 		next(p);
@@ -454,8 +460,12 @@ static struct node *parse_func(Parser *p) {
 		expect(p, TIDENT);
 		Type *ty = parse_type(p);
 		arrput(f->children, makedecl(p, tok, NULL, ty));
-		if (p->tok.type != TRPAREN)
-			expect(p, TCOMMA);
+		if (p->tok.type != TRPAREN) {
+			if (!expect(p, TCOMMA)) {
+				// recover up to rparen
+				skip_to(p, TRPAREN);
+			}
+		}
 	}
 	expect(p, TRPAREN);
 
