@@ -459,7 +459,7 @@ static struct node *parse_func(Parser *p) {
 		Token tok = p->tok;
 		expect(p, TIDENT);
 		Type *ty = parse_type(p);
-		arrput(f->children, makedecl(p, tok, NULL, ty));
+		arrput(f->args, makedecl(p, tok, NULL, ty));
 		if (p->tok.type != TRPAREN) {
 			if (!expect(p, TCOMMA))
 				// recover up to rparen

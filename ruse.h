@@ -140,7 +140,8 @@ struct node {
 	long num;
 	struct node *decl;   // declaration node of this lvalue
 	struct node *parent; // for memberexpr
-	struct node **children; // func args, struct fields
+	struct node **args;  // func args
+	struct node **children; // func body, struct fields
 	struct type *type; // TODO: should be separate from typeexpr?
 	struct node *lhs;
 	struct node *rhs; // assign expr

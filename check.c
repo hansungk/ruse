@@ -216,6 +216,9 @@ static void check_decl(Context *ctx, struct node *n) {
 		n->type->members = orig_ty->members;
 		break;
 	case NFUNC:
+		// TODO: func args decl
+		// assert(!"TODO");
+
 		push_scope(ctx);
 		for (long i = 0; i < arrlen(n->children); i++) {
 			check(ctx, n->children[i]);
