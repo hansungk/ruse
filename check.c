@@ -87,11 +87,12 @@ void pop_scope(Context *ctx) {
 	// TODO: typescope
 }
 
-// Pushes a variable to the current scope.  `n` should be a declaration.
-struct node *push_var(Context *ctx, struct node *n) {
+// Declare 'n' in the current scope.  'n' can be a variable or a function.
+struct node *declare(Context *ctx, struct node *n) {
 	if (!mapput(&ctx->scope->map, n->tok.name, n)) {
 		char buf[TOKLEN];
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
+		// FIXME: should this be done in the caller?
 		error(ctx, n->tok.loc, "'%s' is already declared", buf);
 		return NULL;
 	}
@@ -146,11 +147,9 @@ static void check_expr(Context *ctx, struct node *n) {
 		n->type = ty_int;
 		break;
 	case NIDEXPR:
-		decl = lookup_var(ctx, n);
-		if (!decl) {
-			error(ctx, n->tok.loc, "undeclared variable '%s'", buf);
-			return;
-		}
+		if (!(decl = lookup_var(ctx, n)))
+			return error(ctx, n->tok.loc,
+			             "undeclared variable '%s'", buf);
 		n->decl = decl;
 		n->type = decl->type;
 		break;
@@ -192,7 +191,7 @@ static void check_expr(Context *ctx, struct node *n) {
 static void check_decl(Context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NVAR:
-		if (!(n->decl = push_var(ctx, n)))
+		if (!(n->decl = declare(ctx, n)))
 			return;
 		if (!n->type) {
 			// when there was no explicit type specification, e.g. var i = 4
@@ -216,8 +215,8 @@ static void check_decl(Context *ctx, struct node *n) {
 		n->type->members = orig_ty->members;
 		break;
 	case NFUNC:
-		// TODO: func args decl
-		// assert(!"TODO");
+		if (!declare(ctx, n))
+			return;
 
 		push_scope(ctx);
 		// declare argument variables

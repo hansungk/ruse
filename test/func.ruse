@@ -1,12 +1,17 @@
 // fail
 
-func wrong(a int a) int { // error
+func p(a int a) int { // error
+    a
 }
 
 func f(a int) int {
     a
 }
 
+func f() int { // error
+}
+
 func main() int {
+    f
     f() // error
 }
