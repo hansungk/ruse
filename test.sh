@@ -29,9 +29,9 @@ _errordiff() {
     grep -n "// error" $1 | cut -d':' -f1 >$truthlinefile
     if diff $outputlinefile $truthlinefile
     then
-        _pass $1
+        _pass "$1"
     else
-        _fail $1
+        _fail "$1"
     fi
 }
 
@@ -48,11 +48,13 @@ _test() {
 
     if [ $? -ne $ret ]
     then
-        _fail $1
+        _fail "$1"
     else
-        _errordiff $1
+        _errordiff "$1"
     fi
 }
+
+[ -n "$1" ] && _test "$1" && exit
 
 _test test/simple.ruse
 _test test/decl.ruse
