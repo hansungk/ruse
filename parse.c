@@ -146,16 +146,16 @@ static void next(Parser *p) {
 }
 
 static void error(Parser *p, const char *fmt, ...) {
-	static char msg[1024];
+	struct Error e;
 	va_list args;
 
+	e.loc = p->tok.loc;
 	va_start(args, fmt);
-	vsnprintf(msg, sizeof(msg), fmt, args);
+	int len = vsnprintf(e.msg, sizeof(e.msg), fmt, args);
 	va_end(args);
+	assert(len < (int)sizeof(e.msg));
 
-	fprintf(stderr, "%s:%d:%d: error: %s\n", p->tok.loc.filename, p->tok.loc.line,
-	        p->tok.loc.col, msg);
-	exit(EXIT_FAILURE);
+	arrput(p->errors, e);
 }
 
 static void skip_while(Parser *p, enum TokenType type) {

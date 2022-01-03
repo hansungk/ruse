@@ -131,6 +131,7 @@ enum NodeKind {
 };
 
 typedef struct node Node;
+typedef struct Error Error;
 typedef struct Parser Parser;
 
 struct node {
@@ -139,7 +140,7 @@ struct node {
 	long num;
 	struct node *decl;   // declaration node of this lvalue
 	struct node *parent; // for memberexpr
-	struct node **children;
+	struct node **children; // func args, struct fields
 	struct type *type; // TODO: should be separate from typeexpr?
 	struct node *lhs;
 	struct node *rhs; // assign expr
@@ -147,11 +148,17 @@ struct node {
 	struct type *rettype;
 };
 
+struct Error {
+	struct SrcLoc loc;
+	char msg[1024];
+};
+
 // Source text = ['tok' 'lookahead...' ...unlexed...]
 struct Parser {
     Lexer l;           // lexer driven by this parser
     Token tok;         // current token
     Token *lookahead;  // lookahead tokens
+    Error *errors;     // parse errors
     struct node **nodeptrbuf; // pointers to the allocated nodes
 };
 
@@ -179,7 +186,6 @@ enum DeclKind {
 typedef struct type Type;
 typedef struct Decl Decl;
 typedef struct Scope Scope;
-typedef struct Error Error;
 typedef struct Context Context;
 
 struct type {
@@ -198,11 +204,6 @@ struct Scope {
     struct Scope *outer;
 };
 
-struct Error {
-	struct SrcLoc loc;
-	char msg[1024];
-};
-
 struct Context {
 	Source *src;
 	Scope *scope;
@@ -217,7 +218,7 @@ struct Context {
 void context_init(Context *ctx, Source *src);
 void context_free(Context *ctx);
 void check(Context *ctx, struct node *v);
-void do_errors(Context *c);
+void do_errors(const Error *errors);
 
 void codegen(Context *ctx, struct node *n);
 

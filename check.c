@@ -24,13 +24,13 @@ static void error(Context *ctx, struct SrcLoc loc, const char *fmt, ...) {
 	arrput(ctx->errors, e);
 }
 
-void do_errors(Context *ctx) {
-	for (long i = 0; i < arrlen(ctx->errors); i++) {
-		struct Error e = ctx->errors[i];
-		fprintf(stderr, "%s:%d:%d: error: %s\n",
-		        e.loc.filename, e.loc.line, e.loc.col, e.msg);
+void do_errors(const Error *errors) {
+	for (long i = 0; i < arrlen(errors); i++) {
+		struct Error e = errors[i];
+		fprintf(stderr, "%s:%d:%d: error: %s\n", e.loc.filename,
+		        e.loc.line, e.loc.col, e.msg);
 	}
-	if (arrlen(ctx->errors))
+	if (arrlen(errors))
 		exit(EXIT_FAILURE);
 }
 
@@ -210,6 +210,14 @@ static void check_decl(Context *ctx, struct node *n) {
 		// TODO: generalize this for other members of struct Type
 		n->type->members = orig_ty->members;
 		break;
+	case NFUNC:
+		assert(0);
+		push_scope(ctx);
+		for (long i = 0; i < arrlen(n->children); i++) {
+			check(ctx, n->children[i]);
+		}
+		pop_scope(ctx);
+		break;
 	case NSTRUCT:
 		push_type(ctx, n->type);
 		for (long i = 0; i < arrlen(n->children); i++) {
@@ -254,13 +262,6 @@ void check(Context *ctx, struct node *n) {
 		for (long i = 0; i < arrlen(n->children); i++) {
 			check(ctx, n->children[i]);
 		}
-		break;
-	case NFUNC:
-		push_scope(ctx);
-		for (long i = 0; i < arrlen(n->children); i++) {
-			check(ctx, n->children[i]);
-		}
-		pop_scope(ctx);
 		break;
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {
