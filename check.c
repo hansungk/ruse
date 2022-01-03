@@ -220,6 +220,10 @@ static void check_decl(Context *ctx, struct node *n) {
 		// assert(!"TODO");
 
 		push_scope(ctx);
+		// declare argument variables
+		for (long i = 0; i < arrlen(n->args); i++) {
+			check(ctx, n->args[i]);
+		}
 		for (long i = 0; i < arrlen(n->children); i++) {
 			check(ctx, n->children[i]);
 		}
