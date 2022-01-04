@@ -298,12 +298,13 @@ static struct node *parse_unaryexpr(Parser *p) {
 	// now try to parse any trailing . or ()
 	while (p->tok.type == TDOT || p->tok.type == TLPAREN) {
 		if (p->tok.type == TDOT) {
+			tok = p->tok;
 			next(p);
 			// swap parent with child
-			e = makemember(p, p->tok, e);
+			e = makemember(p, tok, e);
 			expect(p, TIDENT);
 		} else {
-			next(p);
+			expect(p, TLPAREN);
 			// swap parent with child
 			struct node **args = parse_callargs(p);
 			e = makecall(p, e, args);
@@ -330,7 +331,7 @@ static int get_precedence(const Token op) {
 // Parse (op binary)* part of the production.
 //
 // BinaryExpr:
-//	 UnaryExpr (op BinaryExpr)*
+//     UnaryExpr (op BinaryExpr)*
 //
 // Return the pointer to the node respresenting the reduced binary expression.
 // If this is not a binary expression, just return 'lhs' as-is.

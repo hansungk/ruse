@@ -101,7 +101,7 @@ struct node *declare(Context *ctx, struct node *n) {
 
 // Finds the declaration node that first declared the variable referenced by
 // 'n'.
-struct node *lookup_var(Context *ctx, struct node *n) {
+struct node *lookup(Context *ctx, struct node *n) {
 	struct Scope *s = ctx->scope;
 	while (s) {
 		struct node *found = mapget(&s->map, n->tok.name);
@@ -147,7 +147,7 @@ static void check_expr(Context *ctx, struct node *n) {
 		n->type = ty_int;
 		break;
 	case NIDEXPR:
-		if (!(decl = lookup_var(ctx, n)))
+		if (!(decl = lookup(ctx, n)))
 			return error(ctx, n->tok.loc,
 			             "undeclared variable '%s'", buf);
 		n->decl = decl;
@@ -156,8 +156,15 @@ static void check_expr(Context *ctx, struct node *n) {
 	case NBINEXPR:
 		check_expr(ctx, n->lhs);
 		check_expr(ctx, n->rhs);
+		if (!n->lhs->type || !n->rhs->type)
+			return;
 		break;
 	case NCALL:
+		check_expr(ctx, n->lhs);
+		if (!n->lhs->type)
+			return;
+		assert(!"TODO: check type of args");
+		// NOTE: function name is a node (n->lhs), not a token!
 		for (long i = 0; i < arrlen(n->children); i++) {
 			check_expr(ctx, n->children[i]);
 		}

@@ -136,13 +136,13 @@ typedef struct Parser Parser;
 
 struct node {
 	enum NodeKind kind;
-	Token tok;
-	long num;
-	struct node *decl;   // declaration node of this lvalue
-	struct node *parent; // for memberexpr
-	struct node **args;  // func args
+	Token tok;         // name of var or func. etc.
+	struct node *decl; // declaration of this value, e.g. original function
+	                   // declaration
+	struct node *parent;    // for memberexpr
+	struct node **args;     // func args
 	struct node **children; // func body, struct fields
-	struct type *type; // TODO: should be separate from typeexpr?
+	struct type *type;      // TODO: should be separate from typeexpr?
 	struct node *lhs;
 	struct node *rhs; // assign expr
 	// functions
