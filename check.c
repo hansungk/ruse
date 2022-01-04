@@ -48,6 +48,7 @@ static void freescope(struct Scope *s) {
 static void init_builtin_types(Context *ctx) {
 	// FIXME: free(ty_int)
 	ty_int = calloc(1, sizeof(Type));
+	ty_int->kind = TYVAL;
 	ty_int->tok = (Token){.type = TINT, .name = "int"};
 	push_type(ctx, ty_int);
 }
@@ -160,11 +161,12 @@ static void check_expr(Context *ctx, struct node *n) {
 			return;
 		break;
 	case NCALL:
+		// callee name is a node (n->lhs), not a token!
 		check_expr(ctx, n->lhs);
 		if (!n->lhs->type)
 			return;
+		assert(n->lhs->decl->kind == NFUNC);
 		assert(!"TODO: check type of args");
-		// NOTE: function name is a node (n->lhs), not a token!
 		for (long i = 0; i < arrlen(n->children); i++) {
 			check_expr(ctx, n->children[i]);
 		}
@@ -234,8 +236,11 @@ static void check_decl(Context *ctx, struct node *n) {
 			check(ctx, n->children[i]);
 		}
 		pop_scope(ctx);
+
+		assert(!"TODO: assign func type");
 		break;
 	case NSTRUCT:
+		n->type = maketype(TYVAL, n->tok);
 		push_type(ctx, n->type);
 		for (long i = 0; i < arrlen(n->children); i++) {
 			struct node *child = n->children[i];

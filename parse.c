@@ -35,10 +35,8 @@ static struct node *makefunc(Parser *p, Token name) {
 	return n;
 }
 
-static struct node *makestruct(Parser *p, Token name,
-                               Type *type) {
+static struct node *makestruct(Parser *p, Token name) {
 	struct node *n = makenode(p, NSTRUCT, name);
-	n->type = type;
 	return n;
 }
 
@@ -67,7 +65,7 @@ static struct node *makemember(Parser *p, Token member,
 	return n;
 }
 
-static struct node *makedecl(Parser *p, Token name,
+static struct node *makevardecl(Parser *p, Token name,
                              struct node *initexpr, Type *type) {
 	struct node *n = makenode(p, NVAR, name);
 	n->rhs = initexpr;
@@ -95,12 +93,13 @@ static struct node *makeassign(Parser *p, struct node *lhs,
 	return n;
 }
 
-static Type *maketype(Parser *p, Token tok) {
+Type *maketype(enum TypeKind kind, Token tok) {
 	Type *t = calloc(1, sizeof(struct node));
 	if (!t) {
 		fprintf(stderr, "alloc error\n");
 		exit(1);
 	}
+	t->kind = kind;
 	t->tok = tok;
 	// arrput(p->nodeptrbuf, node); // FIXME
 	return t;
@@ -233,7 +232,7 @@ static struct node *parse_vardecl(Parser *p) {
 		rhs = parse_expr(p);
 	}
 
-	return makedecl(p, name, rhs, ty);
+	return makevardecl(p, name, rhs, ty);
 }
 
 static struct node *parse_blockstmt(Parser *p) {
@@ -444,7 +443,7 @@ static Type *parse_type(Parser *p) {
 	} else {
 		error(p, "expected a type (TODO)");
 	}
-	return maketype(p, tok);
+	return maketype(TYVAL, tok);
 }
 
 static struct node *parse_func(Parser *p) {
@@ -460,10 +459,10 @@ static struct node *parse_func(Parser *p) {
 		Token tok = p->tok;
 		expect(p, TIDENT);
 		Type *ty = parse_type(p);
-		arrput(f->args, makedecl(p, tok, NULL, ty));
+		arrput(f->args, makevardecl(p, tok, NULL, ty));
 		if (p->tok.type != TRPAREN) {
 			if (!expect(p, TCOMMA))
-				// recover up to rparen
+				// recover error
 				skip_to(p, TRPAREN);
 		}
 	}
@@ -491,8 +490,7 @@ static struct node *parse_func(Parser *p) {
 static struct node *parse_struct(Parser *p) {
 	expect(p, TSTRUCT);
 
-	Type *ty = maketype(p, p->tok);
-	struct node *s = makestruct(p, p->tok, ty);
+	struct node *s = makestruct(p, p->tok);
 	next(p);
 
 	expect(p, TLBRACE);
@@ -502,7 +500,8 @@ static struct node *parse_struct(Parser *p) {
 		Token tok = p->tok;
 		expect(p, TIDENT);
 		Type *ty = parse_type(p);
-		arrput(s->children, makedecl(p, tok, NULL, ty));
+		struct node *field = makevardecl(p, tok, NULL, ty);
+		arrput(s->children, field);
 		skip_newlines(p);
 	}
 	expect(p, TRBRACE);

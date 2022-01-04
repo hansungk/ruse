@@ -189,7 +189,13 @@ typedef struct Decl Decl;
 typedef struct Scope Scope;
 typedef struct Context Context;
 
+enum TypeKind {
+	TYVAL,
+	TYFUNC,
+};
+
 struct type {
+	enum TypeKind kind;
 	struct Token tok;
 	struct node **members;
 };
@@ -216,6 +222,7 @@ struct Context {
 	} valstack;
 };
 
+Type *maketype(enum TypeKind kind, Token tok);
 void context_init(Context *ctx, Parser *p);
 void context_free(Context *ctx);
 void check(Context *ctx, struct node *v);
