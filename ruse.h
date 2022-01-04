@@ -197,6 +197,7 @@ enum TypeKind {
 struct type {
 	enum TypeKind kind;
 	struct Token tok;
+	struct node **params;
 	struct node **members;
 };
 

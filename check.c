@@ -165,7 +165,12 @@ static void check_expr(Context *ctx, struct node *n) {
 		check_expr(ctx, n->lhs);
 		if (!n->lhs->type)
 			return;
-		assert(n->lhs->decl->kind == NFUNC);
+		assert(n->lhs->type->kind == TYFUNC);
+		if (arrlen(n->lhs->type->params) != arrlen(n->children))
+			return error(ctx, n->lhs->tok.loc,
+			             "argument mismatch: expected %ld, got %ld",
+			             arrlen(n->lhs->type->params),
+			             arrlen(n->children));
 		assert(!"TODO: check type of args");
 		for (long i = 0; i < arrlen(n->children); i++) {
 			check_expr(ctx, n->children[i]);
@@ -226,22 +231,27 @@ static void check_decl(Context *ctx, struct node *n) {
 	case NFUNC:
 		if (!declare(ctx, n))
 			return;
+		n->type = maketype(TYFUNC, n->tok);
 
 		push_scope(ctx);
-		// declare argument variables
+		// declare arguments
 		for (long i = 0; i < arrlen(n->args); i++) {
 			check(ctx, n->args[i]);
+			if (n->args[i]->type)
+				arrput(n->type->params, n->args[i]);
+			else
+				assert(!"FIXME: what now?");
 		}
+		// check body
 		for (long i = 0; i < arrlen(n->children); i++) {
 			check(ctx, n->children[i]);
 		}
 		pop_scope(ctx);
-
-		assert(!"TODO: assign func type");
 		break;
 	case NSTRUCT:
 		n->type = maketype(TYVAL, n->tok);
 		push_type(ctx, n->type);
+		// fields
 		for (long i = 0; i < arrlen(n->children); i++) {
 			struct node *child = n->children[i];
 			check_decl(ctx, child);
