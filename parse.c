@@ -297,10 +297,9 @@ static struct node *parse_unaryexpr(Parser *p) {
 	// now try to parse any trailing . or ()
 	while (p->tok.type == TDOT || p->tok.type == TLPAREN) {
 		if (p->tok.type == TDOT) {
-			tok = p->tok;
 			next(p);
 			// swap parent with child
-			e = makemember(p, tok, e);
+			e = makemember(p, p->tok, e);
 			expect(p, TIDENT);
 		} else {
 			expect(p, TLPAREN);
