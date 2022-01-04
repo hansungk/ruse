@@ -14,4 +14,5 @@ func f() int { // error
 func main() int {
     f
     f() // error
+    f(1, 1) // error
 }
