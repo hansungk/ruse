@@ -165,15 +165,21 @@ static void check_expr(Context *ctx, struct node *n) {
 		check_expr(ctx, n->lhs);
 		if (!n->lhs->type)
 			return;
-		assert(n->lhs->type->kind == TYFUNC);
+		if (n->lhs->type->kind != TYFUNC) {
+			tokenstr(ctx->src->buf, n->lhs->tok, buf, sizeof(buf));
+			return error(ctx, n->lhs->tok.loc,
+			             "'%s' is not a function", buf);
+		}
 		if (arrlen(n->lhs->type->params) != arrlen(n->children))
 			return error(ctx, n->lhs->tok.loc,
 			             "argument mismatch: expected %ld, got %ld",
 			             arrlen(n->lhs->type->params),
 			             arrlen(n->children));
-		assert(!"TODO: check type of args");
 		for (long i = 0; i < arrlen(n->children); i++) {
 			check_expr(ctx, n->children[i]);
+			if (!n->children[i]->type)
+				break;
+			assert(!"TODO: type compatibility check");
 		}
 		break;
 	case NMEMBER:
