@@ -18,59 +18,59 @@ struct Source {
 };
 
 struct SrcRange {
-    size_t start; // start position in the source
-    size_t end;   // end position in the source
+	size_t start; // start position in the source
+	size_t end;   // end position in the source
 };
 
 // Represents a unique location (file:line:col) in the source.
 struct SrcLoc {
-    const char *filename;
-    int line;
-    int col;
+	const char *filename;
+	int line;
+	int col;
 };
 
 enum TokenType {
-    TEOF = '\0',
-    TNEWLINE = '\n',
-    TLPAREN = '(',
-    TRPAREN = ')',
-    TDOT = '.',
-    TCOMMA = ',',
-    TCOLON = ':',
-    TEQUAL = '=',
-    TPLUS = '+',
-    TMINUS = '-',
-    TSTAR = '*',
-    TSLASH = '/',
-    TSEMICOLON = ';',
-    TQUOTE = '\'',
-    TLBRACE = '{',
-    TRBRACE = '}',
-    TASCII = 256,
+	TEOF = '\0',
+	TNEWLINE = '\n',
+	TLPAREN = '(',
+	TRPAREN = ')',
+	TDOT = '.',
+	TCOMMA = ',',
+	TCOLON = ':',
+	TEQUAL = '=',
+	TPLUS = '+',
+	TMINUS = '-',
+	TSTAR = '*',
+	TSLASH = '/',
+	TSEMICOLON = ';',
+	TQUOTE = '\'',
+	TLBRACE = '{',
+	TRBRACE = '}',
+	TASCII = 256,
 
-    TNUM,
-    TIDENT,
-    TSTRING,
-    TCOMMENT,
-    TARROW,
+	TNUM,
+	TIDENT,
+	TSTRING,
+	TCOMMENT,
+	TARROW,
 
-    TKEYWORDS,
-    TVAR,
-    TCONST,
-    TFUNC,
-    TSTRUCT,
-    TRETURN,
+	TKEYWORDS,
+	TVAR,
+	TCONST,
+	TFUNC,
+	TSTRUCT,
+	TRETURN,
 	TINT,
 
-    TERR,
-    NUM_TOKENTYPES
+	TERR,
+	NUM_TOKENTYPES
 };
 
 extern char *token_names[NUM_TOKENTYPES];
 
 struct TokenMap {
-    char *text;
-    enum TokenType type;
+	char *text;
+	enum TokenType type;
 };
 
 typedef struct Token Token;
@@ -79,8 +79,8 @@ typedef struct Lexer Lexer;
 // Making Tokens store source ranges instead of string memory blocks makes
 // passing them around easy.
 struct Token {
-    enum TokenType type;
-    struct SrcRange range;
+	enum TokenType type;
+	struct SrcRange range;
 	struct SrcLoc loc;
 	char *name;
 };
@@ -156,11 +156,11 @@ struct Error {
 
 // Source text = ['tok' 'lookahead...' ...unlexed...]
 struct Parser {
-    Lexer l;           // lexer driven by this parser
-    Token tok;         // current token
-    Token *lookahead;  // lookahead tokens
-    Error *errors;     // parse errors
-    struct node **nodeptrbuf; // pointers to the allocated nodes
+	Lexer l;                  // lexer driven by this parser
+	Token tok;                // current token
+	Token *lookahead;         // lookahead tokens
+	Error *errors;            // parse errors
+	struct node **nodeptrbuf; // pointers to the allocated nodes
 };
 
 void parser_from_file(Parser *p, const char *filename);
@@ -181,7 +181,7 @@ int mapput(Map *m, const char *str, void *data);
 void *mapget(struct Map *m, const char *str);
 
 enum DeclKind {
-    D_NUM,
+	D_NUM,
 };
 
 typedef struct type Type;
@@ -199,17 +199,18 @@ struct type {
 	struct Token tok;
 	struct node **params;
 	struct node **members;
+	Type *rettype;
 };
 
 struct Decl {
-    enum DeclKind kind;
-    Token name;
-    double num;
+	enum DeclKind kind;
+	Token name;
+	double num;
 };
 
 struct Scope {
-    struct Map map;
-    struct Scope *outer;
+	struct Map map;
+	struct Scope *outer;
 };
 
 struct Context {
