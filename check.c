@@ -238,6 +238,10 @@ static void check_decl(Context *ctx, struct node *n) {
 		if (!declare(ctx, n))
 			return;
 		n->type = maketype(TYFUNC, n->tok);
+		n->type->rettype = lookup_type(ctx, n->rettype->tok.name);
+		if (!n->type->rettype)
+			return error(ctx, n->rettype->tok.loc,
+			             "unknown type '%s'", n->rettype->tok.name);
 
 		push_scope(ctx);
 		// declare arguments
@@ -253,6 +257,8 @@ static void check_decl(Context *ctx, struct node *n) {
 			check(ctx, n->children[i]);
 		}
 		pop_scope(ctx);
+
+		// TODO: check return stmts
 		break;
 	case NSTRUCT:
 		n->type = maketype(TYVAL, n->tok);
