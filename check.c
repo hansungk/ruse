@@ -7,6 +7,7 @@
 #include <string.h>
 
 static Type *ty_int;
+static Type *ty_string;
 
 static Type *push_type(Context *ctx, Type *ty);
 
@@ -46,11 +47,15 @@ static void freescope(struct Scope *s) {
 }
 
 static void init_builtin_types(Context *ctx) {
-	// FIXME: free(ty_int)
+	// FIXME: free(ty_int), calloc() check
 	ty_int = calloc(1, sizeof(Type));
 	ty_int->kind = TYVAL;
 	ty_int->tok = (Token){.type = TINT, .name = "int"};
 	push_type(ctx, ty_int);
+	ty_string = calloc(1, sizeof(Type));
+	ty_string->kind = TYVAL;
+	ty_string->tok = (Token){.type = TSTRING_, .name = "string"};
+	push_type(ctx, ty_string);
 }
 
 // NOTE: This *has* to be called after parse(), as it copies over the error

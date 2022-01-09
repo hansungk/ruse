@@ -61,6 +61,7 @@ enum TokenType {
 	TSTRUCT,
 	TRETURN,
 	TINT,
+	TSTRING_,
 
 	TERR,
 	NUM_TOKENTYPES
