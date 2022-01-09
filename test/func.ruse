@@ -4,7 +4,7 @@ func p(a int a) int { // error
     a
 }
 
-func f(a int) int {
+func f(a int) intx {
     a
 }
 

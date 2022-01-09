@@ -100,14 +100,16 @@ static void maketoken(Lexer *l, enum TokenType type) {
 static void lex_ident_or_keyword(Lexer *l) {
 	// multi-char keywords
 	for (const struct TokenMap *m = &keywords[0]; m->text != NULL; m++) {
-		for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i);
-		     i++) {
-			if (m->text[i] == '\0') {
-				consume(l, i);
-				maketoken(l, m->type);
-				l->tok.name = m->text;
-				return;
-			}
+		int i = 0;
+		for (; m->text[i] != '\0' && m->text[i] == lookn(l, i); i++)
+			; // nothing
+		// both candidate and token have terminated
+		if (m->text[i] == '\0' && !isalnum(lookn(l, i)) &&
+		    lookn(l, i) != '_') {
+			consume(l, i);
+			maketoken(l, m->type);
+			l->tok.name = m->text;
+			return;
 		}
 	}
 
