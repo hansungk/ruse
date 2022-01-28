@@ -1,5 +1,0 @@
-def fibo(a int, b int) int
-    var a = 3
-    var b = 4
-    fibo(a - 1) + fibo(a - 2)
-end
