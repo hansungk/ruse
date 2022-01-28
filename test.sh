@@ -54,6 +54,11 @@ _test() {
     fi
 }
 
+if ! [ -x "ruse" ]; then
+    echo "ruse not built"
+    exit 1
+fi
+
 [ -n "$1" ] && _test "$1" && exit
 
 _test test/simple.ruse
