@@ -1,12 +1,8 @@
+CFLAGS += -g -std=c11 -Wall -Wextra -Wno-unused-function
+CFLAGS += -fsanitize=address,leak,undefined
 PROG := ruse
 SRCS := main.c codegen.c check.c parse.c lex.c map.c
 OBJS := $(SRCS:.c=.o)
-
-CFLAGS += -g -std=c11 -Wall -Wextra -Wno-unused-function
-UNAME := $(shell uname)
-ifeq ($(UNAME), Linux)
-	CFLAGS += -fsanitize=address,leak,undefined
-endif
 
 all: $(PROG)
 
