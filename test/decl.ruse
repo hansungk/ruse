@@ -8,6 +8,7 @@ func main() int {
 
     {
         var c int
+        a + b + c
     }
     c // error
 }
