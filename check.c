@@ -46,7 +46,7 @@ static void freescope(struct Scope *s) {
 	free(s);
 }
 
-static void init_builtin_types(Context *ctx) {
+static void setup_builtin_types(Context *ctx) {
 	// FIXME: free(ty_int), calloc() check
 	ty_int = calloc(1, sizeof(Type));
 	ty_int->kind = TYVAL;
@@ -69,7 +69,7 @@ void context_init(Context *ctx, Parser *p) {
 	for (long i = 0; i < arrlen(p->errors); i++) {
 		arrput(ctx->errors, p->errors[i]);
 	}
-	init_builtin_types(ctx);
+	setup_builtin_types(ctx);
 }
 
 void context_free(Context *ctx) {
@@ -243,10 +243,15 @@ static void check_decl(Context *ctx, struct node *n) {
 		if (!declare(ctx, n))
 			return;
 		n->type = maketype(TYFUNC, n->tok);
-		n->type->rettype = lookup_type(ctx, n->rettype->tok.name);
-		if (!n->type->rettype)
-			return error(ctx, n->rettype->tok.loc,
-			             "unknown type '%s'", n->rettype->tok.name);
+		// !n->rettype is possible for void return type
+		if (n->rettype) {
+			n->type->rettype =
+			    lookup_type(ctx, n->rettype->tok.name);
+			if (!n->type->rettype)
+				return error(ctx, n->rettype->tok.loc,
+				             "unknown type '%s'",
+				             n->rettype->tok.name);
+		}
 
 		push_scope(ctx);
 		// declare arguments

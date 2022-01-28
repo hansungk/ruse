@@ -103,7 +103,7 @@ static void lex_ident_or_keyword(Lexer *l) {
 		int i = 0;
 		for (; m->text[i] != '\0' && m->text[i] == lookn(l, i); i++)
 			; // nothing
-		// both candidate and token have terminated
+		// check both candidate and token have terminated
 		if (m->text[i] == '\0' && !isalnum(lookn(l, i)) &&
 		    lookn(l, i) != '_') {
 			consume(l, i);
@@ -114,9 +114,8 @@ static void lex_ident_or_keyword(Lexer *l) {
 	}
 
 	// no keyword match, parse as an identifier
-	while (isalnum(l->ch) || l->ch == '_') {
+	while (isalnum(l->ch) || l->ch == '_')
 		step(l);
-	}
 	maketoken(l, TIDENT);
 	long len = l->off - l->start;
 	l->tok.name = calloc(len + 1, sizeof(char));
