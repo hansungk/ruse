@@ -71,51 +71,57 @@ static void emit(char *c, ...) {
 #endif
 }
 
-static int valstack_push_and_incr(Context *ctx) {
+static int valstack_push(Context *ctx) {
     arrput(ctx->valstack.data, ctx->valstack.curr_id);
     return ctx->valstack.curr_id++;
 }
 
 static void codegen_expr(Context *ctx, struct node *n) {
-    char buf[TOKLEN]; // FIXME: stack usage
-    int id_lhs, id_rhs;
+	char buf[TOKLEN]; // FIXME: stack usage
+	int id_lhs, id_rhs;
 
-    tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
+	tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
 
-    switch (n->kind) {
-    case NLITERAL:
-        emit("    %%_%d =w add 0, %s\n", ctx->valstack.curr_id, buf);
-        valstack_push_and_incr(ctx);
-        break;
-    case NIDEXPR:
-        emit("    %%_%d =w add 0, %%%s\n", ctx->valstack.curr_id, buf);
-        valstack_push_and_incr(ctx);
-        break;
-    case NBINEXPR:
-        codegen_expr(ctx, n->lhs);
-        codegen_expr(ctx, n->rhs);
+	switch (n->kind) {
+	case NLITERAL:
+		emit("    %%_%d =w add 0, %s\n", ctx->valstack.curr_id, buf);
+		valstack_push(ctx);
+		break;
+	case NIDEXPR:
+		// TODO: will have to decide whether we want to generate load or
+		// not here.
+		emit("    %%_%d =w loadw %%A%d\n", ctx->valstack.curr_id,
+		     n->decl->id);
+		valstack_push(ctx);
+		break;
+	case NBINEXPR:
+		codegen_expr(ctx, n->lhs);
+		codegen_expr(ctx, n->rhs);
 
-        // 'id_rhs' comes first because lhs is pushed to the stack first
-        // during the post-order traversal.
-        id_rhs = arrpop(ctx->valstack.data);
-        id_lhs = arrpop(ctx->valstack.data);
-        emit("    %%_%d =w add %%_%d, %%_%d\n", ctx->valstack.curr_id,
-             id_lhs, id_rhs);
-        valstack_push_and_incr(ctx);
-        break;
-    default:
-        assert(!"unknown expr kind");
-    }
+		// 'id_rhs' comes first because lhs is pushed to the stack first
+		// during the post-order traversal.
+		id_rhs = arrpop(ctx->valstack.data);
+		id_lhs = arrpop(ctx->valstack.data);
+		emit("    %%_%d =w add %%_%d, %%_%d\n", ctx->valstack.curr_id,
+		     id_lhs, id_rhs);
+		valstack_push(ctx);
+		break;
+	default:
+		assert(!"unknown expr kind");
+	}
 }
 
 static void codegen_decl(Context *ctx, struct node *n) {
+	char buf[TOKLEN];
+
+	tokenstr(ctx->src->buf, n->decl->tok, buf, sizeof(buf));
+
 	switch (n->kind) {
 	case NVAR:
 		n->id = ctx->curr_id++;
 		emit("    %%A%d =l alloc4 4\n", n->id);
 		codegen(ctx, n->rhs);
 		int val_id = arrpop(ctx->valstack.data);
-		// TODO: store here
 		emit("    storew %%_%d, %%A%d\n", val_id, n->id);
 		break;
 	default:
@@ -138,8 +144,8 @@ static void codegen_stmt(Context *ctx, struct node *n) {
              arrpop(ctx->valstack.data));
         break;
     case NRETURN:
-        // codegen(ctx, n->rhs);
-        // emit("    ret %%_%d\n", arrpop(ctx->valstack.data));
+        codegen(ctx, n->rhs);
+        emit("    ret %%_%d\n", arrpop(ctx->valstack.data));
         break;
     default:
         assert(!"unknown stmt kind");
