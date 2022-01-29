@@ -138,6 +138,7 @@ typedef struct Parser Parser;
 struct node {
 	enum NodeKind kind;
 	Token tok;         // name of var or func. etc.
+	int id;            // scope-unique decl id for codegen
 	struct node *decl; // declaration of this value, e.g. original function
 	                   // declaration
 	struct node *parent;    // for memberexpr
@@ -146,7 +147,6 @@ struct node {
 	struct type *type;      // TODO: should be separate from typeexpr?
 	struct node *lhs;
 	struct node *rhs; // assign expr
-	// functions
 	struct type *rettype;
 };
 
@@ -219,9 +219,10 @@ struct Context {
 	Scope *scope;
 	Scope *typescope;
 	Error *errors;
+	int curr_id; // next scope-unique decl id
 	struct Valstack {
 		int curr_id; // next id to be pushed to valstack
-		int *stack;  // stack of the id of expression results
+		int *data;  // stack of the id of expression results
 	} valstack;
 };
 

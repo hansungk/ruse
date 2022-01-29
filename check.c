@@ -74,7 +74,7 @@ void context_init(Context *ctx, Parser *p) {
 
 void context_free(Context *ctx) {
 	freescope(ctx->scope);
-	arrfree(ctx->valstack.stack);
+	arrfree(ctx->valstack.data);
 	// FIXME: free errors[i].msg
 	free(ctx->errors);
 }

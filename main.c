@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 
 	do_errors(ctx.errors);
 
-	// codegen(&ctx, n);
+	codegen(&ctx, n);
 
 	context_free(&ctx);
 	parser_cleanup(&p);

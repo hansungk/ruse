@@ -72,7 +72,7 @@ static void emit(char *c, ...) {
 }
 
 static int valstack_push_and_incr(Context *ctx) {
-    arrput(ctx->valstack.stack, ctx->valstack.curr_id);
+    arrput(ctx->valstack.data, ctx->valstack.curr_id);
     return ctx->valstack.curr_id++;
 }
 
@@ -97,8 +97,8 @@ static void codegen_expr(Context *ctx, struct node *n) {
 
         // 'id_rhs' comes first because lhs is pushed to the stack first
         // during the post-order traversal.
-        id_rhs = arrpop(ctx->valstack.stack);
-        id_lhs = arrpop(ctx->valstack.stack);
+        id_rhs = arrpop(ctx->valstack.data);
+        id_lhs = arrpop(ctx->valstack.data);
         emit("    %%_%d =w add %%_%d, %%_%d\n", ctx->valstack.curr_id,
              id_lhs, id_rhs);
         valstack_push_and_incr(ctx);
@@ -109,13 +109,18 @@ static void codegen_expr(Context *ctx, struct node *n) {
 }
 
 static void codegen_decl(Context *ctx, struct node *n) {
-    char buf[TOKLEN];
-
-	codegen(ctx, n->rhs);
-
-	tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
-	int id = arrpop(ctx->valstack.stack);
-	emit("    %%%s =w add 0, %%_%d\n", buf, id);
+	switch (n->kind) {
+	case NVAR:
+		n->id = ctx->curr_id++;
+		emit("    %%A%d =l alloc4 4\n", n->id);
+		codegen(ctx, n->rhs);
+		int val_id = arrpop(ctx->valstack.data);
+		// TODO: store here
+		emit("    storew %%_%d, %%A%d\n", val_id, n->id);
+		break;
+	default:
+		assert(!"unreachable");
+	}
 }
 
 static void codegen_stmt(Context *ctx, struct node *n) {
@@ -130,11 +135,11 @@ static void codegen_stmt(Context *ctx, struct node *n) {
 		// FIXME
         // tokenstr(ctx->src->buf, n->lhs->decl->name, buf, sizeof(buf));
         emit("    %%%s =w add 0, %%_%d\n", buf,
-             arrpop(ctx->valstack.stack));
+             arrpop(ctx->valstack.data));
         break;
     case NRETURN:
-        codegen(ctx, n->rhs);
-        emit("    ret %%_%d\n", arrpop(ctx->valstack.stack));
+        // codegen(ctx, n->rhs);
+        // emit("    ret %%_%d\n", arrpop(ctx->valstack.data));
         break;
     default:
         assert(!"unknown stmt kind");
