@@ -11,4 +11,6 @@ func main() int {
         a + b + c
     }
     c // error
+
+    return d // error
 }

@@ -304,6 +304,7 @@ static void check_stmt(Context *ctx, struct node *n) {
 		pop_scope(ctx);
 		break;
 	case NRETURN:
+		check_expr(ctx, n->rhs);
 		break;
 	default:
 		assert(!"unknown stmt kind");
