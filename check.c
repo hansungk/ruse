@@ -167,6 +167,8 @@ static void check_expr(Context *ctx, struct node *n) {
 		break;
 	case NREFEXPR:
 		check_expr(ctx, n->rhs);
+		if (!n->rhs->type)
+			return;
 		// TODO: ref things
 		break;
 	case NCALL:
@@ -299,6 +301,8 @@ static void check_stmt(Context *ctx, struct node *n) {
 	case NASSIGN:
 		check_expr(ctx, n->rhs);
 		check_expr(ctx, n->lhs);
+		if (!n->lhs->type || !n->rhs->type)
+			return;
 		break;
 	case NBLOCKSTMT:
 		push_scope(ctx);
@@ -309,6 +313,8 @@ static void check_stmt(Context *ctx, struct node *n) {
 		break;
 	case NRETURN:
 		check_expr(ctx, n->rhs);
+		if (!n->rhs->type)
+			return;
 		break;
 	default:
 		assert(!"unknown stmt kind");
