@@ -42,6 +42,7 @@ enum TokenType {
 	TMINUS = '-',
 	TSTAR = '*',
 	TSLASH = '/',
+	TAMPERSAND = '&',
 	TSEMICOLON = ';',
 	TQUOTE = '\'',
 	TLBRACE = '{',
@@ -116,6 +117,7 @@ enum NodeKind {
 	NLITERAL = NEXPR,
 	NIDEXPR,
 	NBINEXPR,
+	NREFEXPR, // &a
 	NCALL,
 	NMEMBER,
 

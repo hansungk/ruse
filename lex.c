@@ -228,11 +228,10 @@ int lex(Lexer *l) {
 			lex_number(l);
 			return 0;
 		default:
-			if (isalpha(l->ch) || l->ch == '_') {
+			if (isalpha(l->ch) || l->ch == '_')
 				lex_ident_or_keyword(l);
-			} else {
+			else
 				lex_symbol(l);
-			}
 			return 0;
 		}
 	}

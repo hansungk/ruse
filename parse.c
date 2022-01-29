@@ -48,6 +48,12 @@ static struct node *makebinexpr(Parser *p, struct node *lhs, Token op,
 	return n;
 }
 
+static struct node *makerefexpr(Parser *p, struct node *rhs, Token amp) {
+	struct node *n = makenode(p, NREFEXPR, amp);
+	n->rhs = rhs;
+	return n;
+}
+
 static struct node *makecall(Parser *p, struct node *lhs,
                              struct node **args) {
 	struct node *n = makenode(p, NCALL, p->tok /*unused*/);
@@ -288,6 +294,12 @@ static struct node *parse_unaryexpr(Parser *p) {
 		expect(p, TLPAREN);
 		e = parse_expr(p);
 		expect(p, TRPAREN);
+		break;
+	case TAMPERSAND:
+		tok = p->tok;
+		next(p);
+		struct node *rhs = parse_expr(p);
+		e = makerefexpr(p, rhs, tok);
 		break;
 	default:
 		error(p, "expected an expression");

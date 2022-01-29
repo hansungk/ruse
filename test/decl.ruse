@@ -12,5 +12,7 @@ func main() int {
     }
     c // error
 
+    var c = &a
+
     return d // error
 }
