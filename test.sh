@@ -22,6 +22,7 @@ _pass() {
 _fail() {
     _cleanup
     echo "${RED}FAIL${RS} $1"
+    echo "< got, > want"
 }
 
 _errordiff() {
