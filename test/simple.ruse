@@ -6,6 +6,7 @@ func main() int {
     const b int = 4
     a
     &a
+    &d // error
 
     var c intx // error
     b(a, b, c) // error

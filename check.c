@@ -165,6 +165,10 @@ static void check_expr(Context *ctx, struct node *n) {
 		if (!n->lhs->type || !n->rhs->type)
 			return;
 		break;
+	case NREFEXPR:
+		check_expr(ctx, n->rhs);
+		// TODO: ref things
+		break;
 	case NCALL:
 		// callee name is a node (n->lhs), not a token!
 		check_expr(ctx, n->lhs);
