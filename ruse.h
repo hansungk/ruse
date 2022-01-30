@@ -140,16 +140,15 @@ typedef struct Parser Parser;
 
 struct node {
 	enum NodeKind kind;
-	Token tok;         // name of var or func. etc.
-	int id;            // scope-unique decl id for codegen
-	struct node *decl; // declaration of this value, e.g. original function
-	                   // declaration
+	Token tok;              // name of var or func. etc.
+	int id;                 // scope-unique decl id for codegen
+	struct node *decl;      // original declaration of this node
 	struct node *parent;    // for memberexpr
 	struct node **args;     // func args
 	struct node **children; // func body, struct fields
 	struct type *type;      // TODO: should be separate from typeexpr?
 	struct node *lhs;
-	struct node *rhs; // assign expr
+	struct node *rhs;       // assign expr
 	struct type *rettype;
 };
 

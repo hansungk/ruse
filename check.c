@@ -246,6 +246,8 @@ static void check_expr(Context *ctx, struct node *n) {
 static void check_decl(Context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NVAR:
+		// FIXME: This is a little awkward because original declarations would
+		// have 'n == n->decl'.  Maybe make a separate Decl struct?
 		if (!(n->decl = declare(ctx, n)))
 			return;
 		if (!n->type) {
