@@ -1,3 +1,5 @@
+// run 7
+
 func main() int {
     const a = 3
     const b = 4
