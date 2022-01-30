@@ -249,8 +249,20 @@ static void check_expr(Context *ctx, struct node *n) {
 			             n->tok.name, n->parent->type->tok.name);
 		n->type = member_match->type;
 		break;
-	default:
+	case NTYPEEXPR:
+		if (n->typekind == TYVAL) {
+			Type *orig_ty = lookup_type(ctx, n->tok.name);
+			if (!orig_ty)
+				return error(ctx, n->tok.loc,
+				             "unknown type '%s'", n->tok.name);
+			n->type = orig_ty;
+		} else {
+			assert(!"TODO");
+		}
+		assert(n->type);
 		break;
+	default:
+		assert(!"unknown expr kind");
 	}
 }
 
@@ -262,24 +274,15 @@ static void check_decl(Context *ctx, struct node *n) {
 		// separate Decl struct?
 		if (!(n->decl = declare(ctx, n)))
 			return;
-		// If this var was declared with an explicit type specifier, make sure
-		// that node points to the original type node.  This happens because
-		// 'struct type' can mean either an AST node or an actual semantic
-		// type.
-		// FIXME: this is dirty, maybe better to have a separate Type struct
-		// that is different from Node.
-		if (n->type && n->type->kind == TYVAL) {
-			Type *orig_ty = lookup_type(ctx, n->type->tok.name);
-			if (!orig_ty)
-				return error(ctx, n->type->tok.loc, "unknown type '%s'",
-				             n->type->tok.name);
-			n->type = orig_ty;
-			// copy over members from original type object
-			// TODO: generalize this for other members of struct Type
-			n->type->members = orig_ty->members;
+		// vardecl has a type specifier, e.g. var i: int
+		if (n->typeexpr) {
+			check_expr(ctx, n->typeexpr);
+			if (!n->typeexpr->type)
+				return;
+			n->type = n->typeexpr->type;
 		}
 		// infer type from the rhs expression, e.g. var i = 4
-		if (!n->type) {
+		else {
 			assert(n->rhs);
 			check_expr(ctx, n->rhs);
 			if (!n->rhs->type)
