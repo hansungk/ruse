@@ -48,6 +48,12 @@ static struct node *makebinexpr(Parser *p, struct node *lhs, Token op,
 	return n;
 }
 
+static struct node *makederefexpr(Parser *p, struct node *rhs, Token star) {
+	struct node *n = makenode(p, NDEREFEXPR, star);
+	n->rhs = rhs;
+	return n;
+}
+
 static struct node *makerefexpr(Parser *p, struct node *rhs, Token amp) {
 	struct node *n = makenode(p, NREFEXPR, amp);
 	n->rhs = rhs;
@@ -265,6 +271,7 @@ static struct node **parse_callargs(Parser *p) {
 
 static struct node *parse_unaryexpr(Parser *p) {
 	struct node *e = NULL;
+	struct node *rhs;
 	Token tok;
 
 	switch (p->tok.type) {
@@ -283,10 +290,17 @@ static struct node *parse_unaryexpr(Parser *p) {
 		e = parse_expr(p);
 		expect(p, TRPAREN);
 		break;
+	case TSTAR:
+		tok = p->tok;
+		next(p);
+		rhs = parse_expr(p);
+		e = makederefexpr(p, rhs, tok);
+		break;
+		break;
 	case TAMPERSAND:
 		tok = p->tok;
 		next(p);
-		struct node *rhs = parse_expr(p);
+		rhs = parse_expr(p);
 		e = makerefexpr(p, rhs, tok);
 		break;
 	default:

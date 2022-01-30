@@ -117,7 +117,8 @@ enum NodeKind {
 	NLITERAL = NEXPR,
 	NIDEXPR,
 	NBINEXPR,
-	NREFEXPR, // &a
+	NDEREFEXPR, // *expr
+	NREFEXPR, // &expr
 	NCALL,
 	NMEMBER,
 
