@@ -259,22 +259,27 @@ static void check_decl(Context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NVAR:
 		// FIXME: This is a little awkward because original declarations would
-		// have 'n == n->decl'.  Maybe make a separate Decl struct?
+		// have 'n == n->decl'.  Or is this a good thing?  Maybe make a
+		// separate Decl struct?
 		if (!(n->decl = declare(ctx, n)))
 			return;
+		// infer type from the rhs expression, e.g. var i = 4
 		if (!n->type) {
-			// when there was no explicit type specification, e.g. var i = 4
 			assert(n->rhs);
 			check_expr(ctx, n->rhs);
 			if (!n->rhs->type)
 				return;
 			n->type = n->rhs->type;
 		}
-		// n->type might not be the same as the Type object of the original
-		// type declaration, because n->type has been constructed as a new AST
-		// node in the parsing stage.  Therefore we have to be more mindful
-		// when looking up the members.
+		// n->type might not be pointing to the original type declaration node,
+		// because for NVARs with explicit type specifiers, n->type has been
+		// constructed as a new AST node in the parsing stage.  Therefore we
+		// have to do an addtional lookup to really make sure 'n->type' is
+		// pointing to the actual original decl node.
+		// FIXME: This breaks down with pointer types (*a) because they don't
+		// have original decl nodes anyway.
 		assert(n->type);
+		assert(n->type->kind == TYVAL);
 		Type *orig_ty = lookup_type(ctx, n->type->tok.name);
 		if (!orig_ty)
 			return error(ctx, n->type->tok.loc, "unknown type '%s'",

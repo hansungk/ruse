@@ -1,5 +1,6 @@
 func main() int {
     var a int
-    &&a // error
-    *a
+    var b = &a
+    // &&a // error
+    // *a
 }
