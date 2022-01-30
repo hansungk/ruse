@@ -153,6 +153,8 @@ static void codegen_stmt(Context *ctx, struct node *n) {
 }
 
 void codegen(Context *ctx, struct node *n) {
+	assert(n);
+
 	switch (n->kind) {
 	case NFILE:
 		emit("export function w $main() {\n");
