@@ -11,6 +11,25 @@ static Type *ty_string;
 
 static Type *push_type(Context *ctx, Type *ty);
 
+Type *maketype(enum TypeKind kind, Token tok) {
+	Type *t = calloc(1, sizeof(struct node));
+	if (!t) {
+		fprintf(stderr, "alloc error\n");
+		exit(1);
+	}
+	t->kind = kind;
+	t->tok = tok;
+	// arrput(p->nodeptrbuf, node); // FIXME
+	return t;
+}
+
+// FIXME: remove 'tok'
+Type *makeptrtype(Type *target, Token tok) {
+	Type *t = maketype(TYPTR, tok);
+	t->target = target;
+	return t;
+}
+
 // TODO: merge this with the one in parse.c?
 static void error(Context *ctx, struct SrcLoc loc, const char *fmt, ...) {
 	struct Error e;
@@ -169,7 +188,12 @@ static void check_expr(Context *ctx, struct node *n) {
 		check_expr(ctx, n->rhs);
 		if (!n->rhs->type)
 			return;
-		// TODO: ref things
+		// lvalue check
+		if (!n->rhs->decl)
+			return error(ctx, n->tok.loc,
+			             "cannot take reference of a non-lvalue",
+			             buf);
+		n->type = makeptrtype(n->rhs->type, n->tok);
 		break;
 	case NCALL:
 		// callee name is a node (n->lhs), not a token!

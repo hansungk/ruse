@@ -7,6 +7,7 @@ func main() int {
     a
     &a
     &d // error
+    &&a // error
 
     var c intx // error
     b(a, b, c) // error

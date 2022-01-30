@@ -194,6 +194,7 @@ typedef struct Context Context;
 
 enum TypeKind {
 	TYVAL,
+	TYPTR,
 	TYFUNC,
 };
 
@@ -202,6 +203,7 @@ struct type {
 	struct Token tok;
 	struct node **params;
 	struct node **members;
+	Type *target; // referred type
 	Type *rettype;
 };
 

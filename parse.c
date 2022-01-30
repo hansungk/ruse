@@ -99,18 +99,6 @@ static struct node *makeassign(Parser *p, struct node *lhs,
 	return n;
 }
 
-Type *maketype(enum TypeKind kind, Token tok) {
-	Type *t = calloc(1, sizeof(struct node));
-	if (!t) {
-		fprintf(stderr, "alloc error\n");
-		exit(1);
-	}
-	t->kind = kind;
-	t->tok = tok;
-	// arrput(p->nodeptrbuf, node); // FIXME
-	return t;
-}
-
 // Initialize a parser that parses the given filename.
 void parser_from_file(Parser *p, const char *filename) {
 	memset(p, 0, sizeof(Parser));
