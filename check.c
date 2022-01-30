@@ -164,6 +164,7 @@ static void check_expr(Context *ctx, struct node *n) {
 	char buf[TOKLEN];
 	struct node *decl = NULL;
 
+	assert(n);
 	tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
 
 	switch (n->kind) {
@@ -183,6 +184,17 @@ static void check_expr(Context *ctx, struct node *n) {
 		check_expr(ctx, n->rhs);
 		if (!n->lhs->type || !n->rhs->type)
 			return;
+		break;
+	case NDEREFEXPR:
+		check_expr(ctx, n->rhs);
+		if (!n->rhs->type)
+			return;
+		// Declare itself.  Don't put this in the symbol map as we don't need
+		// these temporary decls to be referrable by any specific name.
+		n->decl = n;
+		if (n->rhs->type->kind != TYPTR)
+			return error(ctx, n->tok.loc, "cannot dereference a non-pointer");
+		n->type = n->rhs->type->target;
 		break;
 	case NREFEXPR:
 		check_expr(ctx, n->rhs);
