@@ -292,14 +292,14 @@ static void check_decl(Context *ctx, struct node *n) {
 		if (!declare(ctx, n))
 			return;
 		n->type = maketype(TYFUNC, n->tok);
-		// !n->rettype is possible for void return type
-		if (n->rettype) {
+		// !n->rettypeexpr is possible for void return type
+		if (n->rettypeexpr) {
 			n->type->rettype =
-			    lookup_type(ctx, n->rettype->tok.name);
+			    lookup_type(ctx, n->rettypeexpr->tok.name);
 			if (!n->type->rettype)
-				return error(ctx, n->rettype->tok.loc,
+				return error(ctx, n->rettypeexpr->tok.loc,
 				             "unknown type '%s'",
-				             n->rettype->tok.name);
+				             n->rettypeexpr->tok.name);
 		}
 
 		push_scope(ctx);

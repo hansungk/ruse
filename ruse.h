@@ -122,6 +122,8 @@ enum NodeKind {
 	NCALL,
 	NMEMBER,
 
+	NTYPEEXPR,
+
 	NDECL,
 	NVAR = NDECL,
 	NFUNC,
@@ -138,6 +140,12 @@ typedef struct node Node;
 typedef struct Error Error;
 typedef struct Parser Parser;
 
+enum TypeKind {
+	TYVAL,
+	TYPTR,
+	TYFUNC,
+};
+
 struct node {
 	enum NodeKind kind;
 	Token tok;              // name of var or func. etc.
@@ -146,10 +154,13 @@ struct node {
 	struct node *parent;    // for memberexpr
 	struct node **args;     // func args
 	struct node **children; // func body, struct fields
-	struct type *type;      // TODO: should be separate from typeexpr?
+	struct node *typeexpr;  // ast node of type specifier
+	enum TypeKind typekind;
+	struct type *type; // type of this node.  This being NULL equals the
+	                   // typecheck on this node having failed
 	struct node *lhs;
-	struct node *rhs;       // assign expr
-	struct type *rettype;
+	struct node *rhs; // assign expr
+	struct node *rettypeexpr; // TODO: merge with typeexpr
 };
 
 struct Error {
@@ -191,12 +202,6 @@ typedef struct type Type;
 typedef struct Decl Decl;
 typedef struct Scope Scope;
 typedef struct Context Context;
-
-enum TypeKind {
-	TYVAL,
-	TYPTR,
-	TYFUNC,
-};
 
 struct type {
 	enum TypeKind kind;

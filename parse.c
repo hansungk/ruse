@@ -8,6 +8,7 @@
 
 static struct node *parse_expr(Parser *p);
 static struct node *parse_stmt(Parser *p);
+static struct node *parse_typeexpr(Parser *p);
 static Type *parse_type(Parser *p);
 
 static struct node *makenode(Parser *p, enum NodeKind k, Token tok) {
@@ -77,11 +78,17 @@ static struct node *makemember(Parser *p, Token member,
 	return n;
 }
 
-static struct node *makevardecl(Parser *p, Token name,
-                             struct node *initexpr, Type *type) {
+static struct node *maketypeexpr(Parser *p, enum TypeKind kind, Token tok) {
+	struct node *n = makenode(p, NTYPEEXPR, tok);
+	n->typekind = kind;
+	return n;
+}
+
+static struct node *makevardecl(Parser *p, Token name, struct node *initexpr,
+                                struct node *typeexpr) {
 	struct node *n = makenode(p, NVAR, name);
 	n->rhs = initexpr;
-	n->type = type;
+	n->typeexpr = typeexpr;
 	return n;
 }
 
@@ -221,9 +228,9 @@ static struct node *parse_vardecl(Parser *p) {
 	Token name = p->tok;
 	next(p);
 
-	Type *ty = NULL;
+	struct node *typeexpr = NULL;
 	if (p->tok.type != TEQUAL) {
-		ty = parse_type(p);
+		typeexpr = parse_typeexpr(p);
 	}
 
 	struct node *rhs = NULL;
@@ -232,7 +239,7 @@ static struct node *parse_vardecl(Parser *p) {
 		rhs = parse_expr(p);
 	}
 
-	return makevardecl(p, name, rhs, ty);
+	return makevardecl(p, name, rhs, typeexpr);
 }
 
 static struct node *parse_blockstmt(Parser *p) {
@@ -447,6 +454,18 @@ static struct node *parse_stmt(Parser *p) {
 	return stmt;
 }
 
+static struct node *parse_typeexpr(Parser *p) {
+	Token tok = p->tok;
+	if (p->tok.type == TINT) {
+		expect(p, TINT);
+	} else if (p->tok.type == TIDENT) {
+		expect(p, TIDENT);
+	} else {
+		error(p, "expected a type (TODO)");
+	}
+	return maketypeexpr(p, TYVAL, tok);
+}
+
 static Type *parse_type(Parser *p) {
 	Token tok = p->tok;
 	if (p->tok.type == TINT) {
@@ -471,8 +490,8 @@ static struct node *parse_func(Parser *p) {
 	while (p->tok.type != TRPAREN) {
 		Token tok = p->tok;
 		expect(p, TIDENT);
-		Type *ty = parse_type(p);
-		arrput(f->args, makevardecl(p, tok, NULL, ty));
+		struct node *typeexpr = parse_typeexpr(p);
+		arrput(f->args, makevardecl(p, tok, NULL, typeexpr));
 		if (p->tok.type != TRPAREN) {
 			if (!expect(p, TCOMMA))
 				// recover error
@@ -483,7 +502,7 @@ static struct node *parse_func(Parser *p) {
 
 	// return type
 	if (p->tok.type != TLBRACE)
-		f->rettype = parse_type(p);
+		f->rettypeexpr = parse_typeexpr(p);
 
 	// body
 	expect(p, TLBRACE);
@@ -512,8 +531,8 @@ static struct node *parse_struct(Parser *p) {
 	while (p->tok.type != TRBRACE) {
 		Token tok = p->tok;
 		expect(p, TIDENT);
-		Type *ty = parse_type(p);
-		struct node *field = makevardecl(p, tok, NULL, ty);
+		struct node *typeexpr = parse_typeexpr(p);
+		struct node *field = makevardecl(p, tok, NULL, typeexpr);
 		arrput(s->children, field);
 		skip_newlines(p);
 	}
