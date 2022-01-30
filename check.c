@@ -263,6 +263,22 @@ static void check_decl(Context *ctx, struct node *n) {
 		// separate Decl struct?
 		if (!(n->decl = declare(ctx, n)))
 			return;
+		// If this var was declared with an explicit type specifier, make sure
+		// that node points to the original type node.  This happens because
+		// 'struct type' can mean either an AST node or an actual semantic
+		// type.
+		// FIXME: this is dirty, maybe better to have a separate Type struct
+		// that is different from Node.
+		if (n->type && n->type->kind == TYVAL) {
+			Type *orig_ty = lookup_type(ctx, n->type->tok.name);
+			if (!orig_ty)
+				return error(ctx, n->type->tok.loc, "unknown type '%s'",
+				             n->type->tok.name);
+			n->type = orig_ty;
+			// copy over members from original type object
+			// TODO: generalize this for other members of struct Type
+			n->type->members = orig_ty->members;
+		}
 		// infer type from the rhs expression, e.g. var i = 4
 		if (!n->type) {
 			assert(n->rhs);
@@ -271,22 +287,7 @@ static void check_decl(Context *ctx, struct node *n) {
 				return;
 			n->type = n->rhs->type;
 		}
-		// n->type might not be pointing to the original type declaration node,
-		// because for NVARs with explicit type specifiers, n->type has been
-		// constructed as a new AST node in the parsing stage.  Therefore we
-		// have to do an addtional lookup to really make sure 'n->type' is
-		// pointing to the actual original decl node.
-		// FIXME: This breaks down with pointer types (*a) because they don't
-		// have original decl nodes anyway.
 		assert(n->type);
-		assert(n->type->kind == TYVAL);
-		Type *orig_ty = lookup_type(ctx, n->type->tok.name);
-		if (!orig_ty)
-			return error(ctx, n->type->tok.loc, "unknown type '%s'",
-			             n->type->tok.name);
-		// copy over members from original type object
-		// TODO: generalize this for other members of struct Type
-		n->type->members = orig_ty->members;
 		break;
 	case NFUNC:
 		if (!declare(ctx, n))
