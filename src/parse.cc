@@ -17,7 +17,8 @@ Parser::Parser(Lexer &l, Sema &sema) : lexer{l}, sema(sema) {
 void Parser::error(const std::string &msg) {
     auto srcloc = locate();
     sema.errors.push_back({srcloc, msg});
-    fmt::print(stderr, "{}:{}:{}: {}\n", srcloc.filename, srcloc.line, srcloc.col, msg);
+    fmt::print(stderr, "{}:{}:{}: {}\n", srcloc.filename, srcloc.line,
+               srcloc.col, msg);
     exit(EXIT_FAILURE);
 }
 
@@ -539,10 +540,11 @@ Expr *Parser::parse_funccall_or_declref_expr() {
                     next();
             }
             expect(Tok::rparen);
-            expr = sema.make_node_pos<CallExpr>(pos, CallExpr::func, expr, args);
+            expr =
+                sema.make_node_pos<CallExpr>(pos, CallExpr::func, expr, args);
         } else {
-            // Otherwise, this could be anything between a variable, a struct or a
-            // function, which can only be decided in the type checking stage.
+            // Otherwise, this could be anything between a variable, a struct or
+            // a function, which can only be decided in the type checking stage.
             break;
         }
     }
@@ -693,7 +695,8 @@ Expr *Parser::parse_unary_expr() {
         expect(Tok::lparen);
         auto inside_expr = parse_expr();
         expect(Tok::rparen);
-        return sema.make_node_pos<UnaryExpr>(pos, UnaryExpr::paren, inside_expr);
+        return sema.make_node_pos<UnaryExpr>(pos, UnaryExpr::paren,
+                                             inside_expr);
     }
     // TODO: prefix (++), postfix, sign (+/-)
     default: {
@@ -785,7 +788,8 @@ Expr *Parser::parse_member_expr_maybe(Expr *expr) {
         Name *member_name = push_token_to_name_table(sema, tok);
         next();
 
-        result = sema.make_node_pos<MemberExpr>(result->pos, result, member_name);
+        result =
+            sema.make_node_pos<MemberExpr>(result->pos, result, member_name);
     }
 
     return result;
@@ -906,8 +910,9 @@ AstNode *Parser::parse_toplevel() {
 
     auto stmt = parse_stmt();
     if (!stmt) {
-        error(fmt::format("unexpected '{}' at toplevel",
-                          std::string{tok.start, static_cast<size_t>(tok.end - tok.start)}));
+        error(fmt::format(
+            "unexpected '{}' at toplevel",
+            std::string{tok.start, static_cast<size_t>(tok.end - tok.start)}));
         skip_to_next_line();
         return nullptr;
     }
