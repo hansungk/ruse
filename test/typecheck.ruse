@@ -48,7 +48,7 @@ func main() {
     (car).wheel
     let pa: *int
     let pb: *int
-    pa < pb //~error: nah
+    pa < pb //~error: TODO uncomparable type
 
     // ref and deref
     {
@@ -59,7 +59,7 @@ func main() {
 
         // mutable reference of an immutable variable
         let ii = 4
-        let v = var &ii //~error: cannot borrow 'ii' as mutable because .* declared immutable
+        let v = var &ii //~notused: cannot borrow 'ii' as mutable because .* declared immutable
         struct Val {
             a: int
         }
@@ -70,20 +70,20 @@ func main() {
         *(pcar.wheel) //~error: type '*Car' is not a struct
 
         // TODO: 'a' -> 'val.a'
-        let p = var &val.a //~error: cannot borrow 'a' as mutable because .* declared immutable
+        let p = var &val.a //~notused: cannot borrow 'a' as mutable because .* declared immutable
 
-        // (*p).a //~error: 'p' is an immutable reference
-        // (*m.a).b //~error: 'm.a' is an immutable reference
+        // (*p).a //~notused: 'p' is an immutable reference
+        // (*m.a).b //~notused: 'm.a' is an immutable reference
 
         var imm_ptr: *int
         imm_ptr = var &i
-        *imm_ptr = 3 //~error: 'imm_ptr' is not a mutable reference
-        *(imm_ptr) = 3 //~error: 'imm_ptr' is not a mutable reference
+        *imm_ptr = 3 //~notused: 'imm_ptr' is not a mutable reference
+        *(imm_ptr) = 3 //~notused: 'imm_ptr' is not a mutable reference
         *imm_ptr = car //~error: cannot assign 'Car' type to 'int'
         imm_ptr = &i
         let mut_ptr: var *int
         *mut_ptr = 3
-        mut_ptr = var &i //~error: 'mut_ptr' is not declared as mutable
+        mut_ptr = var &i //~notused: 'mut_ptr' is not declared as mutable
     }
 
     // function calls
@@ -107,9 +107,9 @@ func main() {
 
     // immutability check
     // let c_imm: Car
-    // c_imm = car //~error: 'c_imm' is not declared as mutable
-    // c_imm.wheel = 3 //~error: 'c_imm' is not declared as mutable
-    // *(c_imm.gear) = 4 //~error: 'gear' is not a mutable reference
+    // c_imm = car //~notused: 'c_imm' is not declared as mutable
+    // c_imm.wheel = 3 //~notused: 'c_imm' is not declared as mutable
+    // *(c_imm.gear) = 4 //~notused: 'gear' is not a mutable reference
     // var c1: Car
     // c1.wheel = 3
 
@@ -125,6 +125,6 @@ func copyable() {
     var i = 42
     let nc1 = NonCopy {.a = var &i}
     var nc2: NonCopy
-    nc2 = nc1 //~error: cannot copy non-copyable type 'NonCopy'
-    var nc3 = nc2 //~error: cannot copy non-copyable type 'NonCopy'
+    nc2 = nc1 //~notused: cannot copy non-copyable type 'NonCopy'
+    var nc3 = nc2 //~notused: cannot copy non-copyable type 'NonCopy'
 }
