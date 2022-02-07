@@ -47,7 +47,7 @@ Type *make_ref_type(Sema &sema, Name *name, TypeKind ptr_kind,
     return t;
 }
 
-Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
+Type *make_builtin_type_from_name(Sema &s, const std::string &str) {
     Name *name = s.name_table.pushlen(str.data(), str.length());
     auto struct_decl = s.make_node<StructDecl>(name);
     struct_decl->type = make_builtin_type(s, name);
@@ -58,12 +58,12 @@ Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
 // Push Decls for the builtin types into the global scope of decl_table, so
 // that they are visible from any point in the AST.
 void cmp::setup_builtin_types(Sema &s) {
-    s.context.void_type = push_builtin_type_from_name(s, "void");
-    s.context.int_type = push_builtin_type_from_name(s, "int");
+    s.context.void_type = make_builtin_type_from_name(s, "void");
+    s.context.int_type = make_builtin_type_from_name(s, "int");
     s.context.int_type->size = 4;
-    s.context.char_type = push_builtin_type_from_name(s, "char");
+    s.context.char_type = make_builtin_type_from_name(s, "char");
     s.context.char_type->size = 1;
-    s.context.string_type = push_builtin_type_from_name(s, "string");
+    s.context.string_type = make_builtin_type_from_name(s, "string");
 }
 
 Sema::~Sema() {
