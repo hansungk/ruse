@@ -2,7 +2,7 @@
 #define CMP_PARSER_H
 
 #include "ast.h"
-#include "lexer.h"
+#include "lex.h"
 #include "sema.h"
 
 namespace cmp {

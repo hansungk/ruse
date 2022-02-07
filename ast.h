@@ -1,7 +1,7 @@
 #ifndef CMP_AST_H
 #define CMP_AST_H
 
-#include "lexer.h"
+#include "lex.h"
 #include "scoped_table.h"
 #include "types.h"
 

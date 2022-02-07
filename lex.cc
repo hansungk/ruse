@@ -1,4 +1,4 @@
-#include "lexer.h"
+#include "lex.h"
 #include "fmt/core.h"
 #include <cctype>
 
