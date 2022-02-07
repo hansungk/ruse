@@ -68,9 +68,6 @@ private:
     FuncDecl *parse_func_header();
     FuncDecl *parse_func_decl();
     StructDecl *parse_struct_decl();
-    EnumVariantDecl *parse_enum_variant();
-    std::vector<EnumVariantDecl *> parse_enum_variant_decl_list();
-    EnumDecl *parse_enum_decl();
     ExternDecl *parse_extern_decl();
     bool is_start_of_decl();
 

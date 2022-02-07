@@ -425,65 +425,6 @@ StructDecl *Parser::parse_struct_decl() {
     return sd;
 }
 
-EnumVariantDecl *Parser::parse_enum_variant() {
-    auto pos = tok.pos;
-
-    Name *name = push_token_to_name_table(sema, tok);
-    next();
-
-    std::vector<Expr *> fields;
-    if (tok.kind == Tok::lparen) {
-        expect(Tok::lparen);
-        parse_comma_separated_list<Expr *>(
-            [this](Expr *&result) {
-                result = parse_type_expr();
-                return result != nullptr;
-            },
-            [&](Expr *result) { fields.push_back(result); });
-        expect(Tok::rparen);
-    }
-
-    return sema.make_node_pos<EnumVariantDecl>(pos, name, fields);
-}
-
-// Doesn't account for the enclosing {}s.
-std::vector<EnumVariantDecl *> Parser::parse_enum_variant_decl_list() {
-    std::vector<EnumVariantDecl *> list;
-
-    while (!is_eos()) {
-        skip_newlines();
-        if (tok.kind != Tok::ident)
-            break;
-
-        auto elem = parse_enum_variant();
-        list.push_back(elem);
-
-        expect(Tok::newline);
-        skip_newlines();
-    }
-
-    return list;
-}
-
-EnumDecl *Parser::parse_enum_decl() {
-    auto pos = tok.pos;
-
-    expect(Tok::kw_enum);
-
-    if (tok.kind != Tok::ident)
-        error_expected("an identifier");
-    Name *name = push_token_to_name_table(sema, tok);
-    next();
-
-    if (!expect(Tok::lbrace))
-        skip_until_end_of_line();
-    auto fields = parse_enum_variant_decl_list();
-    expect(Tok::rbrace, "unterminated enum declaration");
-    // TODO: recover
-
-    return sema.make_node_pos<EnumDecl>(pos, name, fields);
-}
-
 ExternDecl *Parser::parse_extern_decl() {
     auto pos = tok.pos;
     expect(Tok::kw_extern);
@@ -567,9 +508,9 @@ Expr *Parser::parse_literal_expr() {
 }
 
 // Upon seeing an expression that starts with an identifier, we don't know
-// whether it is just a variable, a function call, an enum name, or a struct
-// name ('a' vs. 'a()' vs. 'a.m') without lookahead. Rather than using
-// lookahead, parse the both kinds in one go in this function.
+// whether it is just a variable, a function call, or a struct name ('a' vs.
+// 'a()' vs. 'a.m').  Rather than using lookahead, parse the both kinds in one
+// go in this function.
 Expr *Parser::parse_funccall_or_declref_expr() {
     auto pos = tok.pos;
 
