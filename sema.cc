@@ -8,12 +8,6 @@
 
 #define BUFSIZE 1024
 
-// This is essentially an equivalent to the try! macro in Rust.
-#define guard(expr)   \
-    if (!(expr)) {    \
-        return false; \
-    }
-
 using namespace cmp;
 
 template <typename... Args> static bool error(SourceLoc loc, Args &&...args) {
@@ -293,7 +287,8 @@ bool typecheck_expr(Sema &sema, Expr *e) {
             //
             // In those cases, just give up here so that outer constructs do
             // not bother.
-            guard(de->type);
+            if (!de->type)
+                return false;
         }
         break;
     }
@@ -303,7 +298,8 @@ bool typecheck_expr(Sema &sema, Expr *e) {
             assert(!"not implemented");
         }
 
-        guard(typecheck_expr(sema, c->callee_expr));
+        if (!typecheck_expr(sema, c->callee_expr))
+            return false;
 
         assert(c->callee_expr->decl);
 
@@ -326,7 +322,8 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         }
 
         for (size_t i = 0; i < c->args.size(); i++) {
-            guard(typecheck_expr(sema, c->args[i]));
+            if (!typecheck_expr(sema, c->args[i]))
+                return false;
 
             if (!typecheck_assignable(func_decl->params[i]->type,
                                       c->args[i]->type)) {
@@ -473,8 +470,10 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         return typecheck_unary_expr(sema, static_cast<UnaryExpr *>(e));
     case Expr::binary: {
         auto b = static_cast<BinaryExpr *>(e);
-        guard(typecheck_expr(sema, b->lhs));
-        guard(typecheck_expr(sema, b->rhs));
+        if (!typecheck_expr(sema, b->lhs))
+            return false;
+        if (!typecheck_expr(sema, b->rhs))
+            return false;
 
         auto lhs_type = b->lhs->type;
         auto rhs_type = b->rhs->type;
@@ -538,8 +537,10 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
         return typecheck_expr(sema, static_cast<ExprStmt *>(s)->expr);
     case Stmt::decl: {
         auto decl = static_cast<DeclStmt *>(s)->decl;
-        guard(typecheck_decl(sema, decl));
-        guard(declare(sema, decl));
+        if (!typecheck_decl(sema, decl))
+            return false;
+        if (!declare(sema, decl))
+            return false;
         break;
     }
     case Stmt::assign: {
@@ -633,7 +634,8 @@ VarDecl *instantiate_field(Sema &sema, VarDecl *parent, Name *name,
 static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
     // Struct methods.
     if (f->struct_param) {
-        guard(typecheck_decl(sema, f->struct_param));
+        if (!typecheck_decl(sema, f->struct_param))
+            return false;
 
         auto struct_param_type = f->struct_param->type;
         auto struct_param_type_expr = static_cast<TypeExpr *>(f->struct_param->type_expr);
@@ -660,7 +662,8 @@ static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
     }
 
     if (f->ret_type_expr) {
-        guard(typecheck_expr(sema, f->ret_type_expr));
+        if (!typecheck_expr(sema, f->ret_type_expr))
+            return false;
         f->ret_type = f->ret_type_expr->type;
     } else {
         f->ret_type = sema.context.void_type;
@@ -676,12 +679,15 @@ static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
         sema.context.func_stack.push_back(f);
 
         if (f->struct_param) {
-            guard(declare(sema, f->struct_param));
+            if (!declare(sema, f->struct_param))
+                return false;
         }
 
         for (auto param : f->params) {
-            guard(typecheck_decl(sema, param));
-            guard(declare(sema, param));
+            if (!typecheck_decl(sema, param))
+                return false;
+            if (!declare(sema, param))
+                return false;
         }
 
         for (auto line : f->body->stmts) {
@@ -781,7 +787,8 @@ bool cmp::typecheck(Sema &sema, AstNode *n) {
         // members fail typechecking, we probably still want to declare them to
         // prevent too many chained errors for the code that use them.
         success = typecheck_decl(sema, static_cast<Decl *>(n));
-        guard(declare(sema, static_cast<Decl *>(n)));
+        if (!declare(sema, static_cast<Decl *>(n)))
+            return false;
         return success;
     default:
         assert(!"unknown ast kind");
