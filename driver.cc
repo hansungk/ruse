@@ -1,6 +1,6 @@
 #include "driver.h"
 #include "ast.h"
-#include "parser.h"
+#include "parse.h"
 #include "sema.h"
 
 bool Driver::compile() {

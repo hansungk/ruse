@@ -1,6 +1,6 @@
 #include "sema.h"
 #include "fmt/core.h"
-#include "parser.h"
+#include "parse.h"
 #include "source.h"
 #include "types.h"
 #include <cassert>

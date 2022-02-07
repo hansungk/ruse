@@ -1,6 +1,6 @@
 #include "catch.hpp"
 #include "driver.h"
-#include "parser.h"
+#include "parse.h"
 
 using namespace cmp;
 
