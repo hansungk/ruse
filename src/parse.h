@@ -65,10 +65,8 @@ private:
     VarDecl *parse_var_decl(VarDecl::Kind kind);
     template <typename T, typename F1, typename F2>
     void parse_comma_separated_list(F1 &&parse_fn, F2 &&push_back_fn);
-    FuncDecl *parse_func_header();
     FuncDecl *parse_func_decl();
     StructDecl *parse_struct_decl();
-    ExternDecl *parse_extern_decl();
     bool is_start_of_decl();
 
     // Expression parsers

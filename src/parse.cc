@@ -338,7 +338,7 @@ void Parser::parse_comma_separated_list(F1 &&parse_fn, F2 &&do_on_parse) {
     }
 }
 
-FuncDecl *Parser::parse_func_header() {
+FuncDecl *Parser::parse_func_decl() {
     auto pos = tok.pos;
 
     expect(Tok::kw_func);
@@ -374,17 +374,6 @@ FuncDecl *Parser::parse_func_header() {
     // return type
     if (tok.kind != Tok::lbrace) {
         func->ret_type_expr = parse_type_expr();
-    }
-
-    return func;
-}
-
-FuncDecl *Parser::parse_func_decl() {
-    auto func = parse_func_header();
-
-    if (tok.kind != Tok::lbrace) {
-        error_expected("'->' or '{'");
-        skip_until(Tok::lbrace);
     }
 
     // function body
@@ -423,13 +412,6 @@ StructDecl *Parser::parse_struct_decl() {
     expect(Tok::rbrace, "unterminated struct declaration");
 
     return sd;
-}
-
-ExternDecl *Parser::parse_extern_decl() {
-    auto pos = tok.pos;
-    expect(Tok::kw_extern);
-    auto func = parse_func_header();
-    return sema.make_node_pos<ExternDecl>(pos, func);
 }
 
 bool Parser::is_start_of_decl() {
@@ -476,8 +458,6 @@ Decl *Parser::parse_decl() {
         return parse_struct_decl();
     case Tok::kw_func:
         return parse_func_decl();
-    case Tok::kw_extern:
-        return parse_extern_decl();
     default:
         assert(false && "not a start of a declaration");
     }

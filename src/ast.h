@@ -19,7 +19,6 @@ struct FieldDecl;
 struct StructDecl;
 struct EnumVariantDecl;
 struct EnumDecl;
-struct ExternDecl;
 struct BadDecl;
 class Lifetime;
 
@@ -334,7 +333,6 @@ struct Decl : public AstNode {
         struct_,
         enum_variant,
         enum_,
-        extern_,
         bad,
     } kind;
     Name *name = nullptr;
@@ -463,13 +461,6 @@ struct EnumDecl : public Decl {
 
     EnumDecl(Name *n, std::vector<EnumVariantDecl *> m)
         : Decl(Decl::enum_, n), variants(m) {}
-};
-
-// Extern declaration.
-struct ExternDecl : public Decl {
-    Decl *decl;
-
-    ExternDecl(Decl *d) : Decl(Decl::extern_), decl(d) {}
 };
 
 struct BadDecl : public Decl {
