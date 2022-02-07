@@ -27,7 +27,7 @@ static Type *make_value_type(Sema &sema, Name *n, Decl *decl) {
 }
 
 static Type *make_pointer_type(Sema &sema, Name *name, TypeKind ptr_kind,
-                    Type *referee_type) {
+                               Type *referee_type) {
     Type *t = new Type(name, ptr_kind, referee_type);
     // assumes pointers are always 8 bytes
     t->size = 8;
@@ -87,7 +87,8 @@ void Sema::scope_close() {
 }
 
 bool Type::is_struct() const {
-    return kind == TypeKind::value && origin_decl && origin_decl->kind == Decl::struct_;
+    return kind == TypeKind::value && origin_decl &&
+           origin_decl->kind == Decl::struct_;
 }
 
 bool Type::is_pointer() const {
@@ -122,8 +123,8 @@ bool cmp::declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl) {
     auto found = struct_decl->decl_table.find(name);
     if (found && found->value->kind == decl->kind &&
         found->scope_level == struct_decl->decl_table.curr_scope_level) {
-        return error(decl->loc, "redefinition of '{}' inside struct {}", name->text,
-                     struct_decl->name->text);
+        return error(decl->loc, "redefinition of '{}' inside struct {}",
+                     name->text, struct_decl->name->text);
     }
 
     struct_decl->decl_table.insert(name, decl);
@@ -203,7 +204,7 @@ bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
 
         if (!u->operand->type->is_pointer()) {
             return error(u->loc, "dereferenced a non-pointer type '{}'",
-                  u->operand->type->name->text);
+                         u->operand->type->name->text);
         }
         u->type = u->operand->type->referee_type;
 
@@ -239,8 +240,8 @@ bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
 
         // TODO: Prohibit mutable reference of an immutable variable.
 
-        auto type_kind = (u->kind == UnaryExpr::var_ref) ? TypeKind::var_ref
-                                                             : TypeKind::ref;
+        auto type_kind =
+            (u->kind == UnaryExpr::var_ref) ? TypeKind::var_ref : TypeKind::ref;
         u->type = get_derived_type(sema, type_kind, u->operand->type);
         break;
     }
@@ -305,10 +306,12 @@ bool typecheck_expr(Sema &sema, Expr *e) {
 
         c->callee_decl = c->callee_expr->decl;
         if (c->callee_decl->kind != Decl::func) {
-            return error(c->loc,
-                         "'{}' is not a function or a method", // FIXME differentiate between
-                                                               // function and method?
-                         c->callee_decl->name->text);
+            return error(
+                c->loc,
+                "'{}' is not a function or a method", // FIXME differentiate
+                                                      // between function and
+                                                      // method?
+                c->callee_decl->name->text);
         }
         auto func_decl = static_cast<FuncDecl *>(c->callee_decl);
         assert(func_decl->ret_type);
@@ -427,11 +430,12 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         // At this point, parent_expr is either a struct or a pointer to
         // struct.  Now we have to check the member side.
 
-        auto parent_type_struct_decl = static_cast<StructDecl *>(parent_type_decl);
+        auto parent_type_struct_decl =
+            static_cast<StructDecl *>(parent_type_decl);
         auto sym = parent_type_struct_decl->decl_table.find(mem->member_name);
         if (!sym) {
-            return error(mem->loc, "'{}' is not a member of struct '{}'", mem->member_name->text,
-                         reported_name->text);
+            return error(mem->loc, "'{}' is not a member of struct '{}'",
+                         mem->member_name->text, reported_name->text);
         }
 
         // Figure out if this is a field or a method.
@@ -443,7 +447,8 @@ bool typecheck_expr(Sema &sema, Expr *e) {
             // MemberExpr as well.
             if (mem->parent_expr->decl) {
                 assert(mem->parent_expr->decl->kind == Decl::var);
-                auto parent_var_decl = static_cast<VarDecl *>(mem->parent_expr->decl);
+                auto parent_var_decl =
+                    static_cast<VarDecl *>(mem->parent_expr->decl);
                 assert(!parent_var_decl->children.empty());
                 for (auto child : parent_var_decl->children) {
                     if (child->name == mem->member_name) {
@@ -479,7 +484,8 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         auto rhs_type = b->rhs->type;
 
         if (lhs_type != rhs_type) {
-            return error(b->loc, "incompatible binary op with type '{}' and '{}'",
+            return error(b->loc,
+                         "incompatible binary op with type '{}' and '{}'",
                          lhs_type->name->text, rhs_type->name->text);
         }
 
@@ -624,7 +630,7 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
 }
 
 VarDecl *instantiate_field(Sema &sema, VarDecl *parent, Name *name,
-                                  Type *type) {
+                           Type *type) {
     auto field = sema.make_node<VarDecl>(name, type, parent->mut);
     // field->parent = v;
     parent->children.push_back(field);
@@ -638,26 +644,30 @@ static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
             return false;
 
         auto struct_param_type = f->struct_param->type;
-        auto struct_param_type_expr = static_cast<TypeExpr *>(f->struct_param->type_expr);
+        auto struct_param_type_expr =
+            static_cast<TypeExpr *>(f->struct_param->type_expr);
 
         // By-pointer methods
         if (struct_param_type->is_pointer()) {
             if (!struct_param_type->referee_type->is_struct()) {
-                return error(struct_param_type_expr->subexpr->loc,
-                             "cannot declare a method for '{}' which is not a struct",
-                             struct_param_type->referee_type->name->text);
+                return error(
+                    struct_param_type_expr->subexpr->loc,
+                    "cannot declare a method for '{}' which is not a struct",
+                    struct_param_type->referee_type->name->text);
             }
-            f->target_struct =
-                static_cast<StructDecl *>(struct_param_type->referee_type->origin_decl);
+            f->target_struct = static_cast<StructDecl *>(
+                struct_param_type->referee_type->origin_decl);
         }
         // By-value methods
         else if (!struct_param_type->is_struct()) {
-            return error(struct_param_type_expr->loc,
-                         "cannot declare a method for '{}' which is not a struct",
-                         struct_param_type->name->text);
+            return error(
+                struct_param_type_expr->loc,
+                "cannot declare a method for '{}' which is not a struct",
+                struct_param_type->name->text);
         } else {
             // all is good
-            f->target_struct = static_cast<StructDecl *>(struct_param_type->origin_decl);
+            f->target_struct =
+                static_cast<StructDecl *>(struct_param_type->origin_decl);
         }
     }
 
@@ -816,7 +826,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
     switch (e->kind) {
     case Expr::integer_literal:
         emit("%_{} =w add 0, {}", valstack.next_id,
-                     static_cast<IntegerLiteral *>(e)->value);
+             static_cast<IntegerLiteral *>(e)->value);
         annotate("{}: integer literal", e->loc.line);
         valstack.push_temp_value();
         break;
@@ -896,11 +906,12 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
         if (func_decl->ret_type_expr) {
             assert(!"FIXME: func_name removed");
             // emit("%_{} ={} call ${}(", valstack.next_id,
-            //               abity_string(func_decl->rettype), c->func_name->text);
+            //               abity_string(func_decl->rettype),
+            //               c->func_name->text);
 
             for (size_t i = 0; i < c->args.size(); i++) {
                 emit_same_line("{} {}, ", qbe_abity_string(c->args[i]->type),
-                       generated_args[i].format());
+                               generated_args[i].format());
             }
 
             emit_same_line(")");
@@ -913,7 +924,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
             // @Copypaste from above
             for (size_t i = 0; i < c->args.size(); i++) {
                 emit_same_line("{} {}, ", qbe_abity_string(c->args[i]->type),
-                       generated_args[i].format());
+                               generated_args[i].format());
             }
 
             emit_same_line(")");
@@ -969,8 +980,8 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
         // emit correct address first
         codegen_expr_explicit(mem->parent_expr, false);
 
-        emit("%a{} =l add {}, {}", valstack.next_id,
-                      valstack.pop().format(), mem->field_decl->offset);
+        emit("%a{} =l add {}, {}", valstack.next_id, valstack.pop().format(),
+             mem->field_decl->offset);
         annotate("{}: offset of {}", mem->loc.line, mem->text(sema));
         valstack.push_address();
 
@@ -1039,9 +1050,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
     }
 }
 
-void QbeGenerator::codegen_expr(Expr *e) {
-    codegen_expr_explicit(e, true);
-}
+void QbeGenerator::codegen_expr(Expr *e) { codegen_expr_explicit(e, true); }
 
 void QbeGenerator::codegen_expr_address(Expr *e) {
     codegen_expr_explicit(e, false);
@@ -1091,8 +1100,7 @@ void QbeGenerator::codegen_stmt(Stmt *s) {
         auto id = ifelse_label_id;
         ifelse_label_id++;
         codegen_expr(if_stmt->cond);
-        emit("jnz {}, @if_{}, @else_{}", valstack.pop().format(),
-                      id, id);
+        emit("jnz {}, @if_{}, @else_{}", valstack.pop().format(), id, id);
         emit_same_line("\n@if_{}", id);
         codegen_stmt(if_stmt->if_body);
         emit("jmp @fi_{}", id);
@@ -1128,7 +1136,8 @@ void QbeGenerator::codegen_decl(Decl *d) {
         // generation. This is because there are other cases that allocate on
         // the stack (such as returning a large struct by-value) that are not
         // emitted by a vardecl.
-        v->frame_local_id = emit_stack_alloc(v->type, v->loc.line, v->name->text);
+        v->frame_local_id =
+            emit_stack_alloc(v->type, v->loc.line, v->name->text);
 
         if (v->assign_expr) {
             valstack.push_address_explicit(v->frame_local_id);
@@ -1140,11 +1149,12 @@ void QbeGenerator::codegen_decl(Decl *d) {
     case Decl::func: {
         auto f = static_cast<FuncDecl *>(d);
 
-        emit_same_line("\nexport function {} ${}(", qbe_abity_string(f->ret_type),
-                     f->name->text);
+        emit_same_line("\nexport function {} ${}(",
+                       qbe_abity_string(f->ret_type), f->name->text);
 
         for (auto param : f->params) {
-            emit_same_line("{} %{}, ", qbe_abity_string(param->type), param->name->text);
+            emit_same_line("{} %{}, ", qbe_abity_string(param->type),
+                           param->name->text);
         }
 
         emit_same_line(") {{");
@@ -1161,7 +1171,7 @@ void QbeGenerator::codegen_decl(Decl *d) {
                 param->frame_local_id = valstack.next_id;
                 valstack.next_id++;
                 emit("%a{} =l add 0, %{}", param->frame_local_id,
-                              param->name->text);
+                     param->name->text);
             }
 
             for (auto line : f->body->stmts) {
@@ -1307,7 +1317,7 @@ void QbeGenerator::emit_assignment(const Decl *lhs, Expr *rhs) {
 // Emit a value by allocating it on the stack memory.  That value will be
 // handled via its address.  `line` and `text` are used for annotations.
 long QbeGenerator::emit_stack_alloc(const Type *type, size_t line,
-                                  std::string_view text) {
+                                    std::string_view text) {
     assert(!sema.context.func_stack.empty());
     // auto current_func = context.func_stack.back();
     // long id = current_func->frame_local_id_counter;
