@@ -9,7 +9,7 @@ func void_ret() {
     return 1 //~error: tried to return a value from a void function 'void_ret'
 }
 
-func f() -> Car {
+func f() Car {
     return 0 //~error: tried to return 'int' from function 'f', which returns 'Car'
     if 1 {
       0
@@ -19,11 +19,11 @@ func f() -> Car {
     }
 }
 
-func g() -> int {
+func g() int {
     return 98
 }
 
-func h(a: int, b: *int) -> int {
+func h(a: int, b: *int) int {
     return 1
 }
 

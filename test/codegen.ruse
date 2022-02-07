@@ -1,6 +1,6 @@
 // exit 9
 
-func main() -> int {
+func main() int {
     var a = 4
     var b = 3
     var c = 2

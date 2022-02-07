@@ -371,9 +371,8 @@ FuncDecl *Parser::parse_func_header() {
     }
     expect(Tok::rparen);
 
-    // return type (-> ...)
-    if (tok.kind == Tok::arrow) {
-        next();
+    // return type
+    if (tok.kind != Tok::lbrace) {
         func->ret_type_expr = parse_type_expr();
     }
 
