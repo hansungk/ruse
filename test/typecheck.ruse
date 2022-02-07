@@ -4,12 +4,12 @@ struct Car {
     gear: *int,
 }
 
-func void_ret() {
+fn void_ret() {
     return
     return 1 //~error: tried to return a value from a void function 'void_ret'
 }
 
-func f() Car {
+fn f() Car {
     return 0 //~error: tried to return 'int' from function 'f', which returns 'Car'
     if 1 {
       0
@@ -19,15 +19,15 @@ func f() Car {
     }
 }
 
-func g() int {
+fn g() int {
     return 98
 }
 
-func h(a: int, b: *int) int {
+fn h(a: int, b: *int) int {
     return 1
 }
 
-func main() {
+fn main() {
     // var decl and assignment
     var s: int
     s = 4
@@ -121,7 +121,7 @@ struct NonCopy {
     a: var *int,
 }
 
-func copyable() {
+fn copyable() {
     var i = 42
     let nc1 = NonCopy {.a = var &i}
     var nc2: NonCopy

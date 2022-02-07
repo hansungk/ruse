@@ -3,7 +3,7 @@ struct Token {
     data: int
 }
 
-func main() {
+fn main() {
     var tok = Token {.pos = 3, .data = 42}
 
     struct Inner {

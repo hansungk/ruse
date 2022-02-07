@@ -4,22 +4,22 @@ struct S {
     hi: int
 }
 
-func (s: int) wrong() int { //~error: cannot declare a method for 'int' which is not a struct
+fn (s: int) wrong() int { //~error: cannot declare a method for 'int' which is not a struct
 }
 
-func (s: *S) get_hi() int {
+fn (s: *S) get_hi() int {
     return s.hi
 }
 
-func (p: *S) by_ptr_method() int {
+fn (p: *S) by_ptr_method() int {
     return s.hi //~error: undeclared identifier 's'
     return p.hi
 }
 
-func (s: S) get_hi() int { //~error: redefinition of 'get_hi' inside struct S
+fn (s: S) get_hi() int { //~error: redefinition of 'get_hi' inside struct S
 }
 
-func main() {
+fn main() {
     var not_a_struct: int
     not_a_struct.lol //~error: type 'int' is not a struct
 

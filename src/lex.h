@@ -87,19 +87,13 @@ constexpr std::pair<std::string_view, Tok> symbol_map[]{
     {"-", Tok::dash},          {"comment", Tok::comment},
 };
 
-constexpr std::pair<const char *, Tok> keyword_map[] {
-    {"func", Tok::kw_func},
-    {"struct", Tok::kw_struct},
-    {"enum", Tok::kw_enum},
-    {"let", Tok::kw_let},
-    {"var", Tok::kw_var},
-    {"mut", Tok::kw_mut},
-    {"if", Tok::kw_if},
-    {"else", Tok::kw_else},
-    {"int", Tok::kw_int},
-    {"i64", Tok::kw_i64},
-    {"return", Tok::kw_return},
-    {"extern", Tok::kw_extern},
+constexpr std::pair<const char *, Tok> keyword_map[]{
+    {"fn", Tok::kw_func},       {"struct", Tok::kw_struct},
+    {"enum", Tok::kw_enum},     {"let", Tok::kw_let},
+    {"var", Tok::kw_var},       {"mut", Tok::kw_mut},
+    {"if", Tok::kw_if},         {"else", Tok::kw_else},
+    {"int", Tok::kw_int},       {"i64", Tok::kw_i64},
+    {"return", Tok::kw_return}, {"extern", Tok::kw_extern},
     {"error", Tok::kw_error},
 };
 

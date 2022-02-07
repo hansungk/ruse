@@ -1,10 +1,10 @@
 // exit 6
 
-func f() int {
+fn f() int {
     return 3
 }
 
-func main() int {
+fn main() int {
     let i = f()
     return i + f()
 }

@@ -8,15 +8,15 @@ struct S {
     e: int
 }
 
-func return_by_value() S {
+fn return_by_value() S {
     return S {.a = 3, .b = 4, .c = 5, .d = 6}
 }
 
-func pass_by_value(s: S) S {
+fn pass_by_value(s: S) S {
     return s
 }
 
-func main() int {
+fn main() int {
     let s = S {.a = 3, .b = 4, .c = 5, .d = 6}
     if s.a + s.d != 9 {
         return 1

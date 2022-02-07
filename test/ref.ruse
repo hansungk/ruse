@@ -5,7 +5,7 @@ struct S {
     b: int
 }
 
-func use_struct() int {
+fn use_struct() int {
     let s = S {.a = 0, .b = 0}
     let p = &s
     p.a = 42
@@ -22,7 +22,7 @@ func use_struct() int {
     return 0
 }
 
-func main() int {
+fn main() int {
   let data = 3
   let p = &data
   *p = 4
