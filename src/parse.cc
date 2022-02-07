@@ -838,14 +838,15 @@ bool Parser::parse_structdef_field(StructDefTerm &result) {
 
 // If this expression has a trailing {...}, parse as a struct definition
 // expression.  If not, just pass along the original expression. This function
-// is called after the operand expression part is fully parsed.
+// is called after the struct name part is fully parsed, i.e. when looking at
+// '{'.
 Expr *Parser::parse_structdef_maybe(Expr *expr) {
     auto pos = tok.pos;
 
-    if (expr->kind != Expr::decl_ref) {
+    if (expr->kind != Expr::decl_ref)
         error("qualified struct names are not yet supported");
-    }
-    auto declrefexpr = static_cast<DeclRefExpr *>(expr);
+
+    auto decl_ref_expr = static_cast<DeclRefExpr *>(expr);
 
     expect(Tok::lbrace);
 
@@ -856,7 +857,7 @@ Expr *Parser::parse_structdef_maybe(Expr *expr) {
 
     expect(Tok::rbrace);
 
-    return sema.make_node_pos<StructDefExpr>(pos, declrefexpr, desigs);
+    return sema.make_node_pos<StructDefExpr>(pos, decl_ref_expr, desigs);
 }
 
 Expr *Parser::parse_expr() {

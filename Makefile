@@ -1,8 +1,9 @@
-CXXFLAGS += -g -std=c++17 -Wall -Wextra -Wno-unused-function \
+CXXFLAGS += -g -std=c++17 -I. -Wall -Wextra -Wno-unused-function \
             -Wno-unused-parameter -fno-omit-frame-pointer
 CXXFLAGS += -fsanitize=address,leak,undefined
 PROG := ruse
-SRCS := main.cc driver.cc sema.cc parse.cc ast.cc lex.cc source.cc format.cc
+SRCS := src/main.cc src/driver.cc src/sema.cc src/parse.cc src/ast.cc \
+        src/lex.cc src/source.cc src/format.cc
 OBJS := $(SRCS:.cc=.o)
 
 all: $(PROG)
