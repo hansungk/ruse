@@ -407,25 +407,20 @@ StructDecl *Parser::parse_struct_decl() {
         next();
     }
 
-    if (!expect(Tok::lbrace))
-        skip_until_end_of_line();
-
     auto sd = sema.make_node_pos<StructDecl>(pos, name);
 
-    parse_comma_separated_list<FieldDecl *>(
-        [this](FieldDecl *&result) {
-            // FIXME: Creates a throwaway VarDecl.
-            auto var_decl = parse_var_decl(VarDecl::struct_);
-            result = sema.make_node_pos<FieldDecl>(var_decl->pos, var_decl->name, var_decl->type_expr);
-            return var_decl != nullptr;
-        },
-        [&](FieldDecl *result) {
-            sd->fields.push_back(result);
-            // XXX: fields.push_back should not be necessary
-            declare_in_struct(sd, result->name, result);
-        });
+    expect(Tok::lbrace);
+    skip_newlines();
+    while (tok.kind != Tok::rbrace) {
+        // FIXME: Creates a throwaway VarDecl.
+        auto var_decl = parse_var_decl(VarDecl::struct_);
+        auto field_decl = sema.make_node_pos<FieldDecl>(
+            var_decl->pos, var_decl->name, var_decl->type_expr);
+        sd->fields.push_back(field_decl);
+        declare_in_struct(sd, field_decl->name, field_decl);
+        skip_newlines();
+    }
     expect(Tok::rbrace, "unterminated struct declaration");
-    // TODO: recover
 
     return sd;
 }
