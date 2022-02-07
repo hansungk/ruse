@@ -358,18 +358,18 @@ FuncDecl *Parser::parse_func_header() {
     func->struct_param = method_struct;
     next();
 
-    // argument list
+    // parameter list
     expect(Tok::lparen);
-    parse_comma_separated_list<VarDecl *>(
-        [this](VarDecl *&result) {
-            result = parse_var_decl(VarDecl::param);
-            return result != nullptr;
-        },
-        [&](VarDecl *result) { func->params.push_back(result); });
-    if (!expect(Tok::rparen)) {
-        skip_until(Tok::rparen);
-        expect(Tok::rparen);
+    while (tok.kind != Tok::rparen) {
+        auto param = parse_var_decl(VarDecl::param);
+        func->params.push_back(param);
+        if (tok.kind != Tok::rparen) {
+            if (!expect(Tok::comma))
+                // recover error
+                skip_until(Tok::rparen);
+        }
     }
+    expect(Tok::rparen);
 
     // return type (-> ...)
     if (tok.kind == Tok::arrow) {
