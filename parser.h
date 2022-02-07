@@ -106,13 +106,6 @@ private:
 
     // Figure out the current location (line, col) in the source.
     SourceLoc locate() const { return lexer.source().locate(tok.pos); }
-
-    // Convenience function for make_node_range that uses last_tok_endpos.
-    template <typename T, typename... Args>
-    T *make_node_range(size_t pos, Args &&...args) {
-        return sema.make_node_range<T>({pos, last_tok_endpos},
-                                       std::forward<Args>(args)...);
-    }
 };
 
 } // namespace cmp

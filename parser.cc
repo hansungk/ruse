@@ -118,11 +118,11 @@ Stmt *Parser::parse_return_stmt() {
     if (!is_end_of_stmt()) {
         skip_until_end_of_line();
         expect(Tok::newline);
-        return make_node_range<BadStmt>(pos);
+        return sema.make_node_pos<BadStmt>(pos);
     }
     skip_until_end_of_line();
     expect(Tok::newline);
-    return make_node_range<ReturnStmt>(pos, expr);
+    return sema.make_node_pos<ReturnStmt>(pos, expr);
 }
 
 // Simplest way to represent the if-elseif-else chain is to view the else-if
@@ -159,7 +159,7 @@ IfStmt *Parser::parse_if_stmt() {
         }
     }
 
-    return make_node_range<IfStmt>(pos, cond, cstmt, elseif, cstmt_false);
+    return sema.make_node_pos<IfStmt>(pos, cond, cstmt, elseif, cstmt_false);
 }
 
 // This could be 'let a = ...' or a 'struct { ... }'; look into parseDecl()
@@ -215,13 +215,13 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
     } else if (!expect(Tok::equals, "expected '=' or '\\n' after expression")) {
         skip_until_end_of_line();
         expect(Tok::newline);
-        return make_node_range<BadStmt>(pos);
+        return sema.make_node_pos<BadStmt>(pos);
     }
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
     auto rhs = parse_expr();
-    return make_node_range<AssignStmt>(pos, lhs, rhs, move);
+    return sema.make_node_pos<AssignStmt>(pos, lhs, rhs, move);
 }
 
 // Compound statement is a scoped block that consists of multiple statements.
@@ -249,7 +249,7 @@ BuiltinStmt *Parser::parse_builtin_stmt() {
     skip_until_end_of_line();
     auto end = tok.pos;
     std::string_view text{lexer.source().buf.data() + start, end - start};
-    return make_node_range<BuiltinStmt>(start, text);
+    return sema.make_node_pos<BuiltinStmt>(start, text);
 }
 
 static Name *push_token_to_name_table(Sema &sema, const Token tok) {
@@ -272,7 +272,7 @@ VarDecl *Parser::parse_var_decl(VarDecl::Kind kind) {
     if (tok.kind == Tok::colon) {
         next();
         auto type_expr = parse_type_expr();
-        v = make_node_range<VarDecl>(pos, name, kind, type_expr, nullptr);
+        v = sema.make_node_pos<VarDecl>(pos, name, kind, type_expr, nullptr);
     }
     if (tok.kind == Tok::equals) {
         next();
@@ -280,7 +280,7 @@ VarDecl *Parser::parse_var_decl(VarDecl::Kind kind) {
         if (v)
             static_cast<VarDecl *>(v)->assign_expr = assign_expr;
         else
-            v = make_node_range<VarDecl>(pos, name, kind, nullptr,
+            v = sema.make_node_pos<VarDecl>(pos, name, kind, nullptr,
                                             assign_expr);
     }
     if (!v) {
@@ -352,7 +352,7 @@ FuncDecl *Parser::parse_func_header() {
 
     // name
     Name *name = push_token_to_name_table(sema, tok);
-    auto func = make_node_range<FuncDecl>(pos, name);
+    auto func = sema.make_node_pos<FuncDecl>(pos, name);
     func->loc = sema.source.locate(tok.pos);
     func->struct_param = method_struct;
     next();
@@ -410,13 +410,13 @@ StructDecl *Parser::parse_struct_decl() {
     if (!expect(Tok::lbrace))
         skip_until_end_of_line();
 
-    auto sd = make_node_range<StructDecl>(pos, name);
+    auto sd = sema.make_node_pos<StructDecl>(pos, name);
 
     parse_comma_separated_list<FieldDecl *>(
         [this](FieldDecl *&result) {
             // FIXME: Creates a throwaway VarDecl.
             auto var_decl = parse_var_decl(VarDecl::struct_);
-            result = make_node_range<FieldDecl>(var_decl->pos, var_decl->name, var_decl->type_expr);
+            result = sema.make_node_pos<FieldDecl>(var_decl->pos, var_decl->name, var_decl->type_expr);
             return var_decl != nullptr;
         },
         [&](FieldDecl *result) {
@@ -448,7 +448,7 @@ EnumVariantDecl *Parser::parse_enum_variant() {
         expect(Tok::rparen);
     }
 
-    return make_node_range<EnumVariantDecl>(pos, name, fields);
+    return sema.make_node_pos<EnumVariantDecl>(pos, name, fields);
 }
 
 // Doesn't account for the enclosing {}s.
@@ -486,14 +486,14 @@ EnumDecl *Parser::parse_enum_decl() {
     expect(Tok::rbrace, "unterminated enum declaration");
     // TODO: recover
 
-    return make_node_range<EnumDecl>(pos, name, fields);
+    return sema.make_node_pos<EnumDecl>(pos, name, fields);
 }
 
 ExternDecl *Parser::parse_extern_decl() {
     auto pos = tok.pos;
     expect(Tok::kw_extern);
     auto func = parse_func_header();
-    return make_node_range<ExternDecl>(pos, func);
+    return sema.make_node_pos<ExternDecl>(pos, func);
 }
 
 bool Parser::is_start_of_decl() {
@@ -554,11 +554,11 @@ Expr *Parser::parse_literal_expr() {
     case Tok::number: {
         std::string s{tok.start, static_cast<size_t>(tok.end - tok.start)};
         int value = std::stoi(s);
-        expr = make_node_range<IntegerLiteral>(tok.pos, value);
+        expr = sema.make_node_pos<IntegerLiteral>(tok.pos, value);
         break;
     }
     case Tok::string:
-        expr = make_node_range<StringLiteral>(
+        expr = sema.make_node_pos<StringLiteral>(
             tok.pos, std::string_view{
                          tok.start, static_cast<size_t>(tok.end - tok.start)});
         break;
@@ -582,7 +582,7 @@ Expr *Parser::parse_funccall_or_declref_expr() {
     assert(tok.kind == Tok::ident);
     Name *name = push_token_to_name_table(sema, tok);
     next();
-    Expr *expr = make_node_range<DeclRefExpr>(pos, name);
+    Expr *expr = sema.make_node_pos<DeclRefExpr>(pos, name);
 
     // Then loop to see if there's any trailing . or (), expanding the LHS
     // because they are left-associative.
@@ -593,7 +593,7 @@ Expr *Parser::parse_funccall_or_declref_expr() {
             Name *member_name = push_token_to_name_table(sema, tok);
             next();
             // Collapse the expr parsed so far into the LHS of a new MemberExpr.
-            expr = make_node_range<MemberExpr>(pos, expr, member_name);
+            expr = sema.make_node_pos<MemberExpr>(pos, expr, member_name);
         } else if (tok.kind == Tok::lparen) {
             expect(Tok::lparen);
             std::vector<Expr *> args;
@@ -603,7 +603,7 @@ Expr *Parser::parse_funccall_or_declref_expr() {
                     next();
             }
             expect(Tok::rparen);
-            expr = make_node_range<CallExpr>(pos, CallExpr::func, expr, args);
+            expr = sema.make_node_pos<CallExpr>(pos, CallExpr::func, expr, args);
         } else {
             // Otherwise, this could be anything between a variable, a struct or a
             // function, which can only be decided in the type checking stage.
@@ -624,7 +624,7 @@ Expr *Parser::parse_cast_expr() {
     auto target_expr = parse_expr();
     expect(Tok::rparen);
 
-    return make_node_range<CastExpr>(pos, type_expr, target_expr);
+    return sema.make_node_pos<CastExpr>(pos, type_expr, target_expr);
 }
 
 // Get the Name handle that designates a reference type of a given referee type
@@ -706,12 +706,12 @@ Expr *Parser::parse_type_expr() {
         subexpr = nullptr;
     } else {
         error_expected("type name");
-        return make_node_range<BadExpr>(pos);
+        return sema.make_node_pos<BadExpr>(pos);
     }
 
     Name *name = sema.name_table.push(text.c_str());
 
-    return make_node_range<TypeExpr>(pos, type_kind, name, mut, lt_name,
+    return sema.make_node_pos<TypeExpr>(pos, type_kind, name, mut, lt_name,
                                         subexpr);
 }
 
@@ -740,7 +740,7 @@ Expr *Parser::parse_unary_expr() {
     case Tok::star: {
         next();
         auto expr = parse_unary_expr();
-        return make_node_range<UnaryExpr>(pos, UnaryExpr::deref, expr);
+        return sema.make_node_pos<UnaryExpr>(pos, UnaryExpr::deref, expr);
     }
     case Tok::kw_var:
     case Tok::ampersand: {
@@ -751,13 +751,13 @@ Expr *Parser::parse_unary_expr() {
         }
         expect(Tok::ampersand);
         auto expr = parse_unary_expr();
-        return make_node_range<UnaryExpr>(pos, kind, expr);
+        return sema.make_node_pos<UnaryExpr>(pos, kind, expr);
     }
     case Tok::lparen: {
         expect(Tok::lparen);
         auto inside_expr = parse_expr();
         expect(Tok::rparen);
-        return make_node_range<UnaryExpr>(pos, UnaryExpr::paren, inside_expr);
+        return sema.make_node_pos<UnaryExpr>(pos, UnaryExpr::paren, inside_expr);
     }
     // TODO: prefix (++), postfix, sign (+/-)
     default: {
@@ -765,7 +765,7 @@ Expr *Parser::parse_unary_expr() {
         // means no other expression could be matched either, so just do a
         // really generic report.
         error_expected("an expression");
-        return make_node_range<BadExpr>(pos);
+        return sema.make_node_pos<BadExpr>(pos);
     }
     }
 }
@@ -830,7 +830,7 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
 
         // Create a new root with the old root as its LHS, and the recursion
         // result as RHS.  This implements left associativity.
-        root = make_node_range<BinaryExpr>(root->pos, root, op, rhs);
+        root = sema.make_node_pos<BinaryExpr>(root->pos, root, op, rhs);
     }
 
     return root;
@@ -849,7 +849,7 @@ Expr *Parser::parse_member_expr_maybe(Expr *expr) {
         Name *member_name = push_token_to_name_table(sema, tok);
         next();
 
-        result = make_node_range<MemberExpr>(result->pos, result, member_name);
+        result = sema.make_node_pos<MemberExpr>(result->pos, result, member_name);
     }
 
     return result;
@@ -920,7 +920,7 @@ Expr *Parser::parse_structdef_maybe(Expr *expr) {
 
     expect(Tok::rbrace);
 
-    return make_node_range<StructDefExpr>(pos, declrefexpr, desigs);
+    return sema.make_node_pos<StructDefExpr>(pos, declrefexpr, desigs);
 }
 
 Expr *Parser::parse_expr() {

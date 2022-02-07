@@ -26,19 +26,13 @@ template <typename... Args> static bool error(SourceLoc loc, Args &&...args) {
     // exit(EXIT_FAILURE);
 }
 
-Type *make_builtin_type(Sema &sema, Name *n) {
-    Type *t = new Type(n);
-    sema.type_pool.push_back(t);
-    return t;
-}
-
-Type *make_value_type(Sema &sema, Name *n, Decl *decl) {
+static Type *make_value_type(Sema &sema, Name *n, Decl *decl) {
     Type *t = new Type(TypeKind::value, n, decl);
     sema.type_pool.push_back(t);
     return t;
 }
 
-Type *make_ref_type(Sema &sema, Name *name, TypeKind ptr_kind,
+static Type *make_pointer_type(Sema &sema, Name *name, TypeKind ptr_kind,
                     Type *referee_type) {
     Type *t = new Type(name, ptr_kind, referee_type);
     // assumes pointers are always 8 bytes
@@ -47,7 +41,13 @@ Type *make_ref_type(Sema &sema, Name *name, TypeKind ptr_kind,
     return t;
 }
 
-Type *make_builtin_type_from_name(Sema &s, const std::string &str) {
+static Type *make_builtin_type(Sema &sema, Name *n) {
+    Type *t = new Type(n);
+    sema.type_pool.push_back(t);
+    return t;
+}
+
+static Type *make_builtin_type_from_name(Sema &s, const std::string &str) {
     Name *name = s.name_table.pushlen(str.data(), str.length());
     auto struct_decl = s.make_node<StructDecl>(name);
     struct_decl->type = make_builtin_type(s, name);
@@ -172,7 +172,7 @@ Type *get_derived_type(Sema &sema, TypeKind kind, Type *type) {
     if (auto found = sema.type_table.find(name)) {
         return found->value;
     } else {
-        Type *derived = make_ref_type(sema, name, kind, type);
+        Type *derived = make_pointer_type(sema, name, kind, type);
         return *sema.type_table.insert(name, derived);
     }
 }
@@ -407,9 +407,8 @@ bool typecheck_expr(Sema &sema, Expr *e) {
                 // Best way to do this would be to rewrite the AST to (*p).mem.
                 // Then, a second sema pass would bind a temporary VarDecl to
                 // (*p) without any further modification.
-                auto new_parent = sema.make_node_range<UnaryExpr>(
-                    {mem->parent_expr->pos, mem->parent_expr->endpos},
-                    UnaryExpr::deref, mem->parent_expr);
+                auto new_parent = sema.make_node_pos<UnaryExpr>(
+                    mem->parent_expr->pos, UnaryExpr::deref, mem->parent_expr);
                 mem->parent_expr = new_parent;
 
                 // Redo with the rewritten node.
