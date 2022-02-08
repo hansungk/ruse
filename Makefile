@@ -15,8 +15,8 @@ $(OBJS): ruse.h stb_ds.h
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-.PHONY: test clean
-test: $(PROG)
+.PHONY: check clean
+check: $(PROG)
 	./test.sh
 
 clean:
