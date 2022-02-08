@@ -31,7 +31,7 @@ Type *makeptrtype(Type *target, Token tok) {
 }
 
 // TODO: merge this with the one in parse.c?
-static void error(Context *ctx, struct SrcLoc loc, const char *fmt, ...) {
+static void error(Context *ctx, struct src_loc loc, const char *fmt, ...) {
 	struct Error e;
 	va_list args;
 
@@ -169,7 +169,7 @@ static void check_expr(Context *ctx, struct node *n) {
 
 	switch (n->kind) {
 	case NLITERAL:
-		// FIXME: non-int literals
+		// TODO: non-int literals
 		n->type = ty_int;
 		break;
 	case NIDEXPR:

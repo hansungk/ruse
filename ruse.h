@@ -7,8 +7,8 @@
 #define TOKLEN 64
 
 typedef struct Source Source;
-typedef struct SrcRange SrcRange;
-typedef struct SrcLoc SrcLoc;
+typedef struct src_range SrcRange;
+typedef struct src_loc SrcLoc;
 
 struct Source {
 	char filename[256]; // source filename
@@ -17,13 +17,13 @@ struct Source {
 	long buflen;        // length of src excluding \0
 };
 
-struct SrcRange {
+struct src_range {
 	size_t start; // start position in the source
 	size_t end;   // end position in the source
 };
 
 // Represents a unique location (file:line:col) in the source.
-struct SrcLoc {
+struct src_loc {
 	const char *filename;
 	int line;
 	int col;
@@ -82,8 +82,8 @@ typedef struct Lexer Lexer;
 // passing them around easy.
 struct Token {
 	enum TokenType type;
-	struct SrcRange range;
-	struct SrcLoc loc;
+	struct src_range range;
+	struct src_loc loc;
 	char *name;
 };
 
@@ -159,12 +159,12 @@ struct node {
 	struct type *type; // type of this node.  This being NULL equals the
 	                   // typecheck on this node having failed
 	struct node *lhs;
-	struct node *rhs; // assign expr
+	struct node *rhs;         // assign expr
 	struct node *rettypeexpr; // TODO: merge with typeexpr
 };
 
 struct Error {
-	struct SrcLoc loc;
+	struct src_loc loc;
 	char msg[1024];
 };
 
@@ -201,7 +201,7 @@ enum DeclKind {
 typedef struct type Type;
 typedef struct Decl Decl;
 typedef struct Scope Scope;
-typedef struct Context Context;
+typedef struct context Context;
 
 struct type {
 	enum TypeKind kind;
@@ -223,7 +223,7 @@ struct Scope {
 	struct Scope *outer;
 };
 
-struct Context {
+struct context {
 	Source *src;
 	Scope *scope;
 	Scope *typescope;
@@ -236,11 +236,11 @@ struct Context {
 };
 
 Type *maketype(enum TypeKind kind, Token tok);
-void context_init(Context *ctx, Parser *p);
-void context_free(Context *ctx);
-void check(Context *ctx, struct node *v);
+void context_init(struct context *ctx, Parser *p);
+void context_free(struct context *ctx);
+void check(struct context *ctx, struct node *v);
 void do_errors(const Error *errors);
 
-void codegen(Context *ctx, struct node *n);
+void codegen(struct context *ctx, struct node *n);
 
 #endif

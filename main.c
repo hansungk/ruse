@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
 	parser_from_file(&p, argv[1]);
 	struct node *n = parse(&p);
 
-	struct Context ctx;
+	struct context ctx;
 	context_init(&ctx, &p);
 	check(&ctx, n);
 
