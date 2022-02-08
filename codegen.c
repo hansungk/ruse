@@ -76,7 +76,7 @@ static int valstack_push(Context *ctx) {
     return ctx->valstack.curr_id++;
 }
 
-static void codegen_expr(Context *ctx, struct node *n) {
+static void codegen_expr(struct context *ctx, struct node *n) {
 	char buf[TOKLEN]; // FIXME: stack usage
 	int id_lhs, id_rhs;
 
@@ -84,13 +84,13 @@ static void codegen_expr(Context *ctx, struct node *n) {
 
 	switch (n->kind) {
 	case NLITERAL:
-		emit("    %%_%d =w add 0, %s\n", ctx->valstack.curr_id, buf);
+		emit("    %%.%d =w add 0, %s\n", ctx->valstack.curr_id, buf);
 		valstack_push(ctx);
 		break;
 	case NIDEXPR:
 		// TODO: will have to decide whether we want to generate load or
 		// not here.
-		emit("    %%_%d =w loadw %%A%d\n", ctx->valstack.curr_id,
+		emit("    %%.%d =w loadw %%A%d\n", ctx->valstack.curr_id,
 		     n->decl->id);
 		valstack_push(ctx);
 		break;
@@ -102,11 +102,15 @@ static void codegen_expr(Context *ctx, struct node *n) {
 		// during the post-order traversal.
 		id_rhs = arrpop(ctx->valstack.data);
 		id_lhs = arrpop(ctx->valstack.data);
-		emit("    %%_%d =w add %%_%d, %%_%d\n", ctx->valstack.curr_id,
+		emit("    %%.%d =w add %%.%d, %%.%d\n", ctx->valstack.curr_id,
 		     id_lhs, id_rhs);
 		valstack_push(ctx);
 		break;
+	case NREFEXPR:
+		assert(!"TODO");
+		break;
 	default:
+		printf("expr kind = %d\n", n->kind);
 		assert(!"unknown expr kind");
 	}
 }
@@ -122,7 +126,7 @@ static void codegen_decl(Context *ctx, struct node *n) {
 		emit("    %%A%d =l alloc4 4\n", n->id);
 		codegen(ctx, n->rhs);
 		int val_id = arrpop(ctx->valstack.data);
-		emit("    storew %%_%d, %%A%d\n", val_id, n->id);
+		emit("    storew %%.%d, %%A%d\n", val_id, n->id);
 		break;
 	default:
 		assert(!"unreachable");
@@ -140,12 +144,12 @@ static void codegen_stmt(Context *ctx, struct node *n) {
         codegen(ctx, n->rhs);
 		// FIXME
         // tokenstr(ctx->src->buf, n->lhs->decl->name, buf, sizeof(buf));
-        emit("    %%%s =w add 0, %%_%d\n", buf,
+        emit("    %%%s =w add 0, %%.%d\n", buf,
              arrpop(ctx->valstack.data));
         break;
     case NRETURN:
         codegen(ctx, n->rhs);
-        emit("    ret %%_%d\n", arrpop(ctx->valstack.data));
+        emit("    ret %%.%d\n", arrpop(ctx->valstack.data));
         break;
     default:
         assert(!"unknown stmt kind");
