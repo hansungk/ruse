@@ -1,6 +1,9 @@
+// fail
+
 func main() int {
     var a int
     var b = &a
-    // &&a // error
-    // *a
+    &&a // error
+    *a // error
+    &(*b)
 }
