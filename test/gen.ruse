@@ -1,7 +1,11 @@
 // run 7
 
-func main() int {
+fn main() int {
     const a = 3
     const b = 4
+
+    var c = &b
+    *c = 5
+
     return a + b
 }

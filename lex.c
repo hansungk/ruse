@@ -13,7 +13,7 @@ char *token_names[NUM_TOKENTYPES] = {
 };
 
 struct TokenMap keywords[] = {
-	{"var", TVAR},        {"const", TCONST},   {"func", TFUNC},
+	{"var", TVAR},        {"const", TCONST},   {"fn", TFUNC},
 	{"struct", TSTRUCT},  {"return", TRETURN}, {"int", TINT},
 	{"string", TSTRING_}, {NULL, 0},
 };

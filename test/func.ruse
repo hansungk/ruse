@@ -1,17 +1,17 @@
 // fail
 
-func p(a int a) int { // error
+fn p(a int a) int { // error
     a
 }
 
-func f(a int) int {
+fn f(a int) int {
     a
 }
 
-func f() int { // error
+fn f() int { // error
 }
 
-func main() int {
+fn main() int {
     f
     f() // error
     f(1, 1) // error

@@ -1,6 +1,6 @@
 // fail
 
-func main() int {
+fn main() int {
     var a int
     var b = &a
     &&a // error

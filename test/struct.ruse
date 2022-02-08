@@ -4,7 +4,7 @@ struct S {
     a int
 }
 
-func main() {
+fn main() {
     var i int
     i.a // error
 
