@@ -246,7 +246,7 @@ Type *maketype(enum TypeKind kind, Token tok);
 void context_init(struct context *ctx, struct parser *p);
 void context_free(struct context *ctx);
 void check(struct context *ctx, struct node *v);
-void do_errors(const Error *errors);
+int do_errors(const Error *errors);
 
 void codegen(struct context *ctx, struct node *n);
 

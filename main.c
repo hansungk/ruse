@@ -16,7 +16,8 @@ int main(int argc, char **argv) {
 	context_init(&ctx, &p);
 	check(&ctx, n);
 
-	do_errors(ctx.errors);
+	if (!do_errors(ctx.errors))
+		exit(EXIT_FAILURE);
 
 	codegen(&ctx, n);
 

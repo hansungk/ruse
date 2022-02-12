@@ -44,14 +44,13 @@ static void error(Context *ctx, struct src_loc loc, const char *fmt, ...) {
 	arrput(ctx->errors, e);
 }
 
-void do_errors(const Error *errors) {
+int do_errors(const Error *errors) {
 	for (long i = 0; i < arrlen(errors); i++) {
 		struct Error e = errors[i];
 		fprintf(stderr, "%s:%d:%d: error: %s\n", e.loc.filename,
 		        e.loc.line, e.loc.col, e.msg);
 	}
-	if (arrlen(errors))
-		exit(EXIT_FAILURE);
+	return arrlen(errors) == 0;
 }
 
 static struct Scope *makescope(void) {
