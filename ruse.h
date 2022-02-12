@@ -138,7 +138,7 @@ enum NodeKind {
 
 typedef struct node Node;
 typedef struct Error Error;
-typedef struct Parser Parser;
+typedef struct parser Parser;
 
 enum TypeKind {
 	TYVAL,
@@ -169,7 +169,7 @@ struct Error {
 };
 
 // Source text = ['tok' 'lookahead...' ...unlexed...]
-struct Parser {
+struct parser {
 	Lexer l;                  // lexer driven by this parser
 	Token tok;                // current token
 	Token *lookahead;         // lookahead tokens
@@ -177,10 +177,10 @@ struct Parser {
 	struct node **nodeptrbuf; // pointers to the allocated nodes
 };
 
-void parser_from_file(Parser *p, const char *filename);
-void parser_from_buf(Parser *p, const char *buf, size_t len);
-void parser_cleanup(Parser *p);
-struct node *parse(Parser *p);
+void parser_from_file(struct parser *p, const char *filename);
+void parser_from_buf(struct parser *p, const char *buf, size_t len);
+void parser_cleanup(struct parser *p);
+struct node *parse(struct parser *p);
 
 typedef struct Map Map;
 
@@ -243,7 +243,7 @@ struct context {
 };
 
 Type *maketype(enum TypeKind kind, Token tok);
-void context_init(struct context *ctx, Parser *p);
+void context_init(struct context *ctx, struct parser *p);
 void context_free(struct context *ctx);
 void check(struct context *ctx, struct node *v);
 void do_errors(const Error *errors);
