@@ -110,7 +110,10 @@ static void lex_ident_or_keyword(Lexer *l) {
 			maketoken(l, m->type);
 			// strdup here so that it becomes easy to clean tok.name later by
 			// always free()ing it
-			l->tok.name = strdup(m->text);
+			long len = strlen(m->text);
+			l->tok.name = calloc(len + 1, sizeof(char));
+			strncpy(l->tok.name, m->text, len);
+			l->tok.name[len] = '\0';
 			return;
 		}
 	}
