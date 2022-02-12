@@ -159,7 +159,7 @@ struct node {
 	struct type *type; // type of this node.  This being NULL equals the
 	                   // typecheck on this node having failed
 	struct node *lhs;
-	struct node *rhs;         // assign expr
+	struct node *rhs;         // ref, assign expr
 	struct node *rettypeexpr; // TODO: merge with typeexpr
 };
 
@@ -228,10 +228,17 @@ struct context {
 	Scope *scope;
 	Scope *typescope;
 	Error *errors;
-	int curr_id; // next scope-unique decl id
+	int curr_decl_id; // next scope-unique decl id
 	struct Valstack {
-		int curr_id; // next id to be pushed to valstack
-		int *data;  // stack of the id of expression results
+		struct val {
+			enum val_kind {
+				VAL_TEMP,
+				VAL_ADDR,
+			} kind;
+			int temp_id;
+			int addr_id;
+		} *data;
+		int curr_temp_id; // next id to be pushed to valstack
 	} valstack;
 };
 
