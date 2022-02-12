@@ -461,6 +461,7 @@ static struct node *parse_typeexpr(Parser *p) {
 		expect(p, TIDENT);
 	} else {
 		error(p, "expected a type (TODO)");
+		return NULL;
 	}
 	return maketypeexpr(p, TYVAL, tok);
 }
