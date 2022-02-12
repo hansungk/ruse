@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #define TOKLEN 64
+#define VALLEN 10
 
 typedef struct Source Source;
 typedef struct src_range SrcRange;

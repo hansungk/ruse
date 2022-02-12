@@ -71,20 +71,42 @@ static void emit(char *c, ...) {
 #endif
 }
 
-static int valstack_push(Context *ctx) {
+static int valstack_push(struct context *ctx) {
 	struct val v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id};
 	arrput(ctx->valstack.data, v);
 	return ctx->valstack.curr_temp_id++;
 }
 
-static void valstack_push_addr(Context *ctx, int addr_id) {
+static void valstack_push_addr(struct context *ctx, int addr_id) {
 	struct val v = {VAL_ADDR, .addr_id = addr_id};
     arrput(ctx->valstack.data, v);
 }
 
-static void codegen_expr(struct context *ctx, struct node *n) {
+static char *val_qbe_name(const struct val *val, char *buf, size_t blen) {
+	int len;
+
+	switch (val->kind) {
+	case VAL_TEMP:
+		len = snprintf(buf, blen, "%%.%d", val->temp_id);
+		break;
+	case VAL_ADDR:
+		len = snprintf(buf, blen, "%%A%d", val->addr_id);
+		break;
+	default:
+		assert(!"unknown valstack kind");
+	}
+
+	assert(len >= 0 && "sprintf error");
+	assert((size_t)len < blen && "sprintf too long for buf");
+	return buf;
+}
+
+// 'value' is whether codegen_expr() has to generate the actual value of the
+// expression and put it on the valstack.  If its value is 0, only the address
+// of the expression (which has to be lvalue) will be put on the valstack.
+static void codegen_expr(struct context *ctx, struct node *n, int value) {
 	char buf[TOKLEN]; // FIXME: stack usage
-	struct val id_lhs, id_rhs;
+	struct val val_lhs, val_rhs;
 
 	switch (n->kind) {
 	case NLITERAL:
@@ -93,30 +115,40 @@ static void codegen_expr(struct context *ctx, struct node *n) {
 		valstack_push(ctx);
 		break;
 	case NIDEXPR:
-		// TODO: will have to decide whether we want to generate load or
-		// not here.
-		emit("    %%.%d =w loadw %%A%d\n", ctx->valstack.curr_temp_id,
-		     n->decl->id);
-		valstack_push(ctx);
+		if (value) {
+			emit("    %%.%d =w loadw %%A%d\n",
+			     ctx->valstack.curr_temp_id, n->decl->id);
+			valstack_push(ctx);
+		} else {
+			valstack_push_addr(ctx, n->decl->id);
+		}
 		break;
 	case NBINEXPR:
-		codegen_expr(ctx, n->lhs);
-		codegen_expr(ctx, n->rhs);
+		codegen_expr(ctx, n->lhs, 1);
+		codegen_expr(ctx, n->rhs, 1);
 
 		// 'id_rhs' comes first because lhs is pushed to the stack first
 		// during the post-order traversal.
 		assert(arrlen(ctx->valstack.data) >= 2);
-		id_rhs = arrpop(ctx->valstack.data);
-		id_lhs = arrpop(ctx->valstack.data);
-		assert(id_rhs.kind == VAL_TEMP);
-		assert(id_lhs.kind == VAL_TEMP);
+		val_rhs = arrpop(ctx->valstack.data);
+		val_lhs = arrpop(ctx->valstack.data);
+		assert(val_rhs.kind == VAL_TEMP);
+		assert(val_lhs.kind == VAL_TEMP);
 		emit("    %%.%d =w add %%.%d, %%.%d\n", ctx->valstack.curr_temp_id,
-		     id_lhs.temp_id, id_rhs.temp_id);
+		     val_lhs.temp_id, val_rhs.temp_id);
 		valstack_push(ctx);
 		break;
 	case NREFEXPR:
-		codegen_expr(ctx, n->rhs);
-		// address is already on the stack, just use it
+		codegen_expr(ctx, n->rhs, 0);
+		break;
+	case NDEREFEXPR:
+		// have to generate value here, because dereference
+		codegen_expr(ctx, n->rhs, 1);
+		if (value) {
+			// TODO: generate load here
+			assert(!"TODO");
+		}
+		// n->id = ctx->curr_decl_id++;
 		break;
 	default:
 		assert(!"unknown expr kind");
@@ -131,13 +163,18 @@ static void codegen_decl(Context *ctx, struct node *n) {
 
 	switch (n->kind) {
 	case NVAR:
+		// FIXME: is it better to assign decl_id here or in check?
 		n->id = ctx->curr_decl_id++;
 		emit("    %%A%d =l alloc4 4\n", n->id);
 		codegen(ctx, n->rhs);
 		assert(arrlen(ctx->valstack.data) > 0);
 		val = arrpop(ctx->valstack.data);
-		assert(val.kind == VAL_TEMP);
-		emit("    storew %%.%d, %%A%d\n", val.temp_id, n->id);
+		// TODO: proper datasize handling
+		if (val.kind == VAL_TEMP) {
+			emit("    storew %%.%d, %%A%d\n", val.temp_id, n->id);
+		} else {
+			emit("    storel %%A%d, %%A%d\n", val.addr_id, n->id);
+		}
 		break;
 	default:
 		assert(!"unreachable");
@@ -145,25 +182,30 @@ static void codegen_decl(Context *ctx, struct node *n) {
 }
 
 static void codegen_stmt(Context *ctx, struct node *n) {
-    char buf[TOKLEN];
+	struct val val_lhs, val_rhs;
+	char buf[VALLEN];
 
-    switch (n->kind) {
-    case NEXPRSTMT:
-        codegen(ctx, n->rhs);
-        break;
-    case NASSIGN:
-        codegen(ctx, n->rhs);
-		assert(!"unimplemented");
-        emit("    %%.%d =w add 0, %%.%d\n", buf,
-             arrpop(ctx->valstack.data).temp_id);
-        break;
-    case NRETURN:
-        codegen(ctx, n->rhs);
-        emit("    ret %%.%d\n", arrpop(ctx->valstack.data).temp_id);
-        break;
-    default:
-        assert(!"unknown stmt kind");
-    }
+	switch (n->kind) {
+	case NEXPRSTMT:
+		codegen_expr(ctx, n->rhs, 1);
+		break;
+	case NASSIGN:
+		codegen_expr(ctx, n->rhs, 1);
+		codegen_expr(ctx, n->lhs, 0);
+		val_lhs = arrpop(ctx->valstack.data);
+		val_rhs = arrpop(ctx->valstack.data);
+		val_qbe_name(&val_rhs, buf, sizeof(buf));
+		emit("    storew %s", buf);
+		val_qbe_name(&val_lhs, buf, sizeof(buf));
+		emit(", %s\n", buf);
+		break;
+	case NRETURN:
+		codegen(ctx, n->rhs);
+		emit("    ret %%.%d\n", arrpop(ctx->valstack.data).temp_id);
+		break;
+	default:
+		assert(!"unknown stmt kind");
+	}
 }
 
 void codegen(Context *ctx, struct node *n) {
@@ -185,7 +227,7 @@ void codegen(Context *ctx, struct node *n) {
 		break;
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {
-			codegen_expr(ctx, n);
+			codegen_expr(ctx, n, 1);
 		} else if (NDECL <= n->kind && n->kind < NSTMT) {
 			codegen_decl(ctx, n);
 		} else if (NSTMT <= n->kind && n->kind) {
