@@ -9,7 +9,6 @@
 static struct node *parse_expr(Parser *p);
 static struct node *parse_stmt(Parser *p);
 static struct node *parse_typeexpr(Parser *p);
-static Type *parse_type(Parser *p);
 
 static struct node *makenode(Parser *p, enum NodeKind k, Token tok) {
 	// TODO: store all nodes in a contiguous buffer for better locality?
@@ -464,18 +463,6 @@ static struct node *parse_typeexpr(Parser *p) {
 		error(p, "expected a type (TODO)");
 	}
 	return maketypeexpr(p, TYVAL, tok);
-}
-
-static Type *parse_type(Parser *p) {
-	Token tok = p->tok;
-	if (p->tok.type == TINT) {
-		expect(p, TINT);
-	} else if (p->tok.type == TIDENT) {
-		expect(p, TIDENT);
-	} else {
-		error(p, "expected a type (TODO)");
-	}
-	return maketype(TYVAL, tok);
 }
 
 static struct node *parse_func(Parser *p) {
