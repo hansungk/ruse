@@ -108,7 +108,9 @@ static void lex_ident_or_keyword(Lexer *l) {
 		    lookn(l, i) != '_') {
 			consume(l, i);
 			maketoken(l, m->type);
-			l->tok.name = m->text;
+			// strdup here so that it becomes easy to clean tok.name later by
+			// always free()ing it
+			l->tok.name = strdup(m->text);
 			return;
 		}
 	}
