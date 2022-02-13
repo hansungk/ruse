@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct Mapkey {
+struct mapkey {
 	uint64_t hash;
 	const char *str;
 	void *data; // if NULL, this key is empty
@@ -29,12 +29,12 @@ static uint64_t hash(const void *p) {
     return x;
 }
 
-void makemap(struct Map *m) {
+void makemap(struct map *m) {
 	m->bucketlen = 128; // TODO: test
-	m->buckets = calloc(m->bucketlen, sizeof(struct Mapkey));
+	m->buckets = calloc(m->bucketlen, sizeof(struct mapkey));
 }
 
-void freemap(struct Map *map) {
+void freemap(struct map *map) {
 	free(map->buckets);
 }
 
@@ -44,7 +44,7 @@ int mapput(Map *m, const char *str, void *data) {
 	size_t i = hash % m->bucketlen;
 	size_t i_orig = i;
 
-	struct Mapkey *k = &m->buckets[i];
+	struct mapkey *k = &m->buckets[i];
 	while (k->data) {
 		if (hash == k->hash && strcmp(str, k->str) == 0)
 			return 0;
@@ -65,7 +65,7 @@ void *mapget(Map *m, const char *str) {
 	size_t i = hash % m->bucketlen;
 	size_t i_orig = i;
 
-	struct Mapkey *k = &m->buckets[i];
+	struct mapkey *k = &m->buckets[i];
 	while (k->data) {
 		if (hash == k->hash && strcmp(str, k->str) == 0)
 			break;

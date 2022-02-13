@@ -34,7 +34,7 @@ Type *makepointertype(Type *target, Token tok) {
 
 // TODO: merge this with the one in parse.c?
 static void error(Context *ctx, struct src_loc loc, const char *fmt, ...) {
-	struct Error e;
+	struct error e;
 	va_list args;
 
 	e.loc = loc;
@@ -48,20 +48,20 @@ static void error(Context *ctx, struct src_loc loc, const char *fmt, ...) {
 
 int do_errors(const Error *errors) {
 	for (long i = 0; i < arrlen(errors); i++) {
-		struct Error e = errors[i];
+		struct error e = errors[i];
 		fprintf(stderr, "%s:%d:%d: error: %s\n", e.loc.filename,
 		        e.loc.line, e.loc.col, e.msg);
 	}
 	return arrlen(errors) == 0;
 }
 
-static struct Scope *makescope(void) {
-	struct Scope *s = calloc(sizeof(struct Scope), 1);
+static struct scope *makescope(void) {
+	struct scope *s = calloc(sizeof(struct scope), 1);
 	makemap(&s->map);
 	return s;
 }
 
-static void freescope(struct Scope *s) {
+static void freescope(struct scope *s) {
 	freemap(&s->map);
 	free(s);
 }
@@ -100,14 +100,14 @@ void context_free(Context *ctx) {
 }
 
 void push_scope(Context *ctx) {
-	struct Scope *new_scope = makescope();
+	struct scope *new_scope = makescope();
 	new_scope->outer = ctx->scope;
 	ctx->scope = new_scope;
 	// TODO: typescope
 }
 
 void pop_scope(Context *ctx) {
-	struct Scope *innermost = ctx->scope;
+	struct scope *innermost = ctx->scope;
 	ctx->scope = ctx->scope->outer;
 	freescope(innermost);
 	// TODO: typescope
@@ -128,7 +128,7 @@ struct node *declare(Context *ctx, struct node *n) {
 // Finds the declaration node that first declared the variable referenced by
 // 'n'.
 struct node *lookup(Context *ctx, struct node *n) {
-	struct Scope *s = ctx->scope;
+	struct scope *s = ctx->scope;
 	while (s) {
 		struct node *found = mapget(&s->map, n->tok.name);
 		if (found)
@@ -151,7 +151,7 @@ static Type *push_type(Context *ctx, Type *ty) {
 
 // Finds the type object that first declared the type whose name is 'name'.
 Type *lookup_type(Context *ctx, const char *name) {
-	struct Scope *s = ctx->typescope;
+	struct scope *s = ctx->typescope;
 	while (s) {
 		Type *found = mapget(&s->map, name);
 		if (found)
@@ -234,8 +234,8 @@ static void check_expr(Context *ctx, struct node *n) {
 			if (n->children[i]->type != n->lhs->type->params[i]->type) {
 				return error(ctx, n->children[i]->tok.loc,
 				             "argument type mismatch: expected %s, got %s",
-				             "TODO" /*n->lhs->type->params[i]->type*/,
-				             "TODO" /*n->children[i]->type*/);
+				             n->lhs->type->params[i]->type->tok.name,
+				             n->children[i]->type->tok.name /*TODO*/);
 			}
 		}
 		break;

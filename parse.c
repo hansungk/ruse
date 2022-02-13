@@ -10,7 +10,7 @@ static struct node *parse_expr(Parser *p);
 static struct node *parse_stmt(Parser *p);
 static struct node *parse_typeexpr(Parser *p);
 
-static struct node *makenode(Parser *p, enum NodeKind k, Token tok) {
+static struct node *makenode(Parser *p, enum node_kind k, Token tok) {
 	// TODO: store all nodes in a contiguous buffer for better locality?
 	// should be careful about node pointers going stale though
 	struct node *node = calloc(1, sizeof(struct node));
@@ -151,7 +151,7 @@ static void next(Parser *p) {
 }
 
 static void error(Parser *p, const char *fmt, ...) {
-	struct Error e;
+	struct error e;
 	va_list args;
 
 	e.loc = p->tok.loc;
@@ -163,7 +163,7 @@ static void error(Parser *p, const char *fmt, ...) {
 	arrput(p->errors, e);
 }
 
-static void skip_while(Parser *p, enum TokenType type) {
+static void skip_while(Parser *p, enum token_type type) {
 	while (p->tok.type != TEOF && p->tok.type == type) {
 		next(p);
 	}
@@ -176,7 +176,7 @@ static void skip_newlines(Parser *p) {
 	}
 }
 
-static void skip_to(Parser *p, enum TokenType type) {
+static void skip_to(Parser *p, enum token_type type) {
 	while (p->tok.type != TEOF && p->tok.type != type) {
 		next(p);
 	}
@@ -188,7 +188,7 @@ static void skip_to_end_of_line(Parser *p) {
 	}
 }
 
-static int expect(Parser *p, enum TokenType t) {
+static int expect(Parser *p, enum token_type t) {
 	if (p->tok.type != t) {
 		char ebuf[TOKLEN], gbuf[TOKLEN];
 		tokentypestr(t, ebuf, sizeof(ebuf));
@@ -214,7 +214,7 @@ static int expect_end_of_line(Parser *p) {
 }
 
 // TODO: remove
-static void tokentypeprint(enum TokenType t) {
+static void tokentypeprint(enum token_type t) {
 	char buf[TOKLEN];
 	tokentypestr(t, buf, sizeof(buf));
 	printf("i saw %s\n", buf);

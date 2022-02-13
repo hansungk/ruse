@@ -7,11 +7,11 @@
 #define TOKLEN 64
 #define VALLEN 10
 
-typedef struct Source Source;
+typedef struct source Source;
 typedef struct src_range SrcRange;
 typedef struct src_loc SrcLoc;
 
-struct Source {
+struct source {
 	char filename[256]; // source filename
 	size_t *line_offs;  // byte offsets of '\n's
 	char *buf;          // source text
@@ -30,7 +30,7 @@ struct src_loc {
 	int col;
 };
 
-enum TokenType {
+enum token_type {
 	TEOF = '\0',
 	TNEWLINE = '\n',
 	TLPAREN = '(',
@@ -71,26 +71,26 @@ enum TokenType {
 
 extern char *token_names[NUM_TOKENTYPES];
 
-struct TokenMap {
+struct token_map {
 	char *text;
-	enum TokenType type;
+	enum token_type type;
 };
 
 typedef struct token Token;
-typedef struct Lexer Lexer;
+typedef struct lexer Lexer;
 
 // Making Tokens store source ranges instead of string memory blocks makes
 // passing them around easy.
 struct token {
-	enum TokenType type;
+	enum token_type type;
 	struct src_range range;
 	struct src_loc loc;
 	char *name;
 };
 
 // Lexer state.
-struct Lexer {
-	struct Source src; // program source
+struct lexer {
+	struct source src; // program source
 	struct token tok;  // currently lexed token
 	char ch;           // next character to start lexing at
 	long off;          // byte offset of 'ch'
@@ -107,11 +107,11 @@ int lex(Lexer *l);
 char *srclocstr(SrcLoc loc, char *buf, size_t len);
 char *tokenstr(const char *src, Token tok, char *buf, size_t blen);
 int tokeneq(const char *src, Token t1, Token t2);
-char *tokentypestr(enum TokenType t, char *buf, size_t blen);
+char *tokentypestr(enum token_type t, char *buf, size_t blen);
 void tokenprint(const char *src, const Token tok);
 
 // Keep NEXPR < NDECL < NSTMT
-enum NodeKind {
+enum node_kind {
 	NFILE,
 
 	NEXPR,
@@ -138,7 +138,7 @@ enum NodeKind {
 };
 
 typedef struct node Node;
-typedef struct Error Error;
+typedef struct error Error;
 typedef struct parser Parser;
 
 enum type_kind {
@@ -148,7 +148,7 @@ enum type_kind {
 };
 
 struct node {
-	enum NodeKind kind;
+	enum node_kind kind;
 	Token tok;              // name of var or func. etc.
 	int id;                 // scope-unique decl id for codegen
 	struct node *decl;      // original declaration of this node
@@ -164,7 +164,7 @@ struct node {
 	struct node *rettypeexpr; // TODO: merge with typeexpr
 };
 
-struct Error {
+struct error {
 	struct src_loc loc;
 	char msg[1024];
 };
@@ -183,25 +183,25 @@ void parser_from_buf(struct parser *p, const char *buf, size_t len);
 void parser_cleanup(struct parser *p);
 struct node *parse(struct parser *p);
 
-typedef struct Map Map;
+typedef struct map Map;
 
-struct Map {
+struct map {
 	size_t bucketlen;
-	struct Mapkey *buckets;
+	struct mapkey *buckets;
 };
 
-void makemap(struct Map *m);
-void freemap(struct Map *map);
+void makemap(struct map *m);
+void freemap(struct map *map);
 int mapput(Map *m, const char *str, void *data);
-void *mapget(struct Map *m, const char *str);
+void *mapget(struct map *m, const char *str);
 
-enum DeclKind {
+enum decl_kind {
 	D_NUM,
 };
 
 typedef struct type Type;
-typedef struct Decl Decl;
-typedef struct Scope Scope;
+typedef struct decl Decl;
+typedef struct scope Scope;
 typedef struct context Context;
 
 struct type {
@@ -214,15 +214,15 @@ struct type {
 	size_t size; // memory size in bytes
 };
 
-struct Decl {
-	enum DeclKind kind;
+struct decl {
+	enum decl_kind kind;
 	Token name;
 	double num;
 };
 
-struct Scope {
-	struct Map map;
-	struct Scope *outer;
+struct scope {
+	struct map map;
+	struct scope *outer;
 };
 
 #define VHLEN 10

@@ -12,7 +12,7 @@ char *token_names[NUM_TOKENTYPES] = {
 	[TLPAREN] = "(",         [TRPAREN] = ")",   [TCOMMENT] = "comment",
 };
 
-struct TokenMap keywords[] = {
+struct token_map keywords[] = {
 	{"var", TVAR},        {"const", TCONST},   {"fn", TFUNC},
 	{"struct", TSTRUCT},  {"return", TRETURN}, {"int", TINT},
 	{"string", TSTRING_}, {NULL, 0},
@@ -90,7 +90,7 @@ void lexer_cleanup(Lexer *l) {
 }
 
 // Make a new token and place it at 'l->tok'.
-static void maketoken(Lexer *l, enum TokenType type) {
+static void maketoken(Lexer *l, enum token_type type) {
 	memset(&l->tok, 0, sizeof(Token));
 	l->tok.type = type;
 	l->tok.range = (SrcRange){l->start, l->off};
@@ -99,7 +99,7 @@ static void maketoken(Lexer *l, enum TokenType type) {
 
 static void lex_ident_or_keyword(Lexer *l) {
 	// multi-char keywords
-	for (const struct TokenMap *m = &keywords[0]; m->text != NULL; m++) {
+	for (const struct token_map *m = &keywords[0]; m->text != NULL; m++) {
 		int i = 0;
 		for (; m->text[i] != '\0' && m->text[i] == lookn(l, i); i++)
 			; // nothing
@@ -130,7 +130,7 @@ static void lex_ident_or_keyword(Lexer *l) {
 
 static void lex_symbol(Lexer *l) {
     // multi-char symbol
-    for (const struct TokenMap *m = &keywords[0]; m->text != NULL; m++) {
+    for (const struct token_map *m = &keywords[0]; m->text != NULL; m++) {
         for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i); i++) {
             if (m->text[i] == '\0') {
                 consume(l, i);
@@ -286,7 +286,7 @@ int tokeneq(const char *src, Token t1, Token t2) {
 // Return the descriptive name for a TokenType enum.
 // Different from tokenstr as it does not return the actual text for
 // the token, but the description for the type of the token.
-char *tokentypestr(enum TokenType t, char *buf, size_t blen) {
+char *tokentypestr(enum token_type t, char *buf, size_t blen) {
     if (t >= TASCII)
         snprintf(buf, blen, "%s", token_names[t]);
     else if (t == '\n')
