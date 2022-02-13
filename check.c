@@ -269,12 +269,7 @@ static void check_expr(Context *ctx, struct node *n) {
 
 static void check_decl(Context *ctx, struct node *n) {
 	switch (n->kind) {
-	case NVAR:
-		// FIXME: This is a little awkward because original declarations would
-		// have 'n == n->decl'.  Or is this a good thing?  Maybe make a
-		// separate Decl struct?
-		if (!(n->decl = declare(ctx, n)))
-			return;
+	case NVARDECL:
 		// vardecl has a type specifier, e.g. var i: int
 		if (n->typeexpr) {
 			check_expr(ctx, n->typeexpr);
@@ -290,6 +285,12 @@ static void check_decl(Context *ctx, struct node *n) {
 				return;
 			n->type = n->rhs->type;
 		}
+		// only declare after the whole thing succeeds typecheck
+		// FIXME: This is a little awkward because original declarations would
+		// have 'n == n->decl'.  Or is this a good thing?  Maybe make a
+		// separate Decl struct?
+		if (!(n->decl = declare(ctx, n)))
+			return;
 		assert(n->type);
 		break;
 	case NFUNC:

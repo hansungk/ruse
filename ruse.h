@@ -126,7 +126,7 @@ enum NodeKind {
 	NTYPEEXPR,
 
 	NDECL,
-	NVAR = NDECL,
+	NVARDECL = NDECL,
 	NFUNC,
 	NSTRUCT,
 

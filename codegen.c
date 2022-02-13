@@ -190,7 +190,7 @@ static void codegen_decl(Context *ctx, struct node *n) {
 	tokenstr(ctx->src->buf, n->decl->tok, buf, sizeof(buf));
 
 	switch (n->kind) {
-	case NVAR:
+	case NVARDECL:
 		// FIXME: is it better to assign decl_id here or in check?
 		n->id = ctx->curr_decl_id++;
 		emit("    %%A%d =l alloc4 4\n", n->id);

@@ -3,6 +3,7 @@
 fn main() int {
     var a int
     var a int = 4 // error
+    var b = b // error
     var b = 4
     b.mem // error
 

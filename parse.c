@@ -85,7 +85,7 @@ static struct node *maketypeexpr(Parser *p, enum TypeKind kind, Token tok) {
 
 static struct node *makevardecl(Parser *p, Token name, struct node *initexpr,
                                 struct node *typeexpr) {
-	struct node *n = makenode(p, NVAR, name);
+	struct node *n = makenode(p, NVARDECL, name);
 	n->rhs = initexpr;
 	n->typeexpr = typeexpr;
 	return n;
