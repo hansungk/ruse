@@ -461,7 +461,7 @@ static struct node *parse_typeexpr(Parser *p) {
 		error(p, "expected a type (TODO)");
 		return NULL;
 	}
-	return maketypeexpr(p, TYVAL, tok);
+	return maketypeexpr(p, TYPE_VAL, tok);
 }
 
 static struct node *parse_func(Parser *p) {

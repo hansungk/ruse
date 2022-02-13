@@ -105,9 +105,9 @@ void lexer_cleanup(Lexer *l);
 SrcLoc locate(Source *src, size_t pos);
 int lex(Lexer *l);
 char *srclocstr(SrcLoc loc, char *buf, size_t len);
-char *tokenstr(const char *src, Token tok, char *buf, size_t blen);
+char *tokenstr(const char *src, Token tok, char *buf, size_t buflen);
 int tokeneq(const char *src, Token t1, Token t2);
-char *tokentypestr(enum token_type t, char *buf, size_t blen);
+char *tokentypestr(enum token_type t, char *buf, size_t buflen);
 void tokenprint(const char *src, const Token tok);
 
 // Keep NEXPR < NDECL < NSTMT
@@ -137,14 +137,26 @@ enum node_kind {
 	NRETURN,
 };
 
+typedef struct type Type;
 typedef struct node Node;
 typedef struct error Error;
 typedef struct parser Parser;
 
 enum type_kind {
-	TYVAL,
-	TYPTR,
-	TYFUNC,
+	TYPE_VAL,
+	TYPE_PTR,
+	TYPE_FUNC,
+};
+
+
+struct type {
+	enum type_kind kind;
+	struct token tok; // name of the type (for value types)
+	struct node **params;
+	struct node **members;
+	struct type *target; // referred type
+	struct type *rettype;
+	size_t size; // memory size in bytes
 };
 
 struct node {
@@ -199,20 +211,9 @@ enum decl_kind {
 	D_NUM,
 };
 
-typedef struct type Type;
 typedef struct decl Decl;
 typedef struct scope Scope;
 typedef struct context Context;
-
-struct type {
-	enum type_kind kind;
-	struct token tok; // name of the type (for value types)
-	struct node **params;
-	struct node **members;
-	struct type *target; // referred type
-	struct type *rettype;
-	size_t size; // memory size in bytes
-};
 
 struct decl {
 	enum decl_kind kind;

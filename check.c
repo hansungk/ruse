@@ -6,13 +6,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-static Type *ty_int;
-static Type *ty_string;
+static struct type *ty_int;
+static struct type *ty_string;
+static struct type *push_type(Context *ctx, struct type *ty);
 
-static Type *push_type(Context *ctx, Type *ty);
-
-Type *maketype(enum type_kind kind, Token tok) {
-	Type *t = calloc(1, sizeof(struct node));
+struct type *maketype(enum type_kind kind, Token tok) {
+	struct type *t = calloc(1, sizeof(struct node));
 	if (!t) {
 		fprintf(stderr, "alloc error\n");
 		exit(1);
@@ -25,11 +24,38 @@ Type *maketype(enum type_kind kind, Token tok) {
 }
 
 // FIXME: remove 'tok'
-Type *makepointertype(Type *target, Token tok) {
-	Type *t = maketype(TYPTR, tok);
+struct type *makepointertype(struct type *target, Token tok) {
+	struct type *t = maketype(TYPE_PTR, tok);
 	t->target = target;
 	t->size = 8;
 	return t;
+}
+
+char *typename(const struct type *type, char *buf, size_t buflen) {
+	int wlen = 0;
+	char *cursor = NULL;
+	size_t cursor_len = 0;
+
+	switch (type->kind) {
+	case TYPE_VAL:
+		strncpy(buf, type->tok.name, buflen - 1);
+		buf[buflen - 1] = '\0';
+		break;
+	case TYPE_PTR:
+		wlen = snprintf(buf, buflen, "*");
+		cursor_len = buflen - wlen;
+		cursor = buf + wlen;
+		typename(type->target, cursor, cursor_len);
+		break;
+	case TYPE_FUNC:
+		assert(!"unimplemented");
+	default:
+		assert(!"unknown type kind");
+	}
+
+	assert(wlen >= 0);
+	assert((size_t)wlen <= buflen - 1);
+	return buf;
 }
 
 // TODO: merge this with the one in parse.c?
@@ -68,12 +94,12 @@ static void freescope(struct scope *s) {
 
 static void setup_builtin_types(Context *ctx) {
 	// FIXME: free(ty_int), calloc() check
-	ty_int = calloc(1, sizeof(Type));
-	ty_int->kind = TYVAL;
+	ty_int = calloc(1, sizeof(struct type));
+	ty_int->kind = TYPE_VAL;
 	ty_int->tok = (Token){.type = TINT, .name = "int"};
 	push_type(ctx, ty_int);
-	ty_string = calloc(1, sizeof(Type));
-	ty_string->kind = TYVAL;
+	ty_string = calloc(1, sizeof(struct type));
+	ty_string->kind = TYPE_VAL;
 	ty_string->tok = (Token){.type = TSTRING_, .name = "string"};
 	push_type(ctx, ty_string);
 }
@@ -139,7 +165,7 @@ struct node *lookup(Context *ctx, struct node *n) {
 }
 
 // Pushes a new type to the current scope.
-static Type *push_type(Context *ctx, Type *ty) {
+static struct type *push_type(Context *ctx, struct type *ty) {
 	if (!mapput(&ctx->typescope->map, ty->tok.name, ty)) {
 		char buf[TOKLEN];
 		tokenstr(ctx->src->buf, ty->tok, buf, sizeof(buf));
@@ -150,10 +176,10 @@ static Type *push_type(Context *ctx, Type *ty) {
 }
 
 // Finds the type object that first declared the type whose name is 'name'.
-Type *lookup_type(Context *ctx, const char *name) {
+struct type *lookup_type(Context *ctx, const char *name) {
 	struct scope *s = ctx->typescope;
 	while (s) {
-		Type *found = mapget(&s->map, name);
+		struct type *found = mapget(&s->map, name);
 		if (found)
 			return found;
 		s = s->outer;
@@ -196,7 +222,7 @@ static void check_expr(Context *ctx, struct node *n) {
 		// Declare itself.  Don't put this in the symbol map as we don't need
 		// these temporary decls to be referrable by any specific name.
 		n->decl = n;
-		if (n->rhs->type->kind != TYPTR)
+		if (n->rhs->type->kind != TYPE_PTR)
 			return error(ctx, n->tok.loc, "cannot dereference a non-pointer");
 		n->type = n->rhs->type->target;
 		break;
@@ -215,7 +241,7 @@ static void check_expr(Context *ctx, struct node *n) {
 		check_expr(ctx, n->lhs);
 		if (!n->lhs->type)
 			return;
-		if (n->lhs->type->kind != TYFUNC) {
+		if (n->lhs->type->kind != TYPE_FUNC) {
 			tokenstr(ctx->src->buf, n->lhs->tok, buf, sizeof(buf));
 			return error(ctx, n->lhs->tok.loc,
 			             "'%s' is not a function", buf);
@@ -232,10 +258,14 @@ static void check_expr(Context *ctx, struct node *n) {
 			assert(n->lhs->type->params[i]->type);
 			// TODO: proper type compatibility check
 			if (n->children[i]->type != n->lhs->type->params[i]->type) {
+				char expect_buf[TOKLEN];
+				char got_buf[TOKLEN];
+				typename(n->lhs->type->params[i]->type, expect_buf,
+				         sizeof(expect_buf));
+				typename(n->children[i]->type, got_buf, sizeof(got_buf));
 				return error(ctx, n->children[i]->tok.loc,
 				             "argument type mismatch: expected %s, got %s",
-				             n->lhs->type->params[i]->type->tok.name,
-				             n->children[i]->type->tok.name /*TODO*/);
+				             expect_buf, got_buf);
 			}
 		}
 		break;
@@ -261,8 +291,8 @@ static void check_expr(Context *ctx, struct node *n) {
 		n->type = member_match->type;
 		break;
 	case NTYPEEXPR:
-		if (n->typekind == TYVAL) {
-			Type *orig_ty = lookup_type(ctx, n->tok.name);
+		if (n->typekind == TYPE_VAL) {
+			struct type *orig_ty = lookup_type(ctx, n->tok.name);
 			if (!orig_ty)
 				return error(ctx, n->tok.loc,
 				             "unknown type '%s'", n->tok.name);
@@ -306,7 +336,7 @@ static void check_decl(Context *ctx, struct node *n) {
 	case NFUNC:
 		if (!declare(ctx, n))
 			return;
-		n->type = maketype(TYFUNC, n->tok);
+		n->type = maketype(TYPE_FUNC, n->tok);
 		// !n->rettypeexpr is possible for void return type
 		if (n->rettypeexpr) {
 			n->type->rettype =
@@ -335,7 +365,7 @@ static void check_decl(Context *ctx, struct node *n) {
 		// TODO: check return stmts
 		break;
 	case NSTRUCT:
-		n->type = maketype(TYVAL, n->tok);
+		n->type = maketype(TYPE_VAL, n->tok);
 		push_type(ctx, n->type);
 		// fields
 		for (long i = 0; i < arrlen(n->children); i++) {

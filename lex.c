@@ -267,9 +267,9 @@ SrcLoc locate(Source *src, size_t pos) {
 // Print 'tok' as string into buf.
 // Needs 'src' because it needs the source text.
 // FIXME: use tok.name rather than trying to copy from the whole source
-char *tokenstr(const char *src, struct token tok, char *buf, size_t blen) {
+char *tokenstr(const char *src, struct token tok, char *buf, size_t buflen) {
 	size_t tlen = tok.range.end - tok.range.start;
-	size_t strlen = (blen - 1) < tlen ? (blen - 1) : tlen;
+	size_t strlen = (buflen - 1) < tlen ? (buflen - 1) : tlen;
 	strncpy(buf, src + tok.range.start, strlen);
 	buf[strlen] = '\0';
 	return buf;
@@ -286,16 +286,16 @@ int tokeneq(const char *src, Token t1, Token t2) {
 // Return the descriptive name for a TokenType enum.
 // Different from tokenstr as it does not return the actual text for
 // the token, but the description for the type of the token.
-char *tokentypestr(enum token_type t, char *buf, size_t blen) {
+char *tokentypestr(enum token_type t, char *buf, size_t buflen) {
     if (t >= TASCII)
-        snprintf(buf, blen, "%s", token_names[t]);
+        snprintf(buf, buflen, "%s", token_names[t]);
     else if (t == '\n')
-        snprintf(buf, blen, "\\n");
+        snprintf(buf, buflen, "\\n");
     else if (t == TEOF)
-        snprintf(buf, blen, "EOF");
+        snprintf(buf, buflen, "EOF");
     else
-        snprintf(buf, blen, "%c", (char)t);
-    buf[blen - 1] = '\0';
+        snprintf(buf, buflen, "%c", (char)t);
+    buf[buflen - 1] = '\0';
     return buf;
 }
 
