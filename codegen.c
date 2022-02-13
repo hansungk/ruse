@@ -150,8 +150,11 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		codegen_expr_addr(ctx, n->rhs);
 		break;
 	case NDEREFEXPR:
-		// generating value here means dereference
 		codegen_expr_value(ctx, n->rhs);
+		// Right now, the target of this derefexpr's value is generated and
+		// pushed onto the stack: i.e. value of 'c' in '*c'.  This is the
+		// memory location of where the decl '*c' sits.  If we want to generate
+		// value of '*c' itself, we have to generate another load.
 		if (value) {
 			struct val val = arrpop(ctx->valstack.data);
 			val_qbe_name(&val, buf, sizeof(buf));
