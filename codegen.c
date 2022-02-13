@@ -212,7 +212,6 @@ static void codegen_decl(Context *ctx, struct node *n) {
 
 static void codegen_stmt(Context *ctx, struct node *n) {
 	struct value_handle val_lhs, val_rhs;
-	char buf[VALLEN];
 
 	switch (n->kind) {
 	case NEXPRSTMT:

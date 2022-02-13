@@ -299,6 +299,7 @@ static struct node *parse_unaryexpr(Parser *p) {
 	case TSTAR:
 		tok = p->tok;
 		next(p);
+		// FIXME: this might allow things like *a + *a -> *(a + *a)
 		rhs = parse_expr(p);
 		e = makederefexpr(p, rhs, tok);
 		break;
@@ -358,33 +359,31 @@ static struct node *parse_binexpr_rhs(Parser *p, struct node *lhs,
 	while (1) {
 		int this_prec = get_precedence(p->tok);
 
-		// If the upcoming op has lower precedence, the subexpression of
-		// the precedence level that we are currently parsing in is
-		// finished. This is equivalent to reducing on a shift/reduce
-		// conflict in bottom-up parsing.
+		// If the upcoming op has lower precedence, the subexpression of the
+		// precedence level that we are currently parsing in is finished. This
+		// is equivalent to reducing on a shift/reduce conflict in bottom-up
+		// parsing.
 		if (this_prec < precedence)
 			break;
 
 		Token op = p->tok;
 		next(p);
 
-		// Parse the next term.  We do not know yet if this term should
-		// bind to LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know
-		// this, we should look ahead for the operator that follows this
-		// term.
+		// Parse the next term.  We do not know yet if this term should bind to
+		// LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know this, we
+		// should look ahead for the operator that follows this term.
 		struct node *rhs = parse_unaryexpr(p);
 		if (!rhs)
 			error(p, "expected an expression");
 		int next_prec = get_precedence(p->tok);
 
-		// If the next operator is indeed higher-level, evaluate the RHS
-		// as a whole subexpression with elevated minimum precedence.
-		// Else, just treat it as a unary expression.  This is
-		// equivalent to shifting on a shift/reduce conflict in
-		// bottom-up parsing.
+		// If the next operator is indeed higher-level, evaluate the RHS as a
+		// whole subexpression with elevated minimum precedence. Else, just
+		// treat it as a unary expression.  This is equivalent to shifting on a
+		// shift/reduce conflict in bottom-up parsing.
 		//
-		// If this_prec == next_prec, don't shift, but reduce it with
-		// lhs. This implies left associativity.
+		// If this_prec == next_prec, don't shift, but reduce it with lhs. This
+		// implies left associativity.
 		if (this_prec < next_prec)
 			rhs = parse_binexpr_rhs(p, rhs, precedence + 1);
 		lhs = makebinexpr(p, lhs, op, rhs);
