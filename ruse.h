@@ -231,15 +231,17 @@ struct context {
 	Scope *typescope;
 	Error *errors;
 	int curr_decl_id; // next scope-unique decl id
-	struct Valstack {
-		struct val {
+	struct valstack {
+		// value_handle is a handle used for referring to the temporary QBE
+		// values that are so far generated.
+		struct value_handle {
 			enum val_kind {
 				VAL_TEMP,
 				VAL_ADDR,
 			} kind;
 			int temp_id;
 			int addr_id;
-			int size;
+			int data_size;
 		} *data;
 		int curr_temp_id; // next id to be pushed to valstack
 	} valstack;

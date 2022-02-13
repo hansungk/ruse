@@ -71,18 +71,18 @@ static void emit(char *c, ...) {
 #endif
 }
 
-static int valstack_push(struct context *ctx) {
-	struct val v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id, .size = 4};
+static int valstack_push_value(struct context *ctx) {
+	struct value_handle v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id, .data_size = 4};
 	arrput(ctx->valstack.data, v);
 	return ctx->valstack.curr_temp_id++;
 }
 
 static void valstack_push_addr(struct context *ctx, int addr_id) {
-	struct val v = {VAL_ADDR, .addr_id = addr_id, .size = 8};
+	struct value_handle v = {VAL_ADDR, .addr_id = addr_id, .data_size = 8};
     arrput(ctx->valstack.data, v);
 }
 
-static char *val_qbe_name(const struct val *val, char *buf, size_t blen) {
+static char *val_qbe_name(const struct value_handle *val, char *buf, size_t blen) {
 	int len;
 
 	switch (val->kind) {
@@ -109,24 +109,24 @@ static void codegen_expr_addr(struct context *ctx, struct node *n);
 // of the expression (which has to be lvalue) will be put on the valstack.
 static void codegen_expr(struct context *ctx, struct node *n, int value) {
 	char buf[TOKLEN]; // FIXME: stack usage
-	struct val val_lhs, val_rhs;
+	struct value_handle val_lhs, val_rhs;
 
 	switch (n->kind) {
 	case NLITERAL:
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
 		emit("    %%.%d =w add 0, %s\n", ctx->valstack.curr_temp_id, buf);
-		valstack_push(ctx);
+		valstack_push_value(ctx);
 		break;
 	case NIDEXPR:
 		if (value) {
 			if (n->decl->type->size == 8) {
-			emit("    %%.%d =l loadl %%A%d\n",
-			     ctx->valstack.curr_temp_id, n->decl->id);
+				emit("    %%.%d =l loadl %%A%d\n",
+				     ctx->valstack.curr_temp_id, n->decl->id);
 			} else {
-			emit("    %%.%d =w loadw %%A%d\n",
-			     ctx->valstack.curr_temp_id, n->decl->id);
+				emit("    %%.%d =w loadw %%A%d\n",
+				     ctx->valstack.curr_temp_id, n->decl->id);
 			}
-			valstack_push(ctx);
+			valstack_push_value(ctx);
 		} else {
 			valstack_push_addr(ctx, n->decl->id);
 		}
@@ -144,7 +144,7 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		assert(val_lhs.kind == VAL_TEMP);
 		emit("    %%.%d =w add %%.%d, %%.%d\n", ctx->valstack.curr_temp_id,
 		     val_lhs.temp_id, val_rhs.temp_id);
-		valstack_push(ctx);
+		valstack_push_value(ctx);
 		break;
 	case NREFEXPR:
 		codegen_expr_addr(ctx, n->rhs);
@@ -156,18 +156,17 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		// memory location of where the decl '*c' sits.  If we want to generate
 		// value of '*c' itself, we have to generate another load.
 		if (value) {
-			struct val val = arrpop(ctx->valstack.data);
+			struct value_handle val = arrpop(ctx->valstack.data);
 			val_qbe_name(&val, buf, sizeof(buf));
-			if (val.size == 8) {
+			if (val.data_size == 8) {
 				emit("    %%.%d =l loadl %s\n",
 				     ctx->valstack.curr_temp_id, buf);
 			} else {
 				emit("    %%.%d =w loadw %s\n",
 				     ctx->valstack.curr_temp_id, buf);
 			}
-			valstack_push(ctx);
+			valstack_push_value(ctx);
 		}
-		// n->id = ctx->curr_decl_id++;
 		break;
 	default:
 		assert(!"unknown expr kind");
@@ -184,7 +183,7 @@ static void codegen_expr_addr(struct context *ctx, struct node *n) {
 
 static void codegen_decl(Context *ctx, struct node *n) {
 	char buf[TOKLEN];
-	struct val val;
+	struct value_handle val;
 
 	tokenstr(ctx->src->buf, n->decl->tok, buf, sizeof(buf));
 
@@ -198,7 +197,7 @@ static void codegen_decl(Context *ctx, struct node *n) {
 		val = arrpop(ctx->valstack.data);
 		// TODO: proper datasize handling
 		val_qbe_name(&val, buf, sizeof(buf));
-		if (val.size == 8) {
+		if (val.data_size == 8) {
 			emit("    storel");
 		} else {
 			emit("    storew");
@@ -211,7 +210,7 @@ static void codegen_decl(Context *ctx, struct node *n) {
 }
 
 static void codegen_stmt(Context *ctx, struct node *n) {
-	struct val val_lhs, val_rhs;
+	struct value_handle val_lhs, val_rhs;
 	char buf[VALLEN];
 
 	switch (n->kind) {
@@ -224,7 +223,7 @@ static void codegen_stmt(Context *ctx, struct node *n) {
 		val_lhs = arrpop(ctx->valstack.data);
 		val_rhs = arrpop(ctx->valstack.data);
 		val_qbe_name(&val_rhs, buf, sizeof(buf));
-		if (val_rhs.size == 8) {
+		if (val_rhs.data_size == 8) {
 			emit("    storel");
 		} else {
 			emit("    storew");
