@@ -7,6 +7,8 @@
 #define TOKLEN 64
 #define VALLEN 10
 
+void fatal(const char *fmt, ...);
+
 typedef struct source Source;
 typedef struct src_range SrcRange;
 typedef struct src_loc SrcLoc;

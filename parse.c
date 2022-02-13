@@ -158,7 +158,10 @@ static void error(Parser *p, const char *fmt, ...) {
 	va_start(args, fmt);
 	int len = vsnprintf(e.msg, sizeof(e.msg), fmt, args);
 	va_end(args);
-	assert(len < (int)sizeof(e.msg));
+
+	if (len < 0 || (size_t)len >= sizeof(e.msg)) {
+		fatal("%s(): vsnprintf error", __func__);
+	}
 
 	arrput(p->errors, e);
 }

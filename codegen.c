@@ -99,8 +99,9 @@ static char *val_qbe_name(struct value_handle *val) {
 		assert(!"unknown valstack kind");
 	}
 
-	assert(len >= 0 && "sprintf error");
-	assert((size_t)len < sizeof(val->name) && "sprintf too long for buf");
+	if (len < 0 || (size_t)len >= sizeof(val->name)) {
+		fatal("%s(): snprintf error", __func__);
+	}
 	return val->name;
 }
 

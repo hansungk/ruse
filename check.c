@@ -10,7 +10,7 @@ static struct type *ty_int;
 static struct type *ty_string;
 static struct type *push_type(Context *ctx, struct type *ty);
 
-static void fatal(const char *fmt, ...) {
+void fatal(const char *fmt, ...) {
 	va_list args;
 
 	fprintf(stderr, "fatal: ");
@@ -65,8 +65,9 @@ char *typename(const struct type *type, char *buf, size_t buflen) {
 		assert(!"unknown type kind");
 	}
 
-	if (wlen < 0 || (size_t)wlen > buflen - 1)
+	if (wlen < 0 || (size_t)wlen > buflen - 1) {
 		fatal("%s(): snprintf error", __func__);
+	}
 	return buf;
 }
 
