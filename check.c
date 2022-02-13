@@ -11,7 +11,7 @@ static Type *ty_string;
 
 static Type *push_type(Context *ctx, Type *ty);
 
-Type *maketype(enum TypeKind kind, Token tok) {
+Type *maketype(enum type_kind kind, Token tok) {
 	Type *t = calloc(1, sizeof(struct node));
 	if (!t) {
 		fprintf(stderr, "alloc error\n");
@@ -229,7 +229,14 @@ static void check_expr(Context *ctx, struct node *n) {
 			check_expr(ctx, n->children[i]);
 			if (!n->children[i]->type)
 				break;
-			assert(!"TODO: type compatibility check");
+			assert(n->lhs->type->params[i]->type);
+			// TODO: proper type compatibility check
+			if (n->children[i]->type != n->lhs->type->params[i]->type) {
+				return error(ctx, n->children[i]->tok.loc,
+				             "argument type mismatch: expected %s, got %s",
+				             "TODO" /*n->lhs->type->params[i]->type*/,
+				             "TODO" /*n->children[i]->type*/);
+			}
 		}
 		break;
 	case NMEMBER:
@@ -311,7 +318,7 @@ static void check_decl(Context *ctx, struct node *n) {
 		}
 
 		push_scope(ctx);
-		// declare arguments
+		// declare parameters
 		for (long i = 0; i < arrlen(n->args); i++) {
 			check(ctx, n->args[i]);
 			if (n->args[i]->type)

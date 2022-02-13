@@ -76,12 +76,12 @@ struct TokenMap {
 	enum TokenType type;
 };
 
-typedef struct Token Token;
+typedef struct token Token;
 typedef struct Lexer Lexer;
 
 // Making Tokens store source ranges instead of string memory blocks makes
 // passing them around easy.
-struct Token {
+struct token {
 	enum TokenType type;
 	struct src_range range;
 	struct src_loc loc;
@@ -91,7 +91,7 @@ struct Token {
 // Lexer state.
 struct Lexer {
 	struct Source src; // program source
-	struct Token tok;  // currently lexed token
+	struct token tok;  // currently lexed token
 	char ch;           // next character to start lexing at
 	long off;          // byte offset of 'ch'
 	long rd_off;       // byte offset of next read position
@@ -141,7 +141,7 @@ typedef struct node Node;
 typedef struct Error Error;
 typedef struct parser Parser;
 
-enum TypeKind {
+enum type_kind {
 	TYVAL,
 	TYPTR,
 	TYFUNC,
@@ -153,10 +153,10 @@ struct node {
 	int id;                 // scope-unique decl id for codegen
 	struct node *decl;      // original declaration of this node
 	struct node *parent;    // for memberexpr
-	struct node **args;     // func args
+	struct node **args;     // func args/params
 	struct node **children; // func body, struct fields
 	struct node *typeexpr;  // ast node of type specifier
-	enum TypeKind typekind;
+	enum type_kind typekind;
 	struct type *type; // type of this node.  This being NULL equals the
 	                   // typecheck on this node having failed
 	struct node *lhs;
@@ -205,12 +205,12 @@ typedef struct Scope Scope;
 typedef struct context Context;
 
 struct type {
-	enum TypeKind kind;
-	struct Token tok;
+	enum type_kind kind;
+	struct token tok; // name of the type (for value types)
 	struct node **params;
 	struct node **members;
-	Type *target; // referred type
-	Type *rettype;
+	struct type *target; // referred type
+	struct type *rettype;
 	size_t size; // memory size in bytes
 };
 
@@ -251,7 +251,7 @@ struct context {
 	} valstack;
 };
 
-Type *maketype(enum TypeKind kind, Token tok);
+Type *maketype(enum type_kind kind, Token tok);
 void context_init(struct context *ctx, struct parser *p);
 void context_free(struct context *ctx);
 void check(struct context *ctx, struct node *v);

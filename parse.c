@@ -77,7 +77,7 @@ static struct node *makemember(Parser *p, Token member,
 	return n;
 }
 
-static struct node *maketypeexpr(Parser *p, enum TypeKind kind, Token tok) {
+static struct node *maketypeexpr(Parser *p, enum type_kind kind, Token tok) {
 	struct node *n = makenode(p, NTYPEEXPR, tok);
 	n->typekind = kind;
 	return n;

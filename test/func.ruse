@@ -15,4 +15,7 @@ fn main() int {
     f
     f() // error
     f(1, 1) // error
+    var i = 0
+    f(&i) // error
+    var ret = f(42)
 }

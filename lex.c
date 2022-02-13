@@ -267,7 +267,7 @@ SrcLoc locate(Source *src, size_t pos) {
 // Print 'tok' as string into buf.
 // Needs 'src' because it needs the source text.
 // FIXME: use tok.name rather than trying to copy from the whole source
-char *tokenstr(const char *src, struct Token tok, char *buf, size_t blen) {
+char *tokenstr(const char *src, struct token tok, char *buf, size_t blen) {
 	size_t tlen = tok.range.end - tok.range.start;
 	size_t strlen = (blen - 1) < tlen ? (blen - 1) : tlen;
 	strncpy(buf, src + tok.range.start, strlen);
