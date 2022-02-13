@@ -101,6 +101,9 @@ static char *val_qbe_name(const struct val *val, char *buf, size_t blen) {
 	return buf;
 }
 
+static void codegen_expr_value(struct context *ctx, struct node *n);
+static void codegen_expr_addr(struct context *ctx, struct node *n);
+
 // 'value' is whether codegen_expr() has to generate the actual value of the
 // expression and put it on the valstack.  If its value is 0, only the address
 // of the expression (which has to be lvalue) will be put on the valstack.
@@ -129,8 +132,8 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		}
 		break;
 	case NBINEXPR:
-		codegen_expr(ctx, n->lhs, 1);
-		codegen_expr(ctx, n->rhs, 1);
+		codegen_expr_value(ctx, n->lhs);
+		codegen_expr_value(ctx, n->rhs);
 
 		// 'id_rhs' comes first because lhs is pushed to the stack first
 		// during the post-order traversal.
@@ -144,11 +147,11 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		valstack_push(ctx);
 		break;
 	case NREFEXPR:
-		codegen_expr(ctx, n->rhs, 0);
+		codegen_expr_addr(ctx, n->rhs);
 		break;
 	case NDEREFEXPR:
 		// have to generate value here, because dereference
-		codegen_expr(ctx, n->rhs, 1);
+		codegen_expr_value(ctx, n->rhs);
 		if (value) {
 			// TODO: generate load here
 			assert(!"TODO");
@@ -158,6 +161,14 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 	default:
 		assert(!"unknown expr kind");
 	}
+}
+
+static void codegen_expr_value(struct context *ctx, struct node *n) {
+	codegen_expr(ctx, n, 1);
+}
+
+static void codegen_expr_addr(struct context *ctx, struct node *n) {
+	codegen_expr(ctx, n, 0);
 }
 
 static void codegen_decl(Context *ctx, struct node *n) {
@@ -194,11 +205,11 @@ static void codegen_stmt(Context *ctx, struct node *n) {
 
 	switch (n->kind) {
 	case NEXPRSTMT:
-		codegen_expr(ctx, n->rhs, 1);
+		codegen_expr_value(ctx, n->rhs);
 		break;
 	case NASSIGN:
-		codegen_expr(ctx, n->rhs, 1);
-		codegen_expr(ctx, n->lhs, 0);
+		codegen_expr_value(ctx, n->rhs);
+		codegen_expr_addr(ctx, n->lhs);
 		val_lhs = arrpop(ctx->valstack.data);
 		val_rhs = arrpop(ctx->valstack.data);
 		val_qbe_name(&val_rhs, buf, sizeof(buf));
@@ -239,7 +250,7 @@ void codegen(Context *ctx, struct node *n) {
 		break;
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {
-			codegen_expr(ctx, n, 1);
+			codegen_expr_value(ctx, n);
 		} else if (NDECL <= n->kind && n->kind < NSTMT) {
 			codegen_decl(ctx, n);
 		} else if (NSTMT <= n->kind && n->kind) {
