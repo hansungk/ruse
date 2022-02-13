@@ -239,6 +239,7 @@ struct context {
 			} kind;
 			int temp_id;
 			int addr_id;
+			int size;
 		} *data;
 		int curr_temp_id; // next id to be pushed to valstack
 	} valstack;

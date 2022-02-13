@@ -72,13 +72,13 @@ static void emit(char *c, ...) {
 }
 
 static int valstack_push(struct context *ctx) {
-	struct val v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id};
+	struct val v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id, .size = 4};
 	arrput(ctx->valstack.data, v);
 	return ctx->valstack.curr_temp_id++;
 }
 
 static void valstack_push_addr(struct context *ctx, int addr_id) {
-	struct val v = {VAL_ADDR, .addr_id = addr_id};
+	struct val v = {VAL_ADDR, .addr_id = addr_id, .size = 8};
     arrput(ctx->valstack.data, v);
 }
 
@@ -175,11 +175,13 @@ static void codegen_decl(Context *ctx, struct node *n) {
 		assert(arrlen(ctx->valstack.data) > 0);
 		val = arrpop(ctx->valstack.data);
 		// TODO: proper datasize handling
-		if (val.kind == VAL_TEMP) {
-			emit("    storew %%.%d, %%A%d\n", val.temp_id, n->id);
+		val_qbe_name(&val, buf, sizeof(buf));
+		if (val.size == 8) {
+			emit("    storel");
 		} else {
-			emit("    storel %%A%d, %%A%d\n", val.addr_id, n->id);
+			emit("    storew");
 		}
+		emit(" %s, %%A%d\n", buf, n->id);
 		break;
 	default:
 		assert(!"unreachable");
@@ -200,7 +202,12 @@ static void codegen_stmt(Context *ctx, struct node *n) {
 		val_lhs = arrpop(ctx->valstack.data);
 		val_rhs = arrpop(ctx->valstack.data);
 		val_qbe_name(&val_rhs, buf, sizeof(buf));
-		emit("    storew %s", buf);
+		if (val_rhs.size == 8) {
+			emit("    storel");
+		} else {
+			emit("    storew");
+		}
+		emit(" %s", buf);
 		val_qbe_name(&val_lhs, buf, sizeof(buf));
 		emit(", %s\n", buf);
 		break;
