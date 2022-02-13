@@ -19,14 +19,16 @@ Type *maketype(enum TypeKind kind, Token tok) {
 	}
 	t->kind = kind;
 	t->tok = tok;
+	t->size = 4;
 	// arrput(p->nodeptrbuf, node); // FIXME
 	return t;
 }
 
 // FIXME: remove 'tok'
-Type *makeptrtype(Type *target, Token tok) {
+Type *makepointertype(Type *target, Token tok) {
 	Type *t = maketype(TYPTR, tok);
 	t->target = target;
+	t->size = 8;
 	return t;
 }
 
@@ -203,7 +205,7 @@ static void check_expr(Context *ctx, struct node *n) {
 		if (!n->rhs->decl)
 			return error(ctx, n->tok.loc,
 			             "cannot take reference of a non-lvalue");
-		n->type = makeptrtype(n->rhs->type, n->tok);
+		n->type = makepointertype(n->rhs->type, n->tok);
 		break;
 	case NCALL:
 		// callee name is a node (n->lhs), not a token!

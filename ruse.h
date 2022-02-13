@@ -211,6 +211,7 @@ struct type {
 	struct node **members;
 	Type *target; // referred type
 	Type *rettype;
+	size_t size; // memory size in bytes
 };
 
 struct Decl {

@@ -116,8 +116,13 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		break;
 	case NIDEXPR:
 		if (value) {
+			if (n->decl->type->size == 8) {
+			emit("    %%.%d =l loadl %%A%d\n",
+			     ctx->valstack.curr_temp_id, n->decl->id);
+			} else {
 			emit("    %%.%d =w loadw %%A%d\n",
 			     ctx->valstack.curr_temp_id, n->decl->id);
+			}
 			valstack_push(ctx);
 		} else {
 			valstack_push_addr(ctx, n->decl->id);
