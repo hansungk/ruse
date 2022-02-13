@@ -266,6 +266,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 		check_expr(ctx, n->rhs);
 		if (!n->rhs->type)
 			return;
+		// FIXME: This way every (*c) will generate a new decl.
 		// Declare itself.  Don't put this in the symbol map as we don't need
 		// these temporary decls to be referrable by any specific name.
 		n->decl = n;
