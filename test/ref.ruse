@@ -6,4 +6,5 @@ fn main() int {
     &&a // error
     *a // error
     &(*b)
+    a + b // error
 }

@@ -185,6 +185,9 @@ static void check_expr(Context *ctx, struct node *n) {
 		check_expr(ctx, n->rhs);
 		if (!n->lhs->type || !n->rhs->type)
 			return;
+		// TODO: proper type compatibility check
+		if (n->lhs->type != n->rhs->type)
+			return error(ctx, n->tok.loc, "incompatible types for binary operation");
 		break;
 	case NDEREFEXPR:
 		check_expr(ctx, n->rhs);
