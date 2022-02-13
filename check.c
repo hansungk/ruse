@@ -22,7 +22,7 @@ void fatal(const char *fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
-struct type *maketype(enum type_kind kind, Token tok) {
+struct type *maketype(enum type_kind kind, struct token tok) {
 	struct type *t = calloc(1, sizeof(struct node));
 	if (!t) {
 		fprintf(stderr, "alloc error\n");
@@ -36,7 +36,7 @@ struct type *maketype(enum type_kind kind, Token tok) {
 }
 
 // FIXME: remove 'tok'
-struct type *makepointertype(struct type *target, Token tok) {
+struct type *makepointertype(struct type *target, struct token tok) {
 	struct type *t = maketype(TYPE_POINTER, tok);
 	t->target = target;
 	t->size = 8;
@@ -117,7 +117,7 @@ static void error(struct context *ctx, struct src_loc loc, const char *fmt,
 	arrput(ctx->errors, e);
 }
 
-int do_errors(const Error *errors) {
+int do_errors(const struct error *errors) {
 	for (long i = 0; i < arrlen(errors); i++) {
 		struct error e = errors[i];
 		fprintf(stderr, "%s:%d:%d: error: %s\n", e.loc.filename,
@@ -141,18 +141,18 @@ static void setup_builtin_types(struct context *ctx) {
 	// FIXME: free(ty_int), calloc() check
 	ty_int = calloc(1, sizeof(struct type));
 	ty_int->kind = TYPE_VAL;
-	ty_int->tok = (Token){.type = TINT, .name = "int"};
+	ty_int->tok = (struct token){.type = TINT, .name = "int"};
 	push_type(ctx, ty_int);
 	ty_string = calloc(1, sizeof(struct type));
 	ty_string->kind = TYPE_VAL;
-	ty_string->tok = (Token){.type = TSTRING_, .name = "string"};
+	ty_string->tok = (struct token){.type = TSTRING_, .name = "string"};
 	push_type(ctx, ty_string);
 }
 
 // NOTE: This *has* to be called after parse(), as it copies over the error
 // list from the parser.
-void context_init(struct context *ctx, Parser *p) {
-	memset(ctx, 0, sizeof(Context));
+void context_init(struct context *ctx, struct parser *p) {
+	memset(ctx, 0, sizeof(struct context));
 	ctx->src = &p->l.src;
 	ctx->scope = makescope();
 	ctx->typescope = makescope();

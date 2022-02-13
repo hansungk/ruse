@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	Parser p;
+	struct parser p;
 	parser_from_file(&p, argv[1]);
 	struct node *n = parse(&p);
 

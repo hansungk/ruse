@@ -9,10 +9,6 @@
 
 void fatal(const char *fmt, ...);
 
-typedef struct source Source;
-typedef struct src_range SrcRange;
-typedef struct src_loc SrcLoc;
-
 struct source {
 	char filename[256]; // source filename
 	size_t *line_offs;  // byte offsets of '\n's
@@ -78,9 +74,6 @@ struct token_map {
 	enum token_type type;
 };
 
-typedef struct token Token;
-typedef struct lexer Lexer;
-
 // Making Tokens store source ranges instead of string memory blocks makes
 // passing them around easy.
 struct token {
@@ -90,7 +83,7 @@ struct token {
 	char *name;
 };
 
-// Lexer state.
+// struct lexer state.
 struct lexer {
 	struct source src; // program source
 	struct token tok;  // currently lexed token
@@ -101,16 +94,16 @@ struct lexer {
 	long start;        // start position of 'tok'
 };
 
-int lexer_from_file(Lexer *l, const char *filename);
-int lexer_from_buf(Lexer *l, const char *buf, size_t len);
-void lexer_cleanup(Lexer *l);
-SrcLoc locate(Source *src, size_t pos);
-int lex(Lexer *l);
-char *srclocstr(SrcLoc loc, char *buf, size_t len);
-char *tokenstr(const char *src, Token tok, char *buf, size_t buflen);
-int tokeneq(const char *src, Token t1, Token t2);
+int lexer_from_file(struct lexer *l, const char *filename);
+int lexer_from_buf(struct lexer *l, const char *buf, size_t len);
+void lexer_cleanup(struct lexer *l);
+struct src_loc locate(struct source *src, size_t pos);
+int lex(struct lexer *l);
+char *srclocstr(struct src_loc loc, char *buf, size_t len);
+char *tokenstr(const char *src, struct token tok, char *buf, size_t buflen);
+int tokeneq(const char *src, struct token t1, struct token t2);
 char *tokentypestr(enum token_type t, char *buf, size_t buflen);
-void tokenprint(const char *src, const Token tok);
+void tokenprint(const char *src, const struct token tok);
 
 // Keep NEXPR < NDECL < NSTMT
 enum node_kind {
@@ -139,21 +132,16 @@ enum node_kind {
 	NRETURN,
 };
 
-typedef struct type Type;
-typedef struct node Node;
-typedef struct error Error;
-typedef struct parser Parser;
-
 enum type_kind {
 	TYPE_VAL,
 	TYPE_POINTER,
 	TYPE_FUNC,
 };
 
-
 struct type {
 	enum type_kind kind;
 	struct token tok; // name of the type (for value types)
+	                  // TODO: swap this out with a char *n
 	struct node **params;
 	struct node **members;
 	struct type *target; // referred type
@@ -163,7 +151,7 @@ struct type {
 
 struct node {
 	enum node_kind kind;
-	Token tok;              // name of var or func. etc.
+	struct token tok;       // name of var or func. etc.
 	int id;                 // scope-unique decl id for codegen
 	struct node *decl;      // original declaration of this node
 	struct node *parent;    // for memberexpr
@@ -183,12 +171,12 @@ struct error {
 	char msg[1024];
 };
 
-// Source text = ['tok' 'lookahead...' ...unlexed...]
+// struct source text = ['tok' 'lookahead...' ...unlexed...]
 struct parser {
-	Lexer l;                  // lexer driven by this parser
-	Token tok;                // current token
-	Token *lookahead;         // lookahead tokens
-	Error *errors;            // parse errors
+	struct lexer l;                  // lexer driven by this parser
+	struct token tok;                // current token
+	struct token *lookahead;         // lookahead tokens
+	struct error *errors;            // parse errors
 	struct node **nodeptrbuf; // pointers to the allocated nodes
 };
 
@@ -197,8 +185,6 @@ void parser_from_buf(struct parser *p, const char *buf, size_t len);
 void parser_cleanup(struct parser *p);
 struct node *parse(struct parser *p);
 
-typedef struct map Map;
-
 struct map {
 	size_t bucketlen;
 	struct mapkey *buckets;
@@ -206,20 +192,16 @@ struct map {
 
 void makemap(struct map *m);
 void freemap(struct map *map);
-int mapput(Map *m, const char *str, void *data);
+int mapput(struct map *m, const char *str, void *data);
 void *mapget(struct map *m, const char *str);
 
 enum decl_kind {
 	D_NUM,
 };
 
-typedef struct decl Decl;
-typedef struct scope Scope;
-typedef struct context Context;
-
 struct decl {
 	enum decl_kind kind;
-	Token name;
+	struct token name;
 	double num;
 };
 
@@ -231,15 +213,15 @@ struct scope {
 #define VHLEN 10
 
 struct context {
-	Source *src;
-	Scope *scope;
-	Scope *typescope;
-	Error *errors;
+	struct source *src;
+	struct scope *scope;
+	struct scope *typescope;
+	struct error *errors;
 	int curr_decl_id; // next scope-unique decl id
-	struct valstack {
-		// value_handle is a handle used for referring to the temporary QBE
-		// values that are so far generated.
-		struct value_handle {
+	struct qbevalstack {
+		// qbeval is used as a handle for referring to the temporary QBE values
+		// that are so far generated.
+		struct qbeval {
 			enum val_kind {
 				VAL_TEMP,
 				VAL_ADDR,
@@ -254,11 +236,11 @@ struct context {
 	} valstack;
 };
 
-Type *maketype(enum type_kind kind, Token tok);
+struct type *maketype(enum type_kind kind, struct token tok);
 void context_init(struct context *ctx, struct parser *p);
 void context_free(struct context *ctx);
-void check(struct context *ctx, struct node *v);
-int do_errors(const Error *errors);
+void check(struct context *ctx, struct node *n);
+int do_errors(const struct error *errors);
 
 void codegen(struct context *ctx, struct node *n);
 

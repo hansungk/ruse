@@ -72,18 +72,18 @@ static void emit(char *c, ...) {
 }
 
 static int valstack_push_value(struct context *ctx) {
-	struct value_handle v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id,
+	struct qbeval v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id,
 	                         .data_size = 4};
 	arrput(ctx->valstack.data, v);
 	return ctx->valstack.curr_temp_id++;
 }
 
 static void valstack_push_addr(struct context *ctx, int addr_id) {
-	struct value_handle v = {VAL_ADDR, .addr_id = addr_id, .data_size = 8};
+	struct qbeval v = {VAL_ADDR, .addr_id = addr_id, .data_size = 8};
 	arrput(ctx->valstack.data, v);
 }
 
-static char *val_qbe_name(struct value_handle *val) {
+static char *qbeval_name(struct qbeval *val) {
 	// TODO: skip generating if already generated
 	int len;
 
@@ -113,7 +113,7 @@ static void codegen_expr_addr(struct context *ctx, struct node *n);
 // of the expression (which has to be lvalue) will be put on the valstack.
 static void codegen_expr(struct context *ctx, struct node *n, int value) {
 	char buf[TOKLEN]; // FIXME: stack usage
-	struct value_handle val_lhs, val_rhs;
+	struct qbeval val_lhs, val_rhs;
 
 	switch (n->kind) {
 	case NLITERAL:
@@ -160,13 +160,13 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		// memory location of where the decl '*c' sits.  If we want to generate
 		// value of '*c' itself, we have to generate another load.
 		if (value) {
-			struct value_handle val = arrpop(ctx->valstack.data);
+			struct qbeval val = arrpop(ctx->valstack.data);
 			if (val.data_size == 8) {
 				emit("    %%.%d =l loadl %s\n", ctx->valstack.curr_temp_id,
-				     val_qbe_name(&val));
+				     qbeval_name(&val));
 			} else {
 				emit("    %%.%d =w loadw %s\n", ctx->valstack.curr_temp_id,
-				     val_qbe_name(&val));
+				     qbeval_name(&val));
 			}
 			valstack_push_value(ctx);
 		}
@@ -184,9 +184,9 @@ static void codegen_expr_addr(struct context *ctx, struct node *n) {
 	codegen_expr(ctx, n, 0);
 }
 
-static void codegen_decl(Context *ctx, struct node *n) {
+static void codegen_decl(struct context *ctx, struct node *n) {
 	char buf[TOKLEN];
-	struct value_handle val;
+	struct qbeval val;
 
 	tokenstr(ctx->src->buf, n->decl->tok, buf, sizeof(buf));
 
@@ -204,15 +204,15 @@ static void codegen_decl(Context *ctx, struct node *n) {
 		} else {
 			emit("    storew");
 		}
-		emit(" %s, %%A%d\n", val_qbe_name(&val), n->id);
+		emit(" %s, %%A%d\n", qbeval_name(&val), n->id);
 		break;
 	default:
 		assert(!"unreachable");
 	}
 }
 
-static void codegen_stmt(Context *ctx, struct node *n) {
-	struct value_handle val_lhs, val_rhs;
+static void codegen_stmt(struct context *ctx, struct node *n) {
+	struct qbeval val_lhs, val_rhs;
 
 	switch (n->kind) {
 	case NEXPRSTMT:
@@ -228,7 +228,7 @@ static void codegen_stmt(Context *ctx, struct node *n) {
 		} else {
 			emit("    storew");
 		}
-		emit(" %s, %s\n", val_qbe_name(&val_rhs), val_qbe_name(&val_lhs));
+		emit(" %s, %s\n", qbeval_name(&val_rhs), qbeval_name(&val_lhs));
 		break;
 	case NRETURN:
 		codegen(ctx, n->rhs);
@@ -239,7 +239,7 @@ static void codegen_stmt(Context *ctx, struct node *n) {
 	}
 }
 
-void codegen(Context *ctx, struct node *n) {
+void codegen(struct context *ctx, struct node *n) {
 	assert(n);
 
 	switch (n->kind) {
