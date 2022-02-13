@@ -299,15 +299,14 @@ static struct node *parse_unaryexpr(Parser *p) {
 	case TSTAR:
 		tok = p->tok;
 		next(p);
-		// FIXME: this might allow things like *a + *a -> *(a + *a)
-		rhs = parse_expr(p);
+		rhs = parse_unaryexpr(p);
 		e = makederefexpr(p, rhs, tok);
 		break;
 		break;
 	case TAMPERSAND:
 		tok = p->tok;
 		next(p);
-		rhs = parse_expr(p);
+		rhs = parse_unaryexpr(p);
 		e = makerefexpr(p, rhs, tok);
 		break;
 	default:
