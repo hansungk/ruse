@@ -243,17 +243,17 @@ void codegen(Context *ctx, struct node *n) {
 
 	switch (n->kind) {
 	case NFILE:
-		emit("export function w $main() {\n");
+		for (int i = 0; i < arrlen(n->children); i++) {
+			codegen(ctx, n->children[i]);
+		}
+		break;
+	case NFUNC:
+		emit("export function w $%s() {\n", n->tok.name);
 		emit("@start\n");
 		for (int i = 0; i < arrlen(n->children); i++) {
 			codegen(ctx, n->children[i]);
 		}
 		emit("}\n");
-		break;
-	case NFUNC:
-		for (int i = 0; i < arrlen(n->children); i++) {
-			codegen(ctx, n->children[i]);
-		}
 		break;
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {
