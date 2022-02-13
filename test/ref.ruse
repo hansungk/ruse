@@ -7,4 +7,6 @@ fn main() int {
     *a // error
     &(*b)
     a + b // error
+
+    var c *int
 }

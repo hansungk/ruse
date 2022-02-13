@@ -146,7 +146,7 @@ typedef struct parser Parser;
 
 enum type_kind {
 	TYPE_VAL,
-	TYPE_PTR,
+	TYPE_POINTER,
 	TYPE_FUNC,
 };
 
@@ -174,7 +174,7 @@ struct node {
 	struct type *type; // type of this node.  This being NULL equals the
 	                   // typecheck on this node having failed
 	struct node *lhs;
-	struct node *rhs;         // ref, assign expr
+	struct node *rhs;         // ref, assign expr, typeexpr
 	struct node *rettypeexpr; // TODO: merge with typeexpr
 };
 

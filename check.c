@@ -37,27 +37,57 @@ struct type *maketype(enum type_kind kind, Token tok) {
 
 // FIXME: remove 'tok'
 struct type *makepointertype(struct type *target, Token tok) {
-	struct type *t = maketype(TYPE_PTR, tok);
+	struct type *t = maketype(TYPE_POINTER, tok);
 	t->target = target;
 	t->size = 8;
 	return t;
 }
 
-char *typename(const struct type *type, char *buf, size_t buflen) {
+static char *typename(const struct type *type, char *buf, size_t buflen) {
 	int wlen = 0;
-	char *cursor = NULL;
-	size_t cursor_len = 0;
+	char *cur = NULL;
+	size_t curlen = 0;
 
 	switch (type->kind) {
 	case TYPE_VAL:
 		strncpy(buf, type->tok.name, buflen - 1);
 		buf[buflen - 1] = '\0';
 		break;
-	case TYPE_PTR:
+	case TYPE_POINTER:
 		wlen = snprintf(buf, buflen, "*");
-		cursor_len = buflen - wlen;
-		cursor = buf + wlen;
-		typename(type->target, cursor, cursor_len);
+		curlen = buflen - wlen;
+		cur = buf + wlen;
+		typename(type->target, cur, curlen);
+		break;
+	case TYPE_FUNC:
+		assert(!"unimplemented");
+	default:
+		assert(!"unknown type kind");
+	}
+
+	if (wlen < 0 || (size_t)wlen > buflen - 1) {
+		fatal("%s(): snprintf error", __func__);
+	}
+	return buf;
+}
+
+// XXX: @copypaste from typename()
+static char *typeexprname(const struct node *typeexpr, char *buf,
+                          size_t buflen) {
+	int wlen = 0;
+	char *cur = NULL;
+	size_t curlen = 0;
+
+	switch (typeexpr->typekind) {
+	case TYPE_VAL:
+		strncpy(buf, typeexpr->tok.name, buflen - 1);
+		buf[buflen - 1] = '\0';
+		break;
+	case TYPE_POINTER:
+		wlen = snprintf(buf, buflen, "*");
+		curlen = buflen - wlen;
+		cur = buf + wlen;
+		typeexprname(typeexpr->rhs, cur, curlen);
 		break;
 	case TYPE_FUNC:
 		assert(!"unimplemented");
@@ -206,6 +236,7 @@ static struct type *lookup_type(struct context *ctx, const char *name) {
 static void check_expr(struct context *ctx, struct node *n) {
 	char buf[TOKLEN];
 	struct node *decl = NULL;
+	struct type *orig_ty;
 
 	assert(n);
 	tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
@@ -217,8 +248,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 		break;
 	case NIDEXPR:
 		if (!(decl = lookup(ctx, n)))
-			return error(ctx, n->tok.loc,
-			             "undeclared variable '%s'", buf);
+			return error(ctx, n->tok.loc, "undeclared variable '%s'", buf);
 		n->decl = decl;
 		n->type = decl->type;
 		break;
@@ -239,7 +269,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 		// Declare itself.  Don't put this in the symbol map as we don't need
 		// these temporary decls to be referrable by any specific name.
 		n->decl = n;
-		if (n->rhs->type->kind != TYPE_PTR)
+		if (n->rhs->type->kind != TYPE_POINTER)
 			return error(ctx, n->tok.loc, "cannot dereference a non-pointer");
 		n->type = n->rhs->type->target;
 		break;
@@ -260,14 +290,12 @@ static void check_expr(struct context *ctx, struct node *n) {
 			return;
 		if (n->lhs->type->kind != TYPE_FUNC) {
 			tokenstr(ctx->src->buf, n->lhs->tok, buf, sizeof(buf));
-			return error(ctx, n->lhs->tok.loc,
-			             "'%s' is not a function", buf);
+			return error(ctx, n->lhs->tok.loc, "'%s' is not a function", buf);
 		}
 		if (arrlen(n->lhs->type->params) != arrlen(n->children))
 			return error(ctx, n->lhs->tok.loc,
 			             "argument mismatch: expected %ld, got %ld",
-			             arrlen(n->lhs->type->params),
-			             arrlen(n->children));
+			             arrlen(n->lhs->type->params), arrlen(n->children));
 		for (long i = 0; i < arrlen(n->children); i++) {
 			check_expr(ctx, n->children[i]);
 			if (!n->children[i]->type)
@@ -291,8 +319,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 		if (!n->parent->type)
 			return;
 		if (!arrlen(n->parent->type->members))
-			return error(ctx, n->tok.loc,
-			             "member access to a non-struct");
+			return error(ctx, n->tok.loc, "member access to a non-struct");
 		struct node *member_match = NULL;
 		for (long i = 0; i < arrlen(n->parent->type->members); i++) {
 			struct node *m = n->parent->type->members[i];
@@ -302,21 +329,16 @@ static void check_expr(struct context *ctx, struct node *n) {
 			}
 		}
 		if (!member_match)
-			return error(ctx, n->tok.loc,
-			             "'%s' is not a member of type '%s'",
+			return error(ctx, n->tok.loc, "'%s' is not a member of type '%s'",
 			             n->tok.name, n->parent->type->tok.name);
 		n->type = member_match->type;
 		break;
 	case NTYPEEXPR:
-		if (n->typekind == TYPE_VAL) {
-			struct type *orig_ty = lookup_type(ctx, n->tok.name);
-			if (!orig_ty)
-				return error(ctx, n->tok.loc,
-				             "unknown type '%s'", n->tok.name);
-			n->type = orig_ty;
-		} else {
-			assert(!"TODO");
-		}
+		typeexprname(n, buf, sizeof(buf));
+		orig_ty = lookup_type(ctx, buf);
+		if (!orig_ty)
+			return error(ctx, n->tok.loc, "unknown type '%s'", buf);
+		n->type = orig_ty;
 		assert(n->type);
 		break;
 	default:
