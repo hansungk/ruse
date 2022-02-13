@@ -8,7 +8,7 @@
 
 static struct type *ty_int;
 static struct type *ty_string;
-static struct type *push_type(Context *ctx, struct type *ty);
+static struct type *push_type(struct context *ctx, struct type *ty);
 
 void fatal(const char *fmt, ...) {
 	va_list args;
@@ -72,7 +72,8 @@ char *typename(const struct type *type, char *buf, size_t buflen) {
 }
 
 // TODO: merge this with the one in parse.c?
-static void error(Context *ctx, struct src_loc loc, const char *fmt, ...) {
+static void error(struct context *ctx, struct src_loc loc, const char *fmt,
+                  ...) {
 	struct error e;
 	va_list args;
 
@@ -106,7 +107,7 @@ static void freescope(struct scope *s) {
 	free(s);
 }
 
-static void setup_builtin_types(Context *ctx) {
+static void setup_builtin_types(struct context *ctx) {
 	// FIXME: free(ty_int), calloc() check
 	ty_int = calloc(1, sizeof(struct type));
 	ty_int->kind = TYPE_VAL;
@@ -120,7 +121,7 @@ static void setup_builtin_types(Context *ctx) {
 
 // NOTE: This *has* to be called after parse(), as it copies over the error
 // list from the parser.
-void context_init(Context *ctx, Parser *p) {
+void context_init(struct context *ctx, Parser *p) {
 	memset(ctx, 0, sizeof(Context));
 	ctx->src = &p->l.src;
 	ctx->scope = makescope();
@@ -132,21 +133,21 @@ void context_init(Context *ctx, Parser *p) {
 	setup_builtin_types(ctx);
 }
 
-void context_free(Context *ctx) {
+void context_free(struct context *ctx) {
 	freescope(ctx->scope);
 	arrfree(ctx->valstack.data);
 	// FIXME: free errors[i].msg
 	free(ctx->errors);
 }
 
-void push_scope(Context *ctx) {
+void push_scope(struct context *ctx) {
 	struct scope *new_scope = makescope();
 	new_scope->outer = ctx->scope;
 	ctx->scope = new_scope;
 	// TODO: typescope
 }
 
-void pop_scope(Context *ctx) {
+void pop_scope(struct context *ctx) {
 	struct scope *innermost = ctx->scope;
 	ctx->scope = ctx->scope->outer;
 	freescope(innermost);
@@ -154,7 +155,7 @@ void pop_scope(Context *ctx) {
 }
 
 // Declare 'n' in the current scope.  'n' can be a variable or a function.
-struct node *declare(Context *ctx, struct node *n) {
+static struct node *declare(struct context *ctx, struct node *n) {
 	if (!mapput(&ctx->scope->map, n->tok.name, n)) {
 		char buf[TOKLEN];
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
@@ -167,7 +168,7 @@ struct node *declare(Context *ctx, struct node *n) {
 
 // Finds the declaration node that first declared the variable referenced by
 // 'n'.
-struct node *lookup(Context *ctx, struct node *n) {
+static struct node *lookup(struct context *ctx, struct node *n) {
 	struct scope *s = ctx->scope;
 	while (s) {
 		struct node *found = mapget(&s->map, n->tok.name);
@@ -179,10 +180,11 @@ struct node *lookup(Context *ctx, struct node *n) {
 }
 
 // Pushes a new type to the current scope.
-static struct type *push_type(Context *ctx, struct type *ty) {
-	if (!mapput(&ctx->typescope->map, ty->tok.name, ty)) {
-		char buf[TOKLEN];
-		tokenstr(ctx->src->buf, ty->tok, buf, sizeof(buf));
+static struct type *push_type(struct context *ctx, struct type *ty) {
+	char buf[TOKLEN];
+
+	typename(ty, buf, sizeof(buf));
+	if (!mapput(&ctx->typescope->map, buf, ty)) {
 		error(ctx, ty->tok.loc, "'%s' is already declared", buf);
 		return NULL;
 	}
@@ -190,7 +192,7 @@ static struct type *push_type(Context *ctx, struct type *ty) {
 }
 
 // Finds the type object that first declared the type whose name is 'name'.
-struct type *lookup_type(Context *ctx, const char *name) {
+static struct type *lookup_type(struct context *ctx, const char *name) {
 	struct scope *s = ctx->typescope;
 	while (s) {
 		struct type *found = mapget(&s->map, name);
@@ -201,7 +203,7 @@ struct type *lookup_type(Context *ctx, const char *name) {
 	return NULL;
 }
 
-static void check_expr(Context *ctx, struct node *n) {
+static void check_expr(struct context *ctx, struct node *n) {
 	char buf[TOKLEN];
 	struct node *decl = NULL;
 
@@ -227,7 +229,8 @@ static void check_expr(Context *ctx, struct node *n) {
 			return;
 		// TODO: proper type compatibility check
 		if (n->lhs->type != n->rhs->type)
-			return error(ctx, n->tok.loc, "incompatible types for binary operation");
+			return error(ctx, n->tok.loc,
+			             "incompatible types for binary operation");
 		break;
 	case NDEREFEXPR:
 		check_expr(ctx, n->rhs);
@@ -321,7 +324,7 @@ static void check_expr(Context *ctx, struct node *n) {
 	}
 }
 
-static void check_decl(Context *ctx, struct node *n) {
+static void check_decl(struct context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NVARDECL:
 		// vardecl has a type specifier, e.g. var i: int
@@ -395,7 +398,7 @@ static void check_decl(Context *ctx, struct node *n) {
 	}
 }
 
-static void check_stmt(Context *ctx, struct node *n) {
+static void check_stmt(struct context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NEXPRSTMT:
 		check_expr(ctx, n->rhs);
@@ -423,7 +426,7 @@ static void check_stmt(Context *ctx, struct node *n) {
 	}
 }
 
-void check(Context *ctx, struct node *n) {
+void check(struct context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NFILE:
 		for (long i = 0; i < arrlen(n->children); i++) {

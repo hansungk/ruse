@@ -6,7 +6,7 @@
 
 struct mapkey {
 	uint64_t hash;
-	const char *str;
+	char *str;
 	void *data; // if NULL, this key is empty
 };
 
@@ -35,11 +35,14 @@ void makemap(struct map *m) {
 }
 
 void freemap(struct map *map) {
+	for (size_t i = 0; i < map->bucketlen; i++)
+		if (map->buckets[i].str)
+			free(map->buckets[i].str);
 	free(map->buckets);
 }
 
 // Returns 0 if a same key is inserted again.
-int mapput(Map *m, const char *str, void *data) {
+int mapput(struct map *m, const char *str, void *data) {
 	uint64_t hash = strhash(str);
 	size_t i = hash % m->bucketlen;
 	size_t i_orig = i;
@@ -55,12 +58,15 @@ int mapput(Map *m, const char *str, void *data) {
 			assert(!"map is full");
 	}
 	k->hash = hash;
-	k->str = str;
+	size_t len = strlen(str);
+	k->str = calloc(len + 1, 1);
+	strncpy(k->str, str, len);
+	k->str[len] = '\0';
 	k->data = data;
 	return 1;
 }
 
-void *mapget(Map *m, const char *str) {
+void *mapget(struct map *m, const char *str) {
 	uint64_t hash = strhash(str);
 	size_t i = hash % m->bucketlen;
 	size_t i_orig = i;

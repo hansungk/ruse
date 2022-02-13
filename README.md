@@ -12,6 +12,7 @@ $ ./ruse
 ## todo
 
 * type names
+* strlcpy
 * cleaner emit of loads and stores
 * strings
 * interop with C
