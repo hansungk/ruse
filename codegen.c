@@ -150,11 +150,19 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		codegen_expr_addr(ctx, n->rhs);
 		break;
 	case NDEREFEXPR:
-		// have to generate value here, because dereference
+		// generating value here means dereference
 		codegen_expr_value(ctx, n->rhs);
 		if (value) {
-			// TODO: generate load here
-			assert(!"TODO");
+			struct val val = arrpop(ctx->valstack.data);
+			val_qbe_name(&val, buf, sizeof(buf));
+			if (val.size == 8) {
+				emit("    %%.%d =l loadl %s\n",
+				     ctx->valstack.curr_temp_id, buf);
+			} else {
+				emit("    %%.%d =w loadw %s\n",
+				     ctx->valstack.curr_temp_id, buf);
+			}
+			valstack_push(ctx);
 		}
 		// n->id = ctx->curr_decl_id++;
 		break;
