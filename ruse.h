@@ -225,6 +225,8 @@ struct Scope {
 	struct Scope *outer;
 };
 
+#define VHLEN 10
+
 struct context {
 	Source *src;
 	Scope *scope;
@@ -241,6 +243,8 @@ struct context {
 			} kind;
 			int temp_id;
 			int addr_id;
+			char name[VHLEN]; // used to hold the un-parsed name of
+			                  // the values
 			int data_size;
 		} *data;
 		int curr_temp_id; // next id to be pushed to valstack

@@ -72,33 +72,36 @@ static void emit(char *c, ...) {
 }
 
 static int valstack_push_value(struct context *ctx) {
-	struct value_handle v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id, .data_size = 4};
+	struct value_handle v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id,
+	                         .data_size = 4};
 	arrput(ctx->valstack.data, v);
 	return ctx->valstack.curr_temp_id++;
 }
 
 static void valstack_push_addr(struct context *ctx, int addr_id) {
 	struct value_handle v = {VAL_ADDR, .addr_id = addr_id, .data_size = 8};
-    arrput(ctx->valstack.data, v);
+	arrput(ctx->valstack.data, v);
 }
 
-static char *val_qbe_name(const struct value_handle *val, char *buf, size_t blen) {
+static char *val_qbe_name(struct value_handle *val) {
+	// TODO: skip generating if already generated
 	int len;
 
+	memset(val->name, 0, sizeof(val->name));
 	switch (val->kind) {
 	case VAL_TEMP:
-		len = snprintf(buf, blen, "%%.%d", val->temp_id);
+		len = snprintf(val->name, sizeof(val->name), "%%.%d", val->temp_id);
 		break;
 	case VAL_ADDR:
-		len = snprintf(buf, blen, "%%A%d", val->addr_id);
+		len = snprintf(val->name, sizeof(val->name), "%%A%d", val->addr_id);
 		break;
 	default:
 		assert(!"unknown valstack kind");
 	}
 
 	assert(len >= 0 && "sprintf error");
-	assert((size_t)len < blen && "sprintf too long for buf");
-	return buf;
+	assert((size_t)len < sizeof(val->name) && "sprintf too long for buf");
+	return val->name;
 }
 
 static void codegen_expr_value(struct context *ctx, struct node *n);
@@ -157,13 +160,12 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		// value of '*c' itself, we have to generate another load.
 		if (value) {
 			struct value_handle val = arrpop(ctx->valstack.data);
-			val_qbe_name(&val, buf, sizeof(buf));
 			if (val.data_size == 8) {
-				emit("    %%.%d =l loadl %s\n",
-				     ctx->valstack.curr_temp_id, buf);
+				emit("    %%.%d =l loadl %s\n", ctx->valstack.curr_temp_id,
+				     val_qbe_name(&val));
 			} else {
-				emit("    %%.%d =w loadw %s\n",
-				     ctx->valstack.curr_temp_id, buf);
+				emit("    %%.%d =w loadw %s\n", ctx->valstack.curr_temp_id,
+				     val_qbe_name(&val));
 			}
 			valstack_push_value(ctx);
 		}
@@ -196,13 +198,12 @@ static void codegen_decl(Context *ctx, struct node *n) {
 		assert(arrlen(ctx->valstack.data) > 0);
 		val = arrpop(ctx->valstack.data);
 		// TODO: proper datasize handling
-		val_qbe_name(&val, buf, sizeof(buf));
 		if (val.data_size == 8) {
 			emit("    storel");
 		} else {
 			emit("    storew");
 		}
-		emit(" %s, %%A%d\n", buf, n->id);
+		emit(" %s, %%A%d\n", val_qbe_name(&val), n->id);
 		break;
 	default:
 		assert(!"unreachable");
@@ -222,15 +223,12 @@ static void codegen_stmt(Context *ctx, struct node *n) {
 		codegen_expr_addr(ctx, n->lhs);
 		val_lhs = arrpop(ctx->valstack.data);
 		val_rhs = arrpop(ctx->valstack.data);
-		val_qbe_name(&val_rhs, buf, sizeof(buf));
 		if (val_rhs.data_size == 8) {
 			emit("    storel");
 		} else {
 			emit("    storew");
 		}
-		emit(" %s", buf);
-		val_qbe_name(&val_lhs, buf, sizeof(buf));
-		emit(", %s\n", buf);
+		emit(" %s, %s\n", val_qbe_name(&val_rhs), val_qbe_name(&val_lhs));
 		break;
 	case NRETURN:
 		codegen(ctx, n->rhs);
