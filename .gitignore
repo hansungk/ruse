@@ -11,8 +11,6 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 *.ninja*
-cmp
-cmp-test
 build*/
 ruse
 *.qbe
