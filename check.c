@@ -337,8 +337,13 @@ static void check_expr(struct context *ctx, struct node *n) {
 	case NTYPEEXPR:
 		typeexprname(n, buf, sizeof(buf));
 		orig_ty = lookup_type(ctx, buf);
-		if (!orig_ty)
-			return error(ctx, n->tok.loc, "unknown type '%s'", buf);
+		if (!orig_ty) {
+			if (n->typekind == TYPE_POINTER) {
+				assert(!"TODO: construct pointer type if target exists");
+			} else {
+				return error(ctx, n->tok.loc, "unknown type '%s'", buf);
+			}
+		}
 		n->type = orig_ty;
 		assert(n->type);
 		break;
