@@ -11,7 +11,8 @@ $ ./ruse
 
 ## todo
 
-* type names
+* store loc in ast
+* type instantiation
 * strlcpy
 * cleaner emit of loads and stores
 * strings

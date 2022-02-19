@@ -10,4 +10,5 @@ fn main() int {
     b = 3 // error
 
     var c *int
+    var d *int = a // error
 }

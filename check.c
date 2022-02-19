@@ -377,23 +377,39 @@ static void check_expr(struct context *ctx, struct node *n) {
 	}
 }
 
+static int check_assignment(struct context *ctx, struct node *asignee,
+                             struct node *expr) {
+	// TODO: proper type compatibility check
+	assert(asignee->type && expr->type);
+	if (asignee->type != expr->type) {
+		error(ctx, asignee->tok.loc,
+		             "cannot assign to an incompatible type");
+		return 0;
+	}
+	return 1;
+}
+
 static void check_decl(struct context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NVARDECL:
-		// vardecl has a type specifier, e.g. var i: int
+		// var decl has an init expression, ex. var i = 4
+		if (n->rhs) {
+			check_expr(ctx, n->rhs);
+			if (!n->rhs->type)
+				return;
+			n->type = n->rhs->type;
+		}
+		// var decl has a type specifier, ex. var i: int
 		if (n->typeexpr) {
 			check_expr(ctx, n->typeexpr);
 			if (!n->typeexpr->type)
 				return;
 			n->type = n->typeexpr->type;
 		}
-		// infer type from the rhs expression, e.g. var i = 4
-		else {
-			assert(n->rhs);
-			check_expr(ctx, n->rhs);
-			if (!n->rhs->type)
+		if (n->typeexpr && n->rhs) {
+			// if both type and init expr is specified, check assignability
+			if (!check_assignment(ctx, n, n->rhs))
 				return;
-			n->type = n->rhs->type;
 		}
 		// only declare after the whole thing succeeds typecheck
 		// FIXME: This is a little awkward because original declarations would
@@ -461,11 +477,8 @@ static void check_stmt(struct context *ctx, struct node *n) {
 		check_expr(ctx, n->lhs);
 		if (!n->lhs->type || !n->rhs->type)
 			return;
-		// TODO: proper type compatibility check
-		if (n->lhs->type != n->rhs->type) {
-			return error(ctx, n->lhs->tok.loc,
-			             "cannot assign to an incompatible type");
-		}
+		if (!check_assignment(ctx, n->lhs, n->rhs))
+			return;
 		break;
 	case NBLOCKSTMT:
 		push_scope(ctx);
