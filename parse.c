@@ -11,7 +11,7 @@ static struct node *parse_stmt(struct parser *p);
 static struct node *parse_typeexpr(struct parser *p);
 
 static struct node *makenode(struct parser *p, enum node_kind k,
-                             struct token tok) {
+                             struct src_loc loc) {
 	// TODO: store all nodes in a contiguous buffer for better locality?
 	// should be careful about node pointers going stale though
 	struct node *node = calloc(1, sizeof(struct node));
@@ -20,52 +20,55 @@ static struct node *makenode(struct parser *p, enum node_kind k,
 		exit(1);
 	}
 	node->kind = k;
-	node->tok = tok;
+	node->loc = loc;
 	arrput(p->nodeptrbuf, node);
 	return node;
 }
 
 static struct node *makefile(struct parser *p, struct node **toplevel) {
-	struct node *n = makenode(p, NFILE, p->tok);
+	struct node *n = makenode(p, NFILE, p->tok.loc);
 	n->children = toplevel;
 	return n;
 }
 
 static struct node *makefunc(struct parser *p, struct token name) {
-	struct node *n = makenode(p, NFUNC, name);
+	struct node *n = makenode(p, NFUNC, name.loc);
+	n->tok = name;
 	return n;
 }
 
 static struct node *makestruct(struct parser *p, struct token name) {
-	struct node *n = makenode(p, NSTRUCT, name);
+	struct node *n = makenode(p, NSTRUCT, name.loc);
+	n->tok = name;
 	return n;
 }
 
 static struct node *makebinexpr(struct parser *p, struct node *lhs,
                                 struct token op, struct node *rhs) {
-	struct node *n = makenode(p, NBINEXPR, op);
+	struct node *n = makenode(p, NBINEXPR, op.loc);
 	n->lhs = lhs;
 	n->rhs = rhs;
+	n->tok = op;
 	return n;
 }
 
 static struct node *makederefexpr(struct parser *p, struct node *rhs,
                                   struct token star) {
-	struct node *n = makenode(p, NDEREFEXPR, star);
+	struct node *n = makenode(p, NDEREFEXPR, star.loc);
 	n->rhs = rhs;
 	return n;
 }
 
 static struct node *makerefexpr(struct parser *p, struct node *rhs,
                                 struct token amp) {
-	struct node *n = makenode(p, NREFEXPR, amp);
+	struct node *n = makenode(p, NREFEXPR, amp.loc);
 	n->rhs = rhs;
 	return n;
 }
 
 static struct node *makecall(struct parser *p, struct node *lhs,
                              struct node **args) {
-	struct node *n = makenode(p, NCALL, p->tok /*unused*/);
+	struct node *n = makenode(p, NCALL, lhs->loc);
 	n->lhs = lhs;
 	assert(!n->children);
 	n->children = args;
@@ -75,41 +78,44 @@ static struct node *makecall(struct parser *p, struct node *lhs,
 // 'lhs' is the 'a.b()' part of 'a.b().c'.
 static struct node *makemember(struct parser *p, struct token member,
                                struct node *lhs) {
-	struct node *n = makenode(p, NMEMBER, member);
+	struct node *n = makenode(p, NMEMBER, member.loc);
+	n->tok = member;
 	n->parent = lhs;
 	return n;
 }
 
 static struct node *maketypeexpr(struct parser *p, enum type_kind kind,
                                  struct token tok) {
-	struct node *n = makenode(p, NTYPEEXPR, tok);
+	struct node *n = makenode(p, NTYPEEXPR, tok.loc);
+	n->tok = tok;
 	n->typekind = kind;
 	return n;
 }
 
 static struct node *makevardecl(struct parser *p, struct token name,
                                 struct node *initexpr, struct node *typeexpr) {
-	struct node *n = makenode(p, NVARDECL, name);
+	struct node *n = makenode(p, NVARDECL, name.loc);
+	n->tok = name;
 	n->rhs = initexpr;
 	n->typeexpr = typeexpr;
 	return n;
 }
 
 static struct node *makereturn(struct parser *p, struct node *rhs) {
-	struct node *n = makenode(p, NRETURN, p->tok);
+	struct node *n = makenode(p, NRETURN, rhs->loc);
 	n->rhs = rhs;
 	return n;
 }
 
 static struct node *makeexprstmt(struct parser *p, struct node *rhs) {
-	struct node *n = makenode(p, NEXPRSTMT, p->tok);
+	struct node *n = makenode(p, NEXPRSTMT, rhs->loc);
 	n->rhs = rhs;
 	return n;
 }
 
 static struct node *makeassign(struct parser *p, struct node *lhs,
                                struct node *rhs) {
-	struct node *n = makenode(p, NASSIGN, p->tok);
+	struct node *n = makenode(p, NASSIGN, lhs->loc);
 	n->lhs = lhs;
 	n->rhs = rhs;
 	return n;
@@ -249,7 +255,7 @@ static struct node *parse_vardecl(struct parser *p) {
 }
 
 static struct node *parse_blockstmt(struct parser *p) {
-	struct node *n = makenode(p, NBLOCKSTMT, p->tok);
+	struct node *n = makenode(p, NBLOCKSTMT, p->tok.loc);
 
 	expect(p, TLBRACE);
 	while (p->tok.type != TRBRACE) {
@@ -291,12 +297,14 @@ static struct node *parse_unaryexpr(struct parser *p) {
 	case TIDENT:
 		tok = p->tok;
 		next(p);
-		e = makenode(p, NIDEXPR, tok);
+		e = makenode(p, NIDEXPR, tok.loc);
+		e->tok = tok; // FIXME: too bare
 		break;
 	case TNUM:
 		tok = p->tok;
 		next(p);
-		e = makenode(p, NLITERAL, tok);
+		e = makenode(p, NLITERAL, tok.loc);
+		e->tok = tok; // FIXME: too bare
 		break;
 	case TLPAREN:
 		expect(p, TLPAREN);

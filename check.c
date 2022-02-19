@@ -289,7 +289,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 		// these temporary decls to be referrable by any specific name.
 		n->decl = n;
 		if (n->rhs->type->kind != TYPE_POINTER)
-			return error(ctx, n->tok.loc, "cannot dereference a non-pointer");
+			return error(ctx, n->loc, "cannot dereference a non-pointer");
 		n->type = n->rhs->type->target;
 		break;
 	case NREFEXPR:
@@ -298,7 +298,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 			return;
 		// lvalue check
 		if (!n->rhs->decl)
-			return error(ctx, n->tok.loc,
+			return error(ctx, n->loc,
 			             "cannot take reference of a non-lvalue");
 		n->type = makepointertype(n->rhs->type, n->tok);
 		break;
@@ -327,7 +327,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 				typename(n->lhs->type->params[i]->type, expect_buf,
 				         sizeof(expect_buf));
 				typename(n->children[i]->type, got_buf, sizeof(got_buf));
-				return error(ctx, n->children[i]->tok.loc,
+				return error(ctx, n->children[i]->loc,
 				             "argument type mismatch: expected %s, got %s",
 				             expect_buf, got_buf);
 			}
@@ -338,7 +338,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 		if (!n->parent->type)
 			return;
 		if (!arrlen(n->parent->type->members))
-			return error(ctx, n->tok.loc, "member access to a non-struct");
+			return error(ctx, n->loc, "member access to a non-struct");
 		struct node *member_match = NULL;
 		for (long i = 0; i < arrlen(n->parent->type->members); i++) {
 			struct node *m = n->parent->type->members[i];

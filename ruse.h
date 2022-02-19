@@ -151,6 +151,7 @@ struct type {
 
 struct node {
 	enum node_kind kind;
+	struct src_loc loc;     // location in source
 	struct token tok;       // name of var or func. etc.
 	int id;                 // scope-unique decl id for codegen
 	struct node *decl;      // original declaration of this node
