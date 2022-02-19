@@ -221,6 +221,25 @@ static struct type *push_type(struct context *ctx, struct type *ty) {
 	return ty;
 }
 
+// Pushes a new type to the global scope.  This can be used to push derived
+// types of builtin types, e.g. *int.
+// FIXME: not used.
+static struct type *push_type_global(struct context *ctx, struct type *ty) {
+	char buf[TOKLEN];
+
+	struct scope *scope = ctx->typescope;
+	while (scope->outer) {
+		scope = scope->outer;
+	}
+
+	typename(ty, buf, sizeof(buf));
+	if (!mapput(&scope->map, buf, ty)) {
+		error(ctx, ty->tok.loc, "'%s' is already declared", buf);
+		return NULL;
+	}
+	return ty;
+}
+
 // Finds the type object that first declared the type whose name is 'name'.
 static struct type *lookup_type(struct context *ctx, const char *name) {
 	struct scope *s = ctx->typescope;
@@ -335,16 +354,25 @@ static void check_expr(struct context *ctx, struct node *n) {
 		n->type = member_match->type;
 		break;
 	case NTYPEEXPR:
+		// type expressions are recursive themselves; make sure to recurse down
+		// to instantiate all underlying types
+		if (n->rhs) {
+			check_expr(ctx, n->rhs);
+			if (!n->rhs->type)
+				return;
+		}
 		typeexprname(n, buf, sizeof(buf));
-		orig_ty = lookup_type(ctx, buf);
-		if (!orig_ty) {
-			if (n->typekind == TYPE_POINTER) {
-				assert(!"TODO: construct pointer type if target exists");
-			} else {
+		n->type = lookup_type(ctx, buf);
+		if (!n->type) {
+			if (n->typekind == TYPE_VAL) {
 				return error(ctx, n->tok.loc, "unknown type '%s'", buf);
+			} else {
+				// Since we already recursed into the target type, reaching
+				// here would mean that this derived type is valid and just not
+				// instantiated yet.
+				n->type = makepointertype(n->rhs->type, n->tok);
 			}
 		}
-		n->type = orig_ty;
 		assert(n->type);
 		break;
 	default:
