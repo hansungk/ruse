@@ -3,3 +3,5 @@
 ruse
 *.qbe
 build
+out
+out.s
