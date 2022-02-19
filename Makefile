@@ -7,17 +7,19 @@ OBJS := $(SRCS:.c=.o)
 all: $(PROG)
 
 $(PROG): $(OBJS)
-	$(CC) $(CFLAGS) -o $(PROG) $(OBJS)
+	@echo CCLD"\t"$@
+	@$(CC) $(CFLAGS) -o $(PROG) $(OBJS)
 
 $(OBJS): ruse.h stb_ds.h
 
 .SUFFIXES: .c .o
 .c.o:
-	$(CC) $(CFLAGS) -c -o $@ $<
+	@echo CC"\t"$@
+	@$(CC) $(CFLAGS) -c -o $@ $<
 
 .PHONY: check clean
 check: $(PROG)
-	./test.sh
+	@./test.sh
 
 clean:
 	rm -f $(OBJS) $(PROG)
