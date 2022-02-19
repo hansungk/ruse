@@ -255,7 +255,6 @@ static struct type *lookup_type(struct context *ctx, const char *name) {
 static void check_expr(struct context *ctx, struct node *n) {
 	char buf[TOKLEN];
 	struct node *decl = NULL;
-	struct type *orig_ty;
 
 	assert(n);
 	tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
@@ -367,9 +366,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 			if (n->typekind == TYPE_VAL) {
 				return error(ctx, n->tok.loc, "unknown type '%s'", buf);
 			} else {
-				// Since we already recursed into the target type, reaching
-				// here would mean that this derived type is valid and just not
-				// instantiated yet.
+				assert(n->typekind == TYPE_POINTER);
 				n->type = makepointertype(n->rhs->type, n->tok);
 			}
 		}
@@ -464,6 +461,11 @@ static void check_stmt(struct context *ctx, struct node *n) {
 		check_expr(ctx, n->lhs);
 		if (!n->lhs->type || !n->rhs->type)
 			return;
+		// TODO: proper type compatibility check
+		if (n->lhs->type != n->rhs->type) {
+			return error(ctx, n->lhs->tok.loc,
+			             "cannot assign to an incompatible type");
+		}
 		break;
 	case NBLOCKSTMT:
 		push_scope(ctx);
