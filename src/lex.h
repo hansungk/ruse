@@ -6,120 +6,120 @@
 
 namespace cmp {
 
-enum class Tok {
-    eos,
-    newline,
-    arrow,
-    reversearrow,
-    lparen,
-    rparen,
-    lbrace,
-    rbrace,
-    lbracket,
-    rbracket,
-    lesserthan,
-    greaterthan,
-    dot,
-    comma,
-    colon,
-    semicolon,
-    quote,
-    doublequote,
-    equals,
-    doubleequals,
-    notequals,
-    plus,
-    minus,
-    star,
-    ampersand,
-    caret,
-    tilde,
-    slash,
-    backslash,
-    pipe,
-    bang,
-    question,
-    hash,
-    dash,
-    ident,
-    number,
-    string,
-    character,
-    comment,
-    KWSTART,
-    kw_func,
-    kw_struct,
-    kw_enum,
-    kw_let,
-    kw_var,
-    kw_mut,
-    kw_if,
-    kw_else,
-    kw_int,
-    kw_i64,
-    kw_float,
-    kw_return,
-    kw_extern,
-    kw_error,
-    KWEND,
-    none // not initialized
-};
-
-// This is under linear search, so it is better to place more frequently used
-// symbols at the top.
-constexpr std::pair<std::string_view, Tok> symbol_map[]{
-    {"\"", Tok::doublequote},  {"\n", Tok::newline},
-    {"->", Tok::arrow},        {"<-", Tok::reversearrow},
-    {"==", Tok::doubleequals}, {"!=", Tok::notequals},
-    {"'", Tok::quote},         {"(", Tok::lparen},
-    {")", Tok::rparen},        {"{", Tok::lbrace},
-    {"}", Tok::rbrace},        {"[", Tok::lbracket},
-    {"]", Tok::rbracket},      {"<", Tok::lesserthan},
-    {">", Tok::greaterthan},   {".", Tok::dot},
-    {",", Tok::comma},         {":", Tok::colon},
-    {";", Tok::semicolon},     {"=", Tok::equals},
-    {"+", Tok::plus},          {"-", Tok::minus},
-    {"*", Tok::star},          {"&", Tok::ampersand},
-    {"^", Tok::caret},         {"~", Tok::tilde},
-    {"/", Tok::slash},         {"\\", Tok::backslash},
-    {"|", Tok::pipe},          {"!", Tok::bang},
-    {"?", Tok::question},      {"#", Tok::hash},
-    {"-", Tok::dash},          {"comment", Tok::comment},
-};
-
-constexpr std::pair<const char *, Tok> keyword_map[]{
-    {"fn", Tok::kw_func},       {"struct", Tok::kw_struct},
-    {"enum", Tok::kw_enum},     {"let", Tok::kw_let},
-    {"var", Tok::kw_var},       {"mut", Tok::kw_mut},
-    {"if", Tok::kw_if},         {"else", Tok::kw_else},
-    {"int", Tok::kw_int},       {"i64", Tok::kw_i64},
-    {"return", Tok::kw_return}, {"extern", Tok::kw_extern},
-    {"error", Tok::kw_error},
-};
-
-std::string tokenTypeToString(Tok kind);
-
 // Token contains the kind, a view of the text data, and the position in the
 // source of a token.
 struct Token {
-    Tok kind = Tok::none;
+    enum Kind {
+        eos,
+        newline,
+        arrow,
+        reversearrow,
+        lparen,
+        rparen,
+        lbrace,
+        rbrace,
+        lbracket,
+        rbracket,
+        lesserthan,
+        greaterthan,
+        dot,
+        comma,
+        colon,
+        semicolon,
+        quote,
+        doublequote,
+        equals,
+        doubleequals,
+        notequals,
+        plus,
+        minus,
+        star,
+        ampersand,
+        caret,
+        tilde,
+        slash,
+        backslash,
+        pipe,
+        bang,
+        question,
+        hash,
+        dash,
+        ident,
+        number,
+        string,
+        character,
+        comment,
+        KWSTART,
+        kw_func,
+        kw_struct,
+        kw_enum,
+        kw_let,
+        kw_var,
+        kw_mut,
+        kw_if,
+        kw_else,
+        kw_int,
+        kw_i64,
+        kw_float,
+        kw_return,
+        kw_extern,
+        kw_error,
+        KWEND,
+        none // not initialized
+    };
+
+    Kind kind = Token::none;
     size_t pos = 0;
     const char *start = NULL;
     const char *end = NULL;
 
     Token() {}
-    Token(Tok kind, size_t pos)
+    Token(Kind kind, size_t pos)
         : kind(kind), pos(pos), start(NULL), end(NULL) {}
-    Token(Tok kind, size_t pos, const char *s, const char *e)
+    Token(Kind kind, size_t pos, const char *s, const char *e)
         : kind(kind), pos(pos), start(s), end(e) {}
 
     // Get position of one character past the end of the token.
     size_t endPos() const { return pos + (end - start); }
 
-    bool is_any(std::initializer_list<Tok> &kinds) const;
+    bool is_any(std::initializer_list<Kind> &kinds) const;
 
     std::string str() const;
 };
+
+// This is under linear search, so it is better to place more frequently used
+// symbols at the top.
+constexpr std::pair<std::string_view, Token::Kind> symbol_map[]{
+    {"\"", Token::doublequote},  {"\n", Token::newline},
+    {"->", Token::arrow},        {"<-", Token::reversearrow},
+    {"==", Token::doubleequals}, {"!=", Token::notequals},
+    {"'", Token::quote},         {"(", Token::lparen},
+    {")", Token::rparen},        {"{", Token::lbrace},
+    {"}", Token::rbrace},        {"[", Token::lbracket},
+    {"]", Token::rbracket},      {"<", Token::lesserthan},
+    {">", Token::greaterthan},   {".", Token::dot},
+    {",", Token::comma},         {":", Token::colon},
+    {";", Token::semicolon},     {"=", Token::equals},
+    {"+", Token::plus},          {"-", Token::minus},
+    {"*", Token::star},          {"&", Token::ampersand},
+    {"^", Token::caret},         {"~", Token::tilde},
+    {"/", Token::slash},         {"\\", Token::backslash},
+    {"|", Token::pipe},          {"!", Token::bang},
+    {"?", Token::question},      {"#", Token::hash},
+    {"-", Token::dash},          {"comment", Token::comment},
+};
+
+constexpr std::pair<const char *, Token::Kind> keyword_map[]{
+    {"fn", Token::kw_func},       {"struct", Token::kw_struct},
+    {"enum", Token::kw_enum},     {"let", Token::kw_let},
+    {"var", Token::kw_var},       {"mut", Token::kw_mut},
+    {"if", Token::kw_if},         {"else", Token::kw_else},
+    {"int", Token::kw_int},       {"i64", Token::kw_i64},
+    {"return", Token::kw_return}, {"extern", Token::kw_extern},
+    {"error", Token::kw_error},
+};
+
+std::string tokenTypeToString(Token::Kind kind);
 
 bool is_ident_or_keyword(const Token tok);
 
@@ -161,8 +161,8 @@ private:
         return std::cend(sv) - 1;
     }
     size_t pos() const { return curr - std::cbegin(sv); }
-    Token make_token(Tok kind);
-    Token make_token_with_literal(Tok kind);
+    Token make_token(Token::Kind kind);
+    Token make_token_with_literal(Token::Kind kind);
     template <typename F> void skip_while(F &&lambda);
     void skip_whitespace();
     void error(const std::string &msg);

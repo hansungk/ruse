@@ -1026,14 +1026,14 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
 
         const char *op_str = NULL;
         switch (binary->op.kind) {
-        case Tok::plus:
+        case Token::plus:
             op_str = "add";
             break;
-        case Tok::doubleequals:
+        case Token::doubleequals:
             // TODO: not "w"
             op_str = "ceqw";
             break;
-        case Tok::notequals:
+        case Token::notequals:
             op_str = "cnew";
             break;
         default:

@@ -90,11 +90,11 @@ private:
     void next();
 
     // Expect and consume functions.
-    bool expect(Tok kind, const std::string &msg);
+    bool expect(Token::Kind kind, const std::string &msg);
 
     // Skip until a specific token(s) show up.
-    void skip_until(Tok kind);
-    void skip_until_any(std::initializer_list<Tok> &kinds);
+    void skip_until(Token::Kind kind);
+    void skip_until_any(std::initializer_list<Token::Kind> &kinds);
     void skip_until_end_of_line();
     void skip_to_next_line();
     void skip_newlines();

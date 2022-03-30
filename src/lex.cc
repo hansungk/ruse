@@ -4,8 +4,8 @@
 
 namespace cmp {
 
-std::string tokenTypeToString(Tok kind) {
-    if (kind == Tok::newline)
+std::string tokenTypeToString(Token::Kind kind) {
+    if (kind == Token::newline)
         return "\\n";
     for (auto &p : symbol_map) {
         if (p.second == kind)
@@ -19,15 +19,15 @@ std::string tokenTypeToString(Tok kind) {
 }
 
 bool is_ident_or_keyword(const Token tok) {
-  return tok.kind == Tok::ident ||
-         (tok.kind > Tok::KWSTART && tok.kind < Tok::KWEND);
+    return tok.kind == Token::ident ||
+           (tok.kind > Token::KWSTART && tok.kind < Token::KWEND);
 }
 
-bool Token::is_any(std::initializer_list<Tok> &kinds) const {
-  for (auto cand : kinds)
-    if (kind == cand)
-      return true;
-  return false;
+bool Token::is_any(std::initializer_list<Token::Kind> &kinds) const {
+    for (auto cand : kinds)
+        if (kind == cand)
+            return true;
+    return false;
 }
 
 const char *tokstr(const Token tok, char *buf, size_t len) {
@@ -41,11 +41,11 @@ const char *tokstr(const Token tok, char *buf, size_t len) {
 }
 
 std::string Token::str() const {
-  if (kind == Tok::newline)
-    return {"\\n"};
-  else if (kind == Tok::eos)
-    return {"EOF"};
-  return std::string{start, static_cast<size_t>(end - start)};
+    if (kind == Token::newline)
+        return {"\\n"};
+    else if (kind == Token::eos)
+        return {"EOF"};
+    return std::string{start, static_cast<size_t>(end - start)};
 }
 
 // Advances 'look', not 'curr'. 'curr' is used as a manual marking position for
@@ -68,7 +68,7 @@ Token Lexer::lex_ident_or_keyword() {
     // Keyword lookup
     for (auto &p : keyword_map) {
         const char *text = p.first;
-        Tok kind = p.second;
+        Token::Kind kind = p.second;
 
         // If the remaining source text is shorter than the keyword, skip it.
         if (static_cast<size_t>(eos() - curr) < strlen(text)) {
@@ -82,12 +82,12 @@ Token Lexer::lex_ident_or_keyword() {
     }
     // No keyword match; it's an identifier
     num_ident++;
-    return make_token_with_literal(Tok::ident);
+    return make_token_with_literal(Token::ident);
 }
 
 Token Lexer::lex_number() {
     skip_while(isdigit);
-    return make_token_with_literal(Tok::number);
+    return make_token_with_literal(Token::number);
 }
 
 Token Lexer::lex_string() {
@@ -103,12 +103,12 @@ Token Lexer::lex_string() {
             step();
         }
     }
-    return make_token_with_literal(Tok::string);
+    return make_token_with_literal(Token::string);
 }
 
 Token Lexer::lex_comment() {
     skip_while([](char c) { return c != '\n'; });
-    auto tok = make_token_with_literal(Tok::comment);
+    auto tok = make_token_with_literal(Token::comment);
     return tok;
 }
 
@@ -129,7 +129,7 @@ Token Lexer::lex_symbol() {
     }
     // Match fail
     error("unrecognized token");
-    return make_token(Tok::none);
+    return make_token(Token::none);
 }
 
 const char *Lexer::lookn(long n) const {
@@ -139,11 +139,9 @@ const char *Lexer::lookn(long n) const {
     return eos();
 }
 
-Token Lexer::make_token(Tok kind) {
-    return Token{kind, pos()};
-}
+Token Lexer::make_token(Token::Kind kind) { return Token{kind, pos()}; }
 
-Token Lexer::make_token_with_literal(Tok kind) {
+Token Lexer::make_token_with_literal(Token::Kind kind) {
     return Token{kind, pos(), curr, look};
 }
 
@@ -151,7 +149,7 @@ Token Lexer::lex() {
     skip_whitespace();
 
     if (curr == eos()) {
-        return Token{Tok::eos, pos()};
+        return Token{Token::eos, pos()};
     }
 
     Token tok;
@@ -190,7 +188,7 @@ Token Lexer::lex() {
 std::vector<Token> Lexer::lex_all() {
     std::vector<Token> v;
     Token tok;
-    while ((tok = lex()).kind != Tok::eos) {
+    while ((tok = lex()).kind != Token::eos) {
         v.push_back(tok);
     }
     v.push_back(tok); // terminate with eos
