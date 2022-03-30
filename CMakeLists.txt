@@ -50,4 +50,7 @@ target_compile_features(ruse PUBLIC cxx_std_17)
 target_compile_options(ruse PRIVATE ${MY_COMPILE_FLAGS})
 target_link_options(ruse PRIVATE ${MY_LINK_FLAGS})
 
-set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+file(COPY test DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+configure_file(check.py ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)

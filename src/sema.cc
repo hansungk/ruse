@@ -6,8 +6,6 @@
 #include <cassert>
 #include <cstdarg>
 
-#define BUFSIZE 1024
-
 using namespace cmp;
 
 template <typename... Args> static bool error(SourceLoc loc, Args &&...args) {
