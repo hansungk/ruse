@@ -52,5 +52,8 @@ target_link_options(ruse PRIVATE ${MY_LINK_FLAGS})
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-file(COPY test DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(check.py ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+add_custom_target(copy-test-files ALL
+  COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_SOURCE_DIR}/test
+  ${CMAKE_CURRENT_BINARY_DIR}/test
+  DEPENDS ruse)
