@@ -25,9 +25,6 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
     # Selectively use LLD on Linux
     list(APPEND MY_LINK_FLAGS -fuse-ld=lld)
-  else()
-    list(APPEND MY_LINK_FLAGS
-      -Wl,-L$ENV{HOME}/build/llvm/lib -Wl,-rpath,$ENV{HOME}/build/llvm/lib)
   endif()
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   list(APPEND MY_COMPILE_FLAGS -fdiagnostics-color=always $<$<CONFIG:DEBUG>:-ggdb>)
