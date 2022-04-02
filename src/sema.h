@@ -178,7 +178,7 @@ struct Valstack {
     // "%_0" in the IL.
     // This does not take any argument because the actual value is emitted to
     // the code.
-    void push_temp_value() {
+    void pushTempValue() {
         buf.push_back(Value{ValueKind::value, next_id});
         next_id++;
     }
@@ -188,13 +188,13 @@ struct Valstack {
     // way to emit its value.  This will be designated as "%a0" in the IL.
     // This does not take any argument because the actual address is emitted to
     // the code.
-    void push_address() {
+    void pushAddress() {
         buf.push_back(Value{ValueKind::address, next_id});
         next_id++;
     }
 
     // Explicitly give the id of the value which will be reused.
-    void push_address_explicit(int id) {
+    void pushAddressExplicit(int id) {
         buf.push_back(Value{ValueKind::address, id});
     }
 
@@ -240,7 +240,7 @@ struct QbeGenerator {
         fmt::print(file, "\n{:{}}", "", indent);
         fmt::print(file, std::forward<Args>(args)...);
     }
-    template <typename... Args> void emit_same_line(Args &&...args) {
+    template <typename... Args> void emitSameline(Args &&...args) {
         fmt::print(file, std::forward<Args>(args)...);
     }
     // Annotate the last emitted QBE line.

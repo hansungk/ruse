@@ -2,8 +2,8 @@ cmake_minimum_required (VERSION 3.8)
 
 project (ruse LANGUAGES CXX)
 
-add_executable (ruse src/main.cc src/driver.cc src/sema.cc src/parse.cc
-  src/ast.cc src/lex.cc src/source.cc src/format.cc)
+add_executable (ruse src/main.cc src/driver.cc src/codegen.cc src/sema.cc
+  src/parse.cc src/ast.cc src/lex.cc src/source.cc src/format.cc)
 target_include_directories(ruse PUBLIC .)
 
 if(NOT CMAKE_BUILD_TYPE)
