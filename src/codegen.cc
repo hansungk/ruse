@@ -94,10 +94,9 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
     }
 
     if (func_decl->ret_type_expr) {
-      assert(!"FIXME: func_name removed");
-      // emit("%_{} ={} call ${}(", valstack.next_id,
-      //               abity_string(func_decl->rettype),
-      //               c->func_name->text);
+      // assert(!"FIXME: func_name removed");
+      emit("%_{} ={} call ${}(", valstack.next_id,
+           qbeAbityString(func_decl->ret_type), c->callee_decl->name->text);
 
       for (size_t i = 0; i < c->args.size(); i++) {
         emitSameline("{} {}, ", qbeAbityString(c->args[i]->type),
@@ -134,8 +133,8 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
     // Don't assume anything and just emit all the value copying of each
     // members here.  This might sound expensive, especially in cases where
     // only part of the struct is actually used (e.g. `S {...}.a`).  But
-    // figuring out those cases is really a job to be done at a higher IR,
-    // not here.
+    // figuring out those cases is really a job to be done at a higher IR, not
+    // here.
 
     for (auto term : sde->terms) {
       // Calculate the right offsetted memory location for each
