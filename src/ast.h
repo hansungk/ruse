@@ -25,36 +25,41 @@ class Lifetime;
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
 struct AstNode {
-    const enum AstKind {
-        file,
-        stmt,
-        decl,
-        expr,
-    } kind = AstKind::decl; // node kind
-    // TODO: deprecate pos/endpos
-    size_t pos = 0;             // start pos of this AST in the source text
-    size_t endpos = 0;          // end pos of this AST in the source text
-    SourceLoc loc;
-    SourceLoc endloc;
+  const enum AstKind {
+    file,
+    stmt,
+    decl,
+    expr,
+  } kind = AstKind::decl; // node kind
+  // TODO: deprecate pos/endpos
+  size_t pos = 0;    // start pos of this AST in the source text
+  size_t endpos = 0; // end pos of this AST in the source text
+  SourceLoc loc;
+  SourceLoc endloc;
 
-    AstNode() {}
-    AstNode(AstKind kind) : kind(kind) {}
-    virtual ~AstNode() = default;
+  AstNode() {}
+  AstNode(AstKind kind) : kind(kind) {}
+  virtual ~AstNode() = default;
 
-    // Casts to the *pointer* of the given type.  Not checked.
-    template <typename T> T *as() { return static_cast<T *>(this); }
-    template <typename T> const T *as() const {
-        return static_cast<const T *>(this);
-    }
+  // Casts to the *pointer* of the given type.  Not checked.
+  template <typename T> T *as() {
+    assert(is<T>());
+    return static_cast<T *>(this);
+  }
+  template <typename T> const T *as() const {
+    assert(is<T>());
+    return static_cast<const T *>(this);
+  }
+  template <typename T> bool is();
 
-    std::string_view text(const Sema &sema);
+  std::string_view text(const Sema &sema);
 
-    // RAII trick to handle indentation.
-    static int indent;
-    struct PrintScope {
-        PrintScope() { indent += 2; }
-        ~PrintScope() { indent -= 2; }
-    };
+  // RAII trick to handle indentation.
+  static int indent;
+  struct PrintScope {
+    PrintScope() { indent += 2; }
+    ~PrintScope() { indent -= 2; }
+  };
 };
 
 // File is simply a group of Toplevels.
@@ -69,18 +74,19 @@ struct File : public AstNode {
 // ==========
 
 struct Stmt : public AstNode {
-    const enum Kind {
-        decl,
-        expr,
-        assign,
-        return_,
-        compound,
-        if_,
-        builtin,
-        bad,
-    } kind;
+  const enum Kind {
+    decl,
+    expr,
+    assign,
+    return_,
+    compound,
+    if_,
+    builtin,
+    bad,
+  } kind;
 
-    Stmt(Kind s) : AstNode(AstNode::stmt), kind(s) {}
+  Stmt(Kind s) : AstNode(AstNode::stmt), kind(s) {}
+  template <typename T> bool is() { return false; }
 };
 
 // Variable declaration statement; doesn't include function declarations.
@@ -145,37 +151,47 @@ struct BadStmt : public Stmt {
     BadStmt() : Stmt(Stmt::bad) {}
 };
 
+template <> inline bool Stmt::is<DeclStmt>() { return kind == decl; }
+template <> inline bool Stmt::is<ExprStmt>() { return kind == expr; }
+template <> inline bool Stmt::is<AssignStmt>() { return kind == assign; }
+template <> inline bool Stmt::is<ReturnStmt>() { return kind == return_; }
+template <> inline bool Stmt::is<CompoundStmt>() { return kind == compound; }
+template <> inline bool Stmt::is<IfStmt>() { return kind == if_; }
+template <> inline bool Stmt::is<BuiltinStmt>() { return kind == builtin; }
+template <> inline bool Stmt::is<BadStmt>() { return kind == bad; }
+
 // Expressions
 // ===========
 
 struct Type;
 
 struct Expr : public AstNode {
-    enum Kind {
-        integer_literal,
-        string_literal,
-        decl_ref,
-        call,
-        struct_def,
-        cast,
-        member,
-        unary,
-        binary,
-        type_,
-        bad,
-    } kind;
+  enum Kind {
+    integer_literal,
+    string_literal,
+    decl_ref,
+    call,
+    struct_def,
+    cast,
+    member,
+    unary,
+    binary,
+    type_,
+    bad,
+  } kind;
 
-    // Type of the expression.
-    //
-    // For expressions that have a Decl, e.g. DeclRefExpr and MemberExpr, their
-    // types are stored in decl->type.  For these cases, the value of this
-    // pointer should be maintained the same as decl->type, so that expr->type
-    // becomes the unified way to retrieve the type of an expression.
-    Type *type = nullptr;
+  // Type of the expression.
+  //
+  // For expressions that have a Decl, e.g. DeclRefExpr and MemberExpr, their
+  // types are stored in decl->type.  For these cases, the value of this
+  // pointer should be maintained the same as decl->type, so that expr->type
+  // becomes the unified way to retrieve the type of an expression.
+  Type *type = nullptr;
 
-    Decl *decl = nullptr;
+  Decl *decl = nullptr;
 
-    Expr(Kind e) : AstNode(AstNode::expr), kind(e), type(nullptr) {}
+  Expr(Kind e) : AstNode(AstNode::expr), kind(e), type(nullptr) {}
+  template <typename T> bool is();
 };
 
 struct IntegerLiteral : public Expr {
@@ -314,6 +330,23 @@ struct BadExpr : public Expr {
     BadExpr() : Expr(Expr::bad) {}
 };
 
+template <> inline bool Expr::is<IntegerLiteral>() {
+  return kind == integer_literal;
+}
+template <> inline bool Expr::is<StringLiteral>() {
+  return kind == string_literal;
+}
+template <> inline bool Expr::is<DeclRefExpr>() { return kind == decl_ref; }
+template <> inline bool Expr::is<CallExpr>() { return kind == call; }
+template <> inline bool Expr::is<StructDefExpr>() { return kind == struct_def; }
+template <> inline bool Expr::is<CastExpr>() { return kind == cast; }
+template <> inline bool Expr::is<MemberExpr>() { return kind == member; }
+template <> inline bool Expr::is<UnaryExpr>() { return kind == unary; }
+template <> inline bool Expr::is<BinaryExpr>() { return kind == binary; }
+template <> inline bool Expr::is<TypeExpr>() { return kind == type_; }
+template <> inline bool Expr::is<BadExpr>() { return kind == bad; }
+template <typename T> inline bool Expr::is() { return false; }
+
 // Declarations
 // ============
 
@@ -344,6 +377,7 @@ struct Decl : public AstNode {
     Decl(Kind d, Name *n) : Decl(d, n, nullptr) {}
     Decl(Kind d, Name *n, Type *t)
         : AstNode(AstNode::decl), kind(d), name(n), type(t) {}
+    template <typename T> bool is();
 };
 
 // Variable declaration.
@@ -466,6 +500,34 @@ struct EnumDecl : public Decl {
 struct BadDecl : public Decl {
     BadDecl() : Decl(Decl::bad) {}
 };
+
+template <> inline bool Decl::is<VarDecl>() { return kind == var; }
+template <> inline bool Decl::is<FuncDecl>() { return kind == func; }
+template <> inline bool Decl::is<FieldDecl>() { return kind == field; }
+template <> inline bool Decl::is<StructDecl>() { return kind == struct_; }
+template <> inline bool Decl::is<EnumVariantDecl>() {
+  return kind == enum_variant;
+}
+template <> inline bool Decl::is<EnumDecl>() { return kind == enum_; }
+template <> inline bool Decl::is<BadDecl>() { return kind == bad; }
+template <typename T> inline bool Decl::is() { return false; }
+
+template <> inline bool AstNode::is<File>() { return kind == file; }
+template <> inline bool AstNode::is<Stmt>() { return kind == stmt; }
+template <> inline bool AstNode::is<Decl>() { return kind == decl; }
+template <> inline bool AstNode::is<Expr>() { return kind == expr; }
+template <typename T> inline bool AstNode::is() {
+  if (is<Stmt>()) {
+    return static_cast<Stmt *>(this)->is<T>();
+  } else if (is<Decl>()) {
+    return static_cast<Decl *>(this)->is<T>();
+  } else if (is<Expr>()) {
+    return true;
+    // return static_cast<Expr *>(this)->is<T>();
+  } else {
+    return false;
+  }
+}
 
 } // namespace cmp
 
