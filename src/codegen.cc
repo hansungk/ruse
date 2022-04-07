@@ -94,7 +94,6 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
     }
 
     if (func_decl->ret_type_expr) {
-      // assert(!"FIXME: func_name removed");
       emit("%_{} ={} call ${}(", valstack.next_id,
            qbeAbityString(func_decl->ret_type), c->callee_decl->name->text);
 
@@ -107,8 +106,7 @@ void QbeGenerator::codegen_expr_explicit(Expr *e, bool value) {
 
       valstack.pushTempValue();
     } else {
-      assert(!"FIXME: func_name removed");
-      // emit("call ${}(", c->func_name->text);
+      emit("call ${}(", c->callee_decl->name->text);
 
       // @Copypaste from above
       for (size_t i = 0; i < c->args.size(); i++) {
