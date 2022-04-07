@@ -209,60 +209,60 @@ struct Valstack {
 };
 
 struct QbeGenerator {
-    Sema &sema;
-    Valstack valstack;
-    int label_id = 0;
-    int ifelse_label_id = 0;
-    int indent = 0;
-    FILE *file;
+  Sema &sema;
+  Valstack valstack;
+  int label_id = 0;
+  int ifelse_label_id = 0;
+  int indent = 0;
+  FILE *file;
 
-    // Code, Annot: use them like Code{<args to fmt::print>} and pass them to
-    // emitAnnotated.
-    struct Code {
-        std::string str;
-        template <typename... Args> Code(Args &&...args) {
-            str = fmt::format(std::forward<Args>(args)...);
-        }
-    };
-
-    struct Annot {
-        std::string str;
-        template <typename... Args> Annot(Args &&...args) {
-            str = fmt::format(std::forward<Args>(args)...);
-        }
-    };
-
-    QbeGenerator(Sema &s, const char *filename) : sema{s} {
-        file = fopen(filename, "w");
+  // Code, Annot: use them like Code{<args to fmt::print>} and pass them to
+  // emitAnnotated.
+  struct Code {
+    std::string str;
+    template <typename... Args> Code(Args &&...args) {
+      str = fmt::format(std::forward<Args>(args)...);
     }
-    ~QbeGenerator() { fclose(file); }
-    template <typename... Args> void emit(Args &&...args) {
-        fmt::print(file, "\n{:{}}", "", indent);
-        fmt::print(file, std::forward<Args>(args)...);
-    }
-    template <typename... Args> void emitSameline(Args &&...args) {
-        fmt::print(file, std::forward<Args>(args)...);
-    }
-    // Annotate the last emitted QBE line.
-    template <typename... Args> void annotate(Args &&...args) {
-        fmt::print(file, "   # ");
-        fmt::print(file, std::forward<Args>(args)...);
-    }
-    struct IndentBlock {
-        QbeGenerator &c;
-        IndentBlock(QbeGenerator &c) : c{c} { c.indent += 4; }
-        ~IndentBlock() { c.indent -= 4; }
-    };
+  };
 
-    void emit_assignment(const Decl *lhs, Expr *rhs);
-    long emit_stack_alloc(const Type *type, size_t line, std::string_view text);
+  struct Annot {
+    std::string str;
+    template <typename... Args> Annot(Args &&...args) {
+      str = fmt::format(std::forward<Args>(args)...);
+    }
+  };
 
-    void codegen(AstNode *n);
-    void codegen_decl(Decl *d);
-    void codegen_expr(Expr *e);
-    void codegen_expr_address(Expr *e);
-    void codegen_expr_explicit(Expr *e, bool value);
-    void codegen_stmt(Stmt *s);
+  QbeGenerator(Sema &s, const char *filename) : sema{s} {
+    file = fopen(filename, "w");
+  }
+  ~QbeGenerator() { fclose(file); }
+  template <typename... Args> void emit(Args &&...args) {
+    fmt::print(file, "\n{:{}}", "", indent);
+    fmt::print(file, std::forward<Args>(args)...);
+  }
+  template <typename... Args> void emitSameline(Args &&...args) {
+    fmt::print(file, std::forward<Args>(args)...);
+  }
+  // Annotate the last emitted QBE line.
+  template <typename... Args> void annotate(Args &&...args) {
+    fmt::print(file, "   # ");
+    fmt::print(file, std::forward<Args>(args)...);
+  }
+  struct IndentBlock {
+    QbeGenerator &c;
+    IndentBlock(QbeGenerator &c) : c{c} { c.indent += 4; }
+    ~IndentBlock() { c.indent -= 4; }
+  };
+
+  void emitAssignment(const Decl *lhs, Expr *rhs);
+  long emitStackAlloc(const Type *type, size_t line, std::string_view text);
+
+  void codegen(AstNode *n);
+  void codegenDecl(Decl *d);
+  void codegenExpr(Expr *e);
+  void codegenExprAddress(Expr *e);
+  void codegenExprExplicit(Expr *e, bool value);
+  void codegenStmt(Stmt *s);
 };
 
 } // namespace cmp
