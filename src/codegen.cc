@@ -21,7 +21,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
   switch (e->kind) {
   case Expr::integer_literal:
     emit("%_{} =w add 0, {}", valstack.next_id,
-         static_cast<IntegerLiteral *>(e)->value);
+         e->as<IntegerLiteral>()->value);
     annotate("{}: integer literal", e->loc.line);
     valstack.pushTempValue();
     break;
@@ -29,7 +29,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     assert(!"not implemented");
     break;
   case Expr::decl_ref: {
-    auto dre = static_cast<DeclRefExpr *>(e);
+    auto dre = e->as<DeclRefExpr>();
 
     // The 'a' in this expression generates a memory load from a stack address:
     //   ... = a
@@ -54,7 +54,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     // rvalue also sounds good, but this doesn't work considering that
     // expressions may be used without being converted to rvalues in advance.
     if (dre->decl->kind == Decl::var) {
-      auto var = static_cast<VarDecl *>(dre->decl);
+      auto var = dre->decl->as<VarDecl>();
 
       valstack.pushAddressExplicit(var->frame_local_id);
 
@@ -81,10 +81,10 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     break;
   }
   case Expr::call: {
-    auto c = static_cast<CallExpr *>(e);
+    auto c = e->as<CallExpr>();
 
     assert(c->callee_decl->kind == Decl::func);
-    auto func_decl = static_cast<FuncDecl *>(c->callee_decl);
+    auto func_decl = c->callee_decl->as<FuncDecl>();
 
     // codegen arguments first
     std::vector<Value> generated_args;
@@ -123,7 +123,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     break;
   }
   case Expr::struct_def: {
-    auto sde = static_cast<StructDefExpr *>(e);
+    auto sde = e->as<StructDefExpr>();
 
     // TODO: document why we alloc here
     auto id = emitStackAlloc(sde->type, sde->loc.line, sde->text(sema));
@@ -153,7 +153,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     break;
   }
   case Expr::member: {
-    auto mem = static_cast<MemberExpr *>(e);
+    auto mem = e->as<MemberExpr>();
 
     // We can't do complete code generation at this end without recursing
     // into the child LHS expression because of cases like these:
@@ -182,7 +182,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     break;
   }
   case Expr::unary: {
-    auto ue = static_cast<UnaryExpr *>(e);
+    auto ue = e->as<UnaryExpr>();
 
     if (ue->kind == UnaryExpr::ref) {
       codegenExprExplicit(ue->operand, false);
@@ -205,7 +205,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     break;
   }
   case Expr::binary: {
-    auto binary = static_cast<BinaryExpr *>(e);
+    auto binary = e->as<BinaryExpr>();
     codegenExprExplicit(binary->lhs, true);
     codegenExprExplicit(binary->rhs, true);
 
@@ -244,13 +244,13 @@ void QbeGenerator::codegenExprAddress(Expr *e) {
 void QbeGenerator::codegenStmt(Stmt *s) {
   switch (s->kind) {
   case Stmt::expr:
-    codegenExpr(static_cast<ExprStmt *>(s)->expr);
+    codegenExpr(s->as<ExprStmt>()->expr);
     break;
   case Stmt::decl:
-    codegenDecl(static_cast<DeclStmt *>(s)->decl);
+    codegenDecl(s->as<DeclStmt>()->decl);
     break;
   case Stmt::assign: {
-    auto as = static_cast<AssignStmt *>(s);
+    auto as = s->as<AssignStmt>();
 
     codegenExpr(as->rhs);
     auto rhs_val_id = valstack.pop().id;
@@ -267,7 +267,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
     break;
   }
   case Stmt::return_:
-    codegenExpr(static_cast<ReturnStmt *>(s)->expr);
+    codegenExpr(s->as<ReturnStmt>()->expr);
 
     // Whether the top of the valstack might contain is a value or an
     // address, either is fine, because returning a struct by value
@@ -281,7 +281,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
     label_id++;
     break;
   case Stmt::if_: {
-    auto if_stmt = static_cast<IfStmt *>(s);
+    auto if_stmt = s->as<IfStmt>();
     auto id = ifelse_label_id;
     ifelse_label_id++;
     codegenExpr(if_stmt->cond);
@@ -299,7 +299,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
     break;
   }
   case Stmt::compound:
-    for (auto line : static_cast<CompoundStmt *>(s)->stmts) {
+    for (auto line : s->as<CompoundStmt>()->stmts) {
       codegen(line);
     }
     break;
@@ -311,7 +311,7 @@ void QbeGenerator::codegenStmt(Stmt *s) {
 void QbeGenerator::codegenDecl(Decl *d) {
   switch (d->kind) {
   case Decl::var: {
-    auto v = static_cast<VarDecl *>(d);
+    auto v = d->as<VarDecl>();
 
     if (sema.context.func_stack.empty()) {
       assert(!"vardecl outside function?");
@@ -331,7 +331,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
     break;
   }
   case Decl::func: {
-    auto f = static_cast<FuncDecl *>(d);
+    auto f = d->as<FuncDecl>();
 
     emitSameline("\nexport function {} ${}(", qbeAbityString(f->ret_type),
                  f->name->text);
@@ -371,7 +371,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
     break;
   }
   case Decl::struct_: {
-    auto s = static_cast<StructDecl *>(d);
+    auto s = d->as<StructDecl>();
 
     long max_field_size = 0;
     for (const auto f : s->fields) {
@@ -437,7 +437,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
     assert(lhs_type->kind == TypeKind::value);
     assert(!lhs_type->builtin);
     assert(lhs_type->origin_decl->kind == Decl::struct_);
-    auto struct_decl = static_cast<StructDecl *>(lhs_type->origin_decl);
+    auto struct_decl = lhs_type->origin_decl->as<StructDecl>();
 
     for (auto field : struct_decl->fields) {
       auto rhs_text = fmt::format("{}.{}", rhs->text(sema), field->name->text);
@@ -518,7 +518,7 @@ long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
     assert(type->kind == TypeKind::value);
     assert(type->origin_decl->kind == Decl::struct_ &&
            "non-struct value type?");
-    if (static_cast<StructDecl *>(type->origin_decl)->alignment == 4) {
+    if (type->origin_decl->as<StructDecl>()->alignment == 4) {
       emitSameline("alloc4");
     } else {
       emitSameline("alloc8");
@@ -533,16 +533,16 @@ long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
 void QbeGenerator::codegen(AstNode *n) {
   switch (n->kind) {
   case AstNode::file: {
-    for (auto toplevel : static_cast<File *>(n)->toplevels) {
+    for (auto toplevel : n->as<File>()->toplevels) {
       codegen(toplevel);
     }
     break;
   }
   case AstNode::stmt:
-    codegenStmt(static_cast<Stmt *>(n));
+    codegenStmt(n->as<Stmt>());
     break;
   case AstNode::decl:
-    codegenDecl(static_cast<Decl *>(n));
+    codegenDecl(n->as<Decl>());
     break;
   default:
     assert(!"unknown ast kind");

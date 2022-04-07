@@ -137,7 +137,7 @@ bool declare(Sema &sema, Decl *decl) {
 
     // For struct methods, we need to declare in a special struct-local scope.
     if (decl->kind == Decl::func) {
-        auto fd = static_cast<FuncDecl *>(decl);
+        auto fd = decl->as<FuncDecl>();
         // If 'fd' is a struct method, if its struct parameter fails typecheck,
         // we can't declare them in its method scope.
         if (fd->struct_param && fd->target_struct) {
@@ -259,15 +259,15 @@ Name *name_of_member_expr(Sema &sema, MemberExpr *mem) {
 bool typecheck_expr(Sema &sema, Expr *e) {
     switch (e->kind) {
     case Expr::integer_literal: {
-        static_cast<IntegerLiteral *>(e)->type = sema.context.int_type;
+        e->as<IntegerLiteral>()->type = sema.context.int_type;
         break;
     }
     case Expr::string_literal: {
-        static_cast<StringLiteral *>(e)->type = sema.context.string_type;
+        e->as<StringLiteral>()->type = sema.context.string_type;
         break;
     }
     case Expr::decl_ref: {
-        auto de = static_cast<DeclRefExpr *>(e);
+        auto de = e->as<DeclRefExpr>();
         auto sym = sema.decl_table.find(de->name);
         if (!sym) {
             return error(de->loc, "undeclared identifier '{}'", de->name->text);
@@ -292,7 +292,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         break;
     }
     case Expr::call: {
-        auto c = static_cast<CallExpr *>(e);
+        auto c = e->as<CallExpr>();
         if (c->kind != CallExpr::func) {
             assert(!"not implemented");
         }
@@ -311,7 +311,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
                                                       // method?
                 c->callee_decl->name->text);
         }
-        auto func_decl = static_cast<FuncDecl *>(c->callee_decl);
+        auto func_decl = c->callee_decl->as<FuncDecl>();
         assert(func_decl->ret_type);
         c->type = func_decl->ret_type;
 
@@ -343,7 +343,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         break;
     }
     case Expr::struct_def: {
-        auto sde = static_cast<StructDefExpr *>(e);
+        auto sde = e->as<StructDefExpr>();
         if (!typecheck_expr(sema, sde->name_expr))
             return false;
 
@@ -361,7 +361,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         for (auto &term : sde->terms) {
             FieldDecl *matched_field = nullptr;
             for (auto field :
-                 static_cast<StructDecl *>(sde->name_expr->decl)->fields) {
+                 sde->name_expr->decl->as<StructDecl>()->fields) {
                 if (term.name == field->name) {
                     matched_field = field;
                     term.field_decl = matched_field;
@@ -389,7 +389,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         break;
     }
     case Expr::member: {
-        auto mem = static_cast<MemberExpr *>(e);
+        auto mem = e->as<MemberExpr>();
         if (!typecheck_expr(sema, mem->parent_expr))
             return false;
 
@@ -429,7 +429,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         // struct.  Now we have to check the member side.
 
         auto parent_type_struct_decl =
-            static_cast<StructDecl *>(parent_type_decl);
+            parent_type_decl->as<StructDecl>();
         auto sym = parent_type_struct_decl->decl_table.find(mem->member_name);
         if (!sym) {
             return error(mem->loc, "'{}' is not a member of struct '{}'",
@@ -438,7 +438,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
 
         // Figure out if this is a field or a method.
         if (sym->value->kind == Decl::field) {
-            mem->field_decl = static_cast<FieldDecl *>(sym->value);
+            mem->field_decl = sym->value->as<FieldDecl>();
 
             // If parent is an lvalue, its child is also an lvalue.  So find
             // the right children VarDecl of the paren tand bind it to this
@@ -446,7 +446,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
             if (mem->parent_expr->decl) {
                 assert(mem->parent_expr->decl->kind == Decl::var);
                 auto parent_var_decl =
-                    static_cast<VarDecl *>(mem->parent_expr->decl);
+                    mem->parent_expr->decl->as<VarDecl>();
                 assert(!parent_var_decl->children.empty());
                 for (auto child : parent_var_decl->children) {
                     if (child->name == mem->member_name) {
@@ -464,15 +464,15 @@ bool typecheck_expr(Sema &sema, Expr *e) {
 
             // For methods, we need to keep track of the original declaration
             // of the method.
-            mem->decl = static_cast<FuncDecl *>(sym->value);
+            mem->decl = sym->value->as<FuncDecl>();
         }
 
         break;
     }
     case Expr::unary:
-        return typecheck_unary_expr(sema, static_cast<UnaryExpr *>(e));
+        return typecheck_unary_expr(sema, e->as<UnaryExpr>());
     case Expr::binary: {
-        auto b = static_cast<BinaryExpr *>(e);
+        auto b = e->as<BinaryExpr>();
         if (!typecheck_expr(sema, b->lhs))
             return false;
         if (!typecheck_expr(sema, b->rhs))
@@ -492,7 +492,7 @@ bool typecheck_expr(Sema &sema, Expr *e) {
         break;
     }
     case Expr::type_: {
-        auto t = static_cast<TypeExpr *>(e);
+        auto t = e->as<TypeExpr>();
 
         // Namebinding for TypeExprs only include linking existing Decls to the
         // type names used in the expression, not declaring new ones.  The
@@ -538,9 +538,9 @@ bool typecheck_expr(Sema &sema, Expr *e) {
 bool typecheck_stmt(Sema &sema, Stmt *s) {
     switch (s->kind) {
     case Stmt::expr:
-        return typecheck_expr(sema, static_cast<ExprStmt *>(s)->expr);
+        return typecheck_expr(sema, s->as<ExprStmt>()->expr);
     case Stmt::decl: {
-        auto decl = static_cast<DeclStmt *>(s)->decl;
+        auto decl = s->as<DeclStmt>()->decl;
         if (!typecheck_decl(sema, decl))
             return false;
         if (!declare(sema, decl))
@@ -548,7 +548,7 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
         break;
     }
     case Stmt::assign: {
-        auto as = static_cast<AssignStmt *>(s);
+        auto as = s->as<AssignStmt>();
         if (!typecheck_expr(sema, as->rhs))
             return false;
         if (!typecheck_expr(sema, as->lhs))
@@ -569,7 +569,7 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
         break;
     }
     case Stmt::if_: {
-        auto if_stmt = static_cast<IfStmt *>(s);
+        auto if_stmt = s->as<IfStmt>();
         if (!typecheck_expr(sema, if_stmt->cond))
             return false;
 
@@ -585,7 +585,7 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
         break;
     }
     case Stmt::return_: {
-        auto r = static_cast<ReturnStmt *>(s);
+        auto r = s->as<ReturnStmt>();
         if (!r->expr)
             break;
         if (!typecheck_expr(sema, r->expr))
@@ -612,7 +612,7 @@ bool typecheck_stmt(Sema &sema, Stmt *s) {
     case Stmt::compound: {
         bool success = true;
         sema.scope_open();
-        for (auto line : static_cast<CompoundStmt *>(s)->stmts) {
+        for (auto line : s->as<CompoundStmt>()->stmts) {
             if (!typecheck(sema, line)) {
                 success = false;
             }
@@ -635,79 +635,76 @@ VarDecl *instantiate_field(Sema &sema, VarDecl *parent, Name *name,
     return field;
 }
 
-static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
-    // Struct methods.
-    if (f->struct_param) {
-        if (!typecheck_decl(sema, f->struct_param))
-            return false;
+static bool typecheckFuncDecl(Sema &sema, FuncDecl *f) {
+  // Struct methods.
+  if (f->struct_param) {
+    if (!typecheck_decl(sema, f->struct_param))
+      return false;
 
-        auto struct_param_type = f->struct_param->type;
-        auto struct_param_type_expr =
-            static_cast<TypeExpr *>(f->struct_param->type_expr);
+    auto struct_param_type = f->struct_param->type;
+    auto struct_param_type_expr = f->struct_param->type_expr->as<TypeExpr>();
 
-        // By-pointer methods
-        if (struct_param_type->is_pointer()) {
-            if (!struct_param_type->referee_type->is_struct()) {
-                return error(
-                    struct_param_type_expr->subexpr->loc,
-                    "cannot declare a method for '{}' which is not a struct",
-                    struct_param_type->referee_type->name->text);
-            }
-            f->target_struct = static_cast<StructDecl *>(
-                struct_param_type->referee_type->origin_decl);
-        }
-        // By-value methods
-        else if (!struct_param_type->is_struct()) {
-            return error(
-                struct_param_type_expr->loc,
-                "cannot declare a method for '{}' which is not a struct",
-                struct_param_type->name->text);
-        } else {
-            // all is good
-            f->target_struct =
-                static_cast<StructDecl *>(struct_param_type->origin_decl);
-        }
+    // By-pointer methods
+    if (struct_param_type->is_pointer()) {
+      if (!struct_param_type->referee_type->is_struct()) {
+        return error(struct_param_type_expr->subexpr->loc,
+                     "cannot declare a method for '{}' which is not a struct",
+                     struct_param_type->referee_type->name->text);
+      }
+      f->target_struct =
+          struct_param_type->referee_type->origin_decl->as<StructDecl>();
     }
-
-    if (f->ret_type_expr) {
-        if (!typecheck_expr(sema, f->ret_type_expr))
-            return false;
-        f->ret_type = f->ret_type_expr->type;
+    // By-value methods
+    else if (!struct_param_type->is_struct()) {
+      return error(struct_param_type_expr->loc,
+                   "cannot declare a method for '{}' which is not a struct",
+                   struct_param_type->name->text);
     } else {
-        f->ret_type = sema.context.void_type;
+      // all is good
+      f->target_struct =
+          struct_param_type->origin_decl->as<StructDecl>();
+    }
+  }
+
+  if (f->ret_type_expr) {
+    if (!typecheck_expr(sema, f->ret_type_expr))
+      return false;
+    f->ret_type = f->ret_type_expr->type;
+  } else {
+    f->ret_type = sema.context.void_type;
+  }
+
+  // Work inside a new function-local scope to handle params and body
+  // statements.
+  bool success = true;
+  {
+    // RAII is convenient for when we fail at typecheck() functions below.
+    Sema::DeclTableScope dts{sema};
+    // @Improve: change this to RAII as well
+    sema.context.func_stack.push_back(f);
+
+    if (f->struct_param) {
+      if (!declare(sema, f->struct_param))
+        return false;
     }
 
-    // Work inside a new function-local scope to handle params and body
-    // statements.
-    bool success = true;
-    {
-        // RAII is convenient for when we fail at typecheck() functions below.
-        Sema::DeclTableScope dts{sema};
-        // @Improve: change this to RAII as well
-        sema.context.func_stack.push_back(f);
-
-        if (f->struct_param) {
-            if (!declare(sema, f->struct_param))
-                return false;
-        }
-
-        for (auto param : f->params) {
-            if (!typecheck_decl(sema, param))
-                return false;
-            if (!declare(sema, param))
-                return false;
-        }
-
-        for (auto line : f->body->stmts) {
-            if (!typecheck(sema, line)) {
-                success = false;
-            }
-        }
-
-        sema.context.func_stack.pop_back();
+    for (auto param : f->params) {
+      if (!typecheck_decl(sema, param))
+        return false;
+      if (!declare(sema, param))
+        return false;
     }
 
-    return success;
+    for (auto line : f->body->stmts) {
+      if (!typecheck(sema, line)) {
+        success = false;
+      }
+    }
+
+    sema.context.func_stack.pop_back();
+  }
+
+  return success;
 }
 
 // Note that this function will also do declare() for new symbols, so the
@@ -715,7 +712,7 @@ static bool typecheck_func_decl(Sema &sema, FuncDecl *f) {
 bool typecheck_decl(Sema &sema, Decl *d) {
     switch (d->kind) {
     case Decl::var: {
-        auto v = static_cast<VarDecl *>(d);
+        auto v = d->as<VarDecl>();
         // if (!declare(sema, v->name, v))
         //     return false;
         if (v->assign_expr) {
@@ -730,7 +727,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
 
         // For struct-typed VarDecls, instantiate all of its fields.
         if (v->type->is_struct()) {
-            auto struct_decl = static_cast<StructDecl *>(v->type->origin_decl);
+            auto struct_decl = v->type->origin_decl->as<StructDecl>();
             for (auto field : struct_decl->fields) {
                 instantiate_field(sema, v, field->name, field->type);
                 // FIXME: should we typecheck_decl() children here?
@@ -740,9 +737,9 @@ bool typecheck_decl(Sema &sema, Decl *d) {
         break;
     }
     case Decl::func:
-        return typecheck_func_decl(sema, static_cast<FuncDecl *>(d));
+        return typecheckFuncDecl(sema, d->as<FuncDecl>());
     case Decl::field: {
-        auto f = static_cast<FieldDecl *>(d);
+        auto f = d->as<FieldDecl>();
         // field redeclaration check
         // if (!declare(sema, f->name, f))
         //     return false;
@@ -753,7 +750,7 @@ bool typecheck_decl(Sema &sema, Decl *d) {
         break;
     }
     case Decl::struct_: {
-        auto s = static_cast<StructDecl *>(d);
+        auto s = d->as<StructDecl>();
         s->type = make_value_type(sema, s->name, s);
 
         // if (!declare(sema, f->name, f))
@@ -782,20 +779,20 @@ bool typecheck(Sema &sema, AstNode *n) {
     switch (n->kind) {
     case AstNode::file:
         success = true;
-        for (auto toplevel : static_cast<File *>(n)->toplevels) {
+        for (auto toplevel : n->as<File>()->toplevels) {
             if (!typecheck(sema, toplevel)) {
                 success = false;
             }
         }
         return success;
     case AstNode::stmt:
-        return typecheck_stmt(sema, static_cast<Stmt *>(n));
+        return typecheck_stmt(sema, n->as<Stmt>());
     case AstNode::decl:
         // For function and struct decls, even if one of its body statements or
         // members fail typechecking, we probably still want to declare them to
         // prevent too many chained errors for the code that use them.
-        success = typecheck_decl(sema, static_cast<Decl *>(n));
-        if (!declare(sema, static_cast<Decl *>(n)))
+        success = typecheck_decl(sema, n->as<Decl>());
+        if (!declare(sema, n->as<Decl>()))
             return false;
         return success;
     default:
