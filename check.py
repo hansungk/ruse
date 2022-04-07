@@ -3,6 +3,7 @@ import re
 import sys
 import subprocess
 
+
 def test(binname, filename):
     beacon_list = []
     exit_beacon = 0
@@ -85,6 +86,7 @@ def test(binname, filename):
                 .format(filename, exit_beacon, r.returncode))
         return
     print('\033[0;32mpass\033[0m {}'.format(filename))
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

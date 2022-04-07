@@ -1,7 +1,7 @@
 struct Car {
-    engine: int,
-    wheel: int,
-    gear: *int,
+    engine: int
+    wheel: int
+    gear: *int
 }
 
 fn void_ret() {
@@ -38,7 +38,7 @@ fn main() {
 
     // member access
     3.engine //~error: type 'int' is not a struct
-    car.wing //~error: unknown field 'wing' in struct 'Car'
+    car.wing //~error: 'wing' is not a member of struct 'Car'
     car.engine
     car.engine = car //~error: cannot assign 'Car' type to 'int'
 
@@ -93,7 +93,7 @@ fn main() {
     f() + g() //~error: incompatible binary op with type 'Car' and 'int'
     f().engine
     f().engine = 3 //~error: cannot assign to an rvalue
-    f().wing //~error: unknown field 'wing' in struct 'Car'
+    f().wing //~error: 'wing' is not a member of struct 'Car'
     h() //~error: function 'h' accepts 2 arguments, but 0 are given
     h(3) //~error: function 'h' accepts 2 arguments, but 1 are given
     h(3, 4, 5) //~error: function 'h' accepts 2 arguments, but 3 are given
@@ -118,7 +118,7 @@ fn main() {
 }
 
 struct NonCopy {
-    a: var *int,
+    a: var *int
 }
 
 fn copyable() {
