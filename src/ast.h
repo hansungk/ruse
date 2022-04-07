@@ -41,7 +41,7 @@ struct AstNode {
   AstNode(AstKind kind) : kind(kind) {}
   virtual ~AstNode() = default;
 
-  // Casts to the *pointer* of the given type.  Not checked.
+  // Casts to the *pointer* of the given type.
   template <typename T> T *as() {
     assert(is<T>());
     return static_cast<T *>(this);
@@ -522,8 +522,7 @@ template <typename T> inline bool AstNode::is() {
   } else if (is<Decl>()) {
     return static_cast<Decl *>(this)->is<T>();
   } else if (is<Expr>()) {
-    return true;
-    // return static_cast<Expr *>(this)->is<T>();
+    return static_cast<Expr *>(this)->is<T>();
   } else {
     return false;
   }
