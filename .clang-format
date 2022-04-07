@@ -1,5 +1,5 @@
-IndentWidth: 4
+IndentWidth: 2
 UseTab: Never
-AccessModifierOffset: -4
+AccessModifierOffset: -2
 ColumnLimit: 80
 # AllowShortIfStatementsOnASingleLine: true
