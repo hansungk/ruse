@@ -67,7 +67,7 @@ fn main() {
 
         let pcar: *Car
         (*pcar).wheel
-        *(pcar.wheel) //~error: type '*Car' is not a struct
+        *(pcar.wheel) //~error: dereferenced a non-pointer type 'int'
 
         // TODO: 'a' -> 'val.a'
         let p = var &val.a //~notused: cannot borrow 'a' as mutable because .* declared immutable
