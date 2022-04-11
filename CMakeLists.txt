@@ -19,7 +19,8 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
   if(UNIX AND NOT APPLE)
     # Link to libc++
-    # list(APPEND MY_COMPILE_FLAGS -stdlib=libc++)
+    list(APPEND MY_COMPILE_FLAGS -stdlib=libc++)
+    list(APPEND MY_LINK_FLAGS -stdlib=libc++)
     # list(APPEND MY_LINK_FLAGS -stdlib=libc++ -rtlib=compiler-rt
     #   -unwindlib=libunwind -Wl,-rpath=$ENV{HOME}/build/llvm/lib)
 
