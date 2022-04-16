@@ -90,16 +90,16 @@ def test(binname, filename):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        test('build/ruse', sys.argv[1])
+        test('./ruse', sys.argv[1])
         sys.exit(0)
 
-    test('build/ruse', 'test/simple.ruse')
-    test('build/ruse', 'test/return.ruse')
-    test('build/ruse', 'test/if.ruse')
-    test('build/ruse', 'test/typecheck.ruse')
-    test('build/ruse', 'test/struct.ruse')
-    test('build/ruse', 'test/struct2.ruse')
-    test('build/ruse', 'test/func.ruse')
-    test('build/ruse', 'test/codegen.ruse')
-    test('build/ruse', 'test/codegen_struct.ruse')
-    test('build/ruse', 'test/ref.ruse')
+    test('./ruse', 'test/simple.ruse')
+    test('./ruse', 'test/return.ruse')
+    test('./ruse', 'test/if.ruse')
+    test('./ruse', 'test/typecheck.ruse')
+    test('./ruse', 'test/struct.ruse')
+    test('./ruse', 'test/struct2.ruse')
+    test('./ruse', 'test/func.ruse')
+    test('./ruse', 'test/codegen.ruse')
+    test('./ruse', 'test/codegen_struct.ruse')
+    test('./ruse', 'test/ref.ruse')
