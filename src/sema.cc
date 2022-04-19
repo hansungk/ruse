@@ -56,6 +56,8 @@ void setup_builtin_types(Sema &s) {
     s.context.char_type = make_builtin_type_from_name(s, "char");
     s.context.char_type->size = 1;
     s.context.string_type = make_builtin_type_from_name(s, "string");
+    // FIXME: size of a string is something like pointer + length
+    s.context.string_type->size = 4;
 }
 
 Sema::~Sema() {
@@ -684,20 +686,26 @@ static bool typecheckFuncDecl(Sema &sema, FuncDecl *f) {
     sema.context.func_stack.push_back(f);
 
     if (f->struct_param) {
-      if (!declare(sema, f->struct_param))
+      if (!declare(sema, f->struct_param)) {
         return false;
+      }
     }
 
     for (auto param : f->params) {
-      if (!typecheck_decl(sema, param))
+      if (!typecheck_decl(sema, param)) {
         return false;
-      if (!declare(sema, param))
+      }
+      if (!declare(sema, param)) {
         return false;
+      }
     }
 
-    for (auto line : f->body->stmts) {
-      if (!typecheck(sema, line)) {
-        success = false;
+    // Extern function does not have a body.
+    if (f->body) {
+      for (auto line : f->body->stmts) {
+        if (!typecheck(sema, line)) {
+          success = false;
+        }
       }
     }
 

@@ -96,7 +96,7 @@ Stmt *Parser::parse_stmt() {
         stmt = parse_if_stmt();
     } else if (tok.kind == Token::hash) {
         stmt = parse_builtin_stmt();
-    } else if (is_start_of_decl()) {
+    } else if (isStartOfDecl()) {
         stmt = parse_decl_stmt();
     } else {
         stmt = parse_expr_or_assign_stmt();
@@ -338,48 +338,59 @@ void Parser::parse_comma_separated_list(F1 &&parse_fn, F2 &&do_on_parse) {
     }
 }
 
-FuncDecl *Parser::parse_func_decl() {
-    auto pos = tok.pos;
+FuncDecl *Parser::parseFuncDecl() {
+  auto pos = tok.pos;
 
-    expect(Token::kw_func);
+  bool extern_ = false;
+  if (tok.kind == Token::kw_extern) {
+    expect(Token::kw_extern);
+    extern_ = true;
+  }
 
-    // struct for methods
-    VarDecl *method_struct = nullptr;
-    if (tok.kind == Token::lparen) {
-        next();
-        method_struct = parse_var_decl(VarDecl::param);
-        expect(Token::rparen);
-    }
+  expect(Token::kw_func);
 
-    // name
-    Name *name = push_token_to_name_table(sema, tok);
-    auto func = sema.make_node_pos<FuncDecl>(pos, name);
-    func->loc = sema.source.locate(tok.pos);
-    func->struct_param = method_struct;
-    next();
-
-    // parameter list
+  // struct for methods
+  VarDecl *method_struct = nullptr;
+  if (tok.kind == Token::lparen) {
     expect(Token::lparen);
-    while (tok.kind != Token::rparen) {
-        auto param = parse_var_decl(VarDecl::param);
-        func->params.push_back(param);
-        if (tok.kind != Token::rparen) {
-            if (!expect(Token::comma))
-                // recover error
-                skip_until(Token::rparen);
-        }
-    }
+    method_struct = parse_var_decl(VarDecl::param);
     expect(Token::rparen);
+  }
 
-    // return type
-    if (tok.kind != Token::lbrace) {
-        func->ret_type_expr = parse_type_expr();
+  // name
+  Name *name = push_token_to_name_table(sema, tok);
+  auto func = sema.make_node_pos<FuncDecl>(pos, name);
+  func->loc = sema.source.locate(tok.pos);
+  func->struct_param = method_struct;
+  next();
+
+  // parameter list
+  expect(Token::lparen);
+  while (tok.kind != Token::rparen) {
+    auto param = parse_var_decl(VarDecl::param);
+    func->params.push_back(param);
+    if (tok.kind != Token::rparen) {
+      if (!expect(Token::comma))
+        // recover error
+        skip_until(Token::rparen);
     }
+  }
+  expect(Token::rparen);
 
-    // function body
+  // return type
+  if (extern_ && !is_end_of_stmt()) {
+    func->ret_type_expr = parse_type_expr();
+  } else if (!extern_ && tok.kind != Token::lbrace) {
+    func->ret_type_expr = parse_type_expr();
+  }
+
+  // function body
+  // extern function decls do not have a body defined.
+  if (!extern_) {
     func->body = parse_compound_stmt();
+  }
 
-    return func;
+  return func;
 }
 
 StructDecl *Parser::parse_struct_decl() {
@@ -414,53 +425,55 @@ StructDecl *Parser::parse_struct_decl() {
     return sd;
 }
 
-bool Parser::is_start_of_decl() {
-    switch (tok.kind) {
-    case Token::kw_let:
-    case Token::kw_struct:
-    case Token::kw_func:
-        return true;
-    case Token::kw_var: {
-        // For var, there can be exceptions such as 'var &a'. We need to do some
-        // lookahead here.
-        auto s = save_state();
-        next();
-        if (tok.kind == Token::star) {
-            restore_state(s);
-            return false;
-        }
-        restore_state(s);
-        return true;
+bool Parser::isStartOfDecl() {
+  switch (tok.kind) {
+  case Token::kw_let:
+  case Token::kw_struct:
+  case Token::kw_func:
+  case Token::kw_extern:
+    return true;
+  case Token::kw_var: {
+    // For var, there can be exceptions such as 'var &a'. We need to do some
+    // lookahead here.
+    auto s = save_state();
+    next();
+    if (tok.kind == Token::star) {
+      restore_state(s);
+      return false;
     }
-    default:
-        return false;
-    }
+    restore_state(s);
+    return true;
+  }
+  default:
+    return false;
+  }
 }
 
 // Parse a declaration.
 // Remember to modify is_start_of_decl() accordingly.
 Decl *Parser::parse_decl() {
-    assert(is_start_of_decl());
+  assert(isStartOfDecl());
 
-    switch (tok.kind) {
-    case Token::kw_let: {
-        next();
-        auto v = parse_var_decl(VarDecl::local_);
-        return v;
-    }
-    case Token::kw_var: {
-        next();
-        auto v = parse_var_decl(VarDecl::local_);
-        v->mut = true;
-        return v;
-    }
-    case Token::kw_struct:
-        return parse_struct_decl();
-    case Token::kw_func:
-        return parse_func_decl();
-    default:
-        assert(false && "not a start of a declaration");
-    }
+  switch (tok.kind) {
+  case Token::kw_let: {
+    next();
+    auto v = parse_var_decl(VarDecl::local_);
+    return v;
+  }
+  case Token::kw_var: {
+    next();
+    auto v = parse_var_decl(VarDecl::local_);
+    v->mut = true;
+    return v;
+  }
+  case Token::kw_struct:
+    return parse_struct_decl();
+  case Token::kw_func:
+  case Token::kw_extern:
+    return parseFuncDecl();
+  default:
+    assert(!"not exhaustive list of declaration start");
+  }
 }
 
 Expr *Parser::parse_literal_expr() {
@@ -645,7 +658,7 @@ Expr *Parser::parse_unary_expr() {
         // TODO: Do proper op precedence parsing for right-hand-side unary
         // operators, e.g. '.', '()' and '{...}'.
         auto expr = parse_funccall_or_declref_expr();
-        expr = parse_member_expr_maybe(expr);
+        expr = parseMemberExprMaybe(expr);
         if (lookahead_structdef()) {
             expr = parse_structdef_maybe(expr);
         }
@@ -758,20 +771,19 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
 // such. If not, just pass along the original expression.
 // This function should called after the operand (expression before the dot) is
 // fully parsed.
-Expr *Parser::parse_member_expr_maybe(Expr *expr) {
-    Expr *result = expr;
+Expr *Parser::parseMemberExprMaybe(Expr *expr) {
+  Expr *result = expr;
 
-    while (tok.kind == Token::dot) {
-        expect(Token::dot);
+  while (tok.kind == Token::dot) {
+    expect(Token::dot);
 
-        Name *member_name = push_token_to_name_table(sema, tok);
-        next();
+    Name *member_name = push_token_to_name_table(sema, tok);
+    next();
 
-        result =
-            sema.make_node_pos<MemberExpr>(result->pos, result, member_name);
-    }
+    result = sema.make_node_pos<MemberExpr>(result->pos, result, member_name);
+  }
 
-    return result;
+  return result;
 }
 
 bool Parser::lookahead_structdef() {
@@ -849,7 +861,7 @@ Expr *Parser::parse_expr() {
         return nullptr;
     }
     auto binary = parse_binary_expr_rhs(unary);
-    return parse_member_expr_maybe(binary);
+    return parseMemberExprMaybe(binary);
 }
 
 void Parser::skip_until(Token::Kind kind) {
@@ -883,7 +895,7 @@ void Parser::skip_newlines() {
 }
 
 AstNode *Parser::parse_toplevel() {
-    if (is_start_of_decl()) {
+    if (isStartOfDecl()) {
         return parse_decl();
     }
 

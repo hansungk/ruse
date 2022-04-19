@@ -172,13 +172,13 @@ struct Value {
 // nodes themselves, but that will make the access expensive.
 struct Valstack {
     std::vector<Value> buf;
-    int next_id{0};
+    int next_id = 0;
 
     // Push a value as a temporary variable in QBE.  This will be designated as
     // "%_0" in the IL.
     // This does not take any argument because the actual value is emitted to
     // the code.
-    void pushTempValue() {
+    void pushValue() {
         buf.push_back(Value{ValueKind::value, next_id});
         next_id++;
     }
@@ -236,11 +236,11 @@ struct QbeGenerator {
     file = fopen(filename, "w");
   }
   ~QbeGenerator() { fclose(file); }
-  template <typename... Args> void emit(Args &&...args) {
+  template <typename... Args> void emitln(Args &&...args) {
     fmt::print(file, "\n{:{}}", "", indent);
     fmt::print(file, std::forward<Args>(args)...);
   }
-  template <typename... Args> void emitSameline(Args &&...args) {
+  template <typename... Args> void emit(Args &&...args) {
     fmt::print(file, std::forward<Args>(args)...);
   }
   // Annotate the last emitted QBE line.

@@ -442,20 +442,22 @@ struct VarDecl : public Decl {
 // Note that FuncDecl doesn't have a related type; only its ret_type will be
 // set here.
 struct FuncDecl : public Decl {
-    Type *ret_type = nullptr;            // return type of the function
-    VarDecl *struct_param = nullptr;     // struct parameter for methods
-    StructDecl *target_struct = nullptr; // target struct that this method is implemented in. Should
-                                         // be null for freestanding functions.
-                                         // @Improve: don't really want to keep this as a member.
-    std::vector<VarDecl *> params;       // list of parameters
-    CompoundStmt *body = nullptr;        // body statements
-    Expr *ret_type_expr = nullptr;       // return type expression
-    Name *ret_lifetime_annot = nullptr;  // lifetime annotation of the return value
-    // "Bogus" lifetime that represents the scope of the function body.
-    Lifetime *scope_lifetime = nullptr;
+  Type *ret_type = nullptr;        // return type of the function
+  VarDecl *struct_param = nullptr; // struct parameter for methods
+  StructDecl *target_struct =
+      nullptr; // target struct that this method is implemented in. Should
+               // be null for freestanding functions.
+               // @Improve: don't really want to keep this as a member.
+  bool extern_ = false; // whether this function has an external linkage
+  std::vector<VarDecl *> params;      // list of parameters
+  CompoundStmt *body = nullptr;       // body statements
+  Expr *ret_type_expr = nullptr;      // return type expression
+  Name *ret_lifetime_annot = nullptr; // lifetime annotation of the return value
+  // "Bogus" lifetime that represents the scope of the function body.
+  Lifetime *scope_lifetime = nullptr;
 
-    FuncDecl(Name *n) : Decl(Decl::func, n) {}
-    size_t args_count() const { return params.size(); }
+  FuncDecl(Name *n) : Decl(Decl::func, n) {}
+  size_t args_count() const { return params.size(); }
 };
 
 struct FieldDecl : public Decl {

@@ -9,82 +9,81 @@ namespace cmp {
 // Token contains the kind, a view of the text data, and the position in the
 // source of a token.
 struct Token {
-    enum Kind {
-        eos,
-        newline,
-        arrow,
-        reversearrow,
-        lparen,
-        rparen,
-        lbrace,
-        rbrace,
-        lbracket,
-        rbracket,
-        lesserthan,
-        greaterthan,
-        dot,
-        comma,
-        colon,
-        semicolon,
-        quote,
-        doublequote,
-        equals,
-        doubleequals,
-        notequals,
-        plus,
-        minus,
-        star,
-        ampersand,
-        caret,
-        tilde,
-        slash,
-        backslash,
-        pipe,
-        bang,
-        question,
-        hash,
-        dash,
-        ident,
-        number,
-        string,
-        character,
-        comment,
-        KWSTART,
-        kw_func,
-        kw_struct,
-        kw_enum,
-        kw_let,
-        kw_var,
-        kw_mut,
-        kw_if,
-        kw_else,
-        kw_int,
-        kw_i64,
-        kw_float,
-        kw_return,
-        kw_extern,
-        kw_error,
-        KWEND,
-        none // not initialized
-    };
+  enum Kind {
+    eos,
+    newline,
+    arrow,
+    reversearrow,
+    lparen,
+    rparen,
+    lbrace,
+    rbrace,
+    lbracket,
+    rbracket,
+    lesserthan,
+    greaterthan,
+    dot,
+    comma,
+    colon,
+    semicolon,
+    quote,
+    doublequote,
+    equals,
+    doubleequals,
+    notequals,
+    plus,
+    minus,
+    star,
+    ampersand,
+    caret,
+    tilde,
+    slash,
+    backslash,
+    pipe,
+    bang,
+    question,
+    hash,
+    dash,
+    ident,
+    number,
+    string,
+    character,
+    comment,
+    KWSTART,
+    kw_func,
+    kw_struct,
+    kw_enum,
+    kw_let,
+    kw_var,
+    kw_mut,
+    kw_if,
+    kw_else,
+    kw_int,
+    kw_i64,
+    kw_float,
+    kw_return,
+    kw_extern,
+    kw_error,
+    KWEND,
+    none // not initialized
+  };
 
-    Kind kind = Token::none;
-    size_t pos = 0;
-    const char *start = NULL;
-    const char *end = NULL;
+  Kind kind = Token::none;
+  size_t pos = 0;
+  const char *start = NULL;
+  const char *end = NULL;
 
-    Token() {}
-    Token(Kind kind, size_t pos)
-        : kind(kind), pos(pos), start(NULL), end(NULL) {}
-    Token(Kind kind, size_t pos, const char *s, const char *e)
-        : kind(kind), pos(pos), start(s), end(e) {}
+  Token() {}
+  Token(Kind kind, size_t pos) : kind(kind), pos(pos), start(NULL), end(NULL) {}
+  Token(Kind kind, size_t pos, const char *s, const char *e)
+      : kind(kind), pos(pos), start(s), end(e) {}
 
-    // Get position of one character past the end of the token.
-    size_t endPos() const { return pos + (end - start); }
+  // Get position of one character past the end of the token.
+  size_t endPos() const { return pos + (end - start); }
 
-    bool is_any(std::initializer_list<Kind> &kinds) const;
+  bool is_any(std::initializer_list<Kind> &kinds) const;
 
-    std::string str() const;
+  std::string str() const;
 };
 
 // This is under linear search, so it is better to place more frequently used
