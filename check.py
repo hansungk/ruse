@@ -100,6 +100,7 @@ if __name__ == "__main__":
     test('./ruse', 'test/struct.ruse')
     test('./ruse', 'test/struct2.ruse')
     test('./ruse', 'test/func.ruse')
+    test('./ruse', 'test/ffi.ruse')
     test('./ruse', 'test/codegen.ruse')
     test('./ruse', 'test/codegen_struct.ruse')
     test('./ruse', 'test/ref.ruse')
