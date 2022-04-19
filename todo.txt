@@ -1,5 +1,11 @@
 # Ideas
 
+## String type
+
+Prerequisites for built-in string type:
+
+* alloc(), or C malloc()
+
 ## Programmable lifetime
 
   Let the programmer tell the compiler explicitly where a specific type of
