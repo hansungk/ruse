@@ -334,6 +334,10 @@ void QbeGenerator::codegenDecl(Decl *d) {
   }
   case Decl::func: {
     auto f = d->as<FuncDecl>();
+    // extern funcs do not need any codegen.
+    if (f->extern_) {
+      break;
+    }
 
     emit("\nexport function {} ${}(", qbeAbityString(f->ret_type),
                  f->name->text);

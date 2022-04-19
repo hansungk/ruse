@@ -360,6 +360,7 @@ FuncDecl *Parser::parseFuncDecl() {
   // name
   Name *name = push_token_to_name_table(sema, tok);
   auto func = sema.make_node_pos<FuncDecl>(pos, name);
+  func->extern_ = extern_;
   func->loc = sema.source.locate(tok.pos);
   func->struct_param = method_struct;
   next();
