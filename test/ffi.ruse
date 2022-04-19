@@ -1,0 +1,8 @@
+extern fn malloc(size: int) *void
+extern fn free(a: *void)
+
+fn main() int {
+    let m = malloc(3)
+    free(m)
+    return 0
+}
