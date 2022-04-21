@@ -1,0 +1,3 @@
+fn main() int {
+    var s = "hello string"
+}
