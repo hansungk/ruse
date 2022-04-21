@@ -23,7 +23,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
   switch (e->kind) {
   case Expr::integer_literal:
     emitln("%_{} =w add 0, {}", valstack.next_id,
-         e->as<IntegerLiteral>()->value);
+           e->as<IntegerLiteral>()->value);
     annotate("{}: integer literal", e->loc.line);
     valstack.pushValue();
     break;
@@ -99,11 +99,11 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
 
     if (func_decl->ret_type_expr) {
       emitln("%_{} ={} call ${}(", valstack.next_id,
-           qbeAbityString(func_decl->ret_type), c->callee_decl->name->text);
+             qbeAbityString(func_decl->ret_type), c->callee_decl->name->text);
 
       for (size_t i = 0; i < c->args.size(); i++) {
         emit("{} {}, ", qbeAbityString(c->args[i]->type),
-                     generated_args[i].format());
+             generated_args[i].format());
       }
 
       emit(")");
@@ -115,7 +115,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
       // @Copypaste from above
       for (size_t i = 0; i < c->args.size(); i++) {
         emit("{} {}, ", qbeAbityString(c->args[i]->type),
-                     generated_args[i].format());
+             generated_args[i].format());
       }
 
       emit(")");
@@ -143,7 +143,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
       // member.
       assert(term.field_decl);
       emitln("%a{} =l add %a{}, {}", valstack.next_id, id,
-           term.field_decl->offset);
+             term.field_decl->offset);
       annotate("{}: offset of {}.{}", sde->loc.line, sde->text(sema),
                term.name->text);
       valstack.pushAddress();
@@ -172,7 +172,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     codegenExprExplicit(mem->parent_expr, false);
 
     emitln("%a{} =l add {}, {}", valstack.next_id, valstack.pop().format(),
-         mem->field_decl->offset);
+           mem->field_decl->offset);
     annotate("{}: offset of {}", mem->loc.line, mem->text(sema));
     valstack.pushAddress();
 
@@ -228,8 +228,8 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     default:
       assert(!"unknown binary expr kind");
     }
-    emitln("%_{} =w {} {}, {}", valstack.next_id, op_str, valstack.pop().format(),
-         valstack.pop().format());
+    emitln("%_{} =w {} {}, {}", valstack.next_id, op_str,
+           valstack.pop().format(), valstack.pop().format());
     annotate("{}: binary op '{}'", binary->loc.line, binary->op.str());
     valstack.pushValue();
     break;
@@ -342,7 +342,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
     }
 
     emit("\nexport function {} ${}(", qbeAbityString(f->ret_type),
-                 f->name->text);
+         f->name->text);
 
     for (auto param : f->params) {
       emit("{} %{}, ", qbeAbityString(param->type), param->name->text);
@@ -455,7 +455,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
 
       // load address from source; calculate address of the field
       emitln("%a{} =l add {}, {}", valstack.next_id, rhs_value.format(),
-           field->offset);
+             field->offset);
       annotate("{}: address of {}", rhs->loc.line, rhs_text);
       valstack.pushAddress();
 
@@ -474,7 +474,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
       auto lhs_text = fmt::format("{}.{}", lhs->name->text, field->name->text);
       auto value_to_be_copied = valstack.pop();
       emitln("%a{} =l add {}, {}", valstack.next_id, lhs_address.format(),
-           field->offset);
+             field->offset);
       annotate("{}: address of {}", rhs->loc.line, lhs_text);
       valstack.pushAddress();
 
@@ -482,10 +482,10 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
       auto lhs_address = valstack.pop();
       if (struct_decl->alignment == 8) {
         emitln("storel {}, {}", value_to_be_copied.format(),
-             lhs_address.format());
+               lhs_address.format());
       } else if (struct_decl->alignment == 4) {
         emitln("storew {}, {}", value_to_be_copied.format(),
-             lhs_address.format());
+               lhs_address.format());
       } else {
         assert(!"unknown alignment");
       }
@@ -506,7 +506,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
 // Emit a value by allocating it on the stack memory.  That value will be
 // handled via its address.  `line` and `text` are used for annotations.
 long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
-                                    std::string_view text) {
+                                  std::string_view text) {
   assert(!sema.context.func_stack.empty());
   // auto current_func = context.func_stack.back();
   // long id = current_func->frame_local_id_counter;
