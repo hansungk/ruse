@@ -86,7 +86,7 @@ struct Stmt : public AstNode {
   } kind;
 
   Stmt(Kind s) : AstNode(AstNode::stmt), kind(s) {}
-  template <typename T> bool is() { return false; }
+  template <typename T> bool is();
 };
 
 // Variable declaration statement; doesn't include function declarations.
@@ -159,6 +159,7 @@ template <> inline bool Stmt::is<CompoundStmt>() { return kind == compound; }
 template <> inline bool Stmt::is<IfStmt>() { return kind == if_; }
 template <> inline bool Stmt::is<BuiltinStmt>() { return kind == builtin; }
 template <> inline bool Stmt::is<BadStmt>() { return kind == bad; }
+template <typename T> inline bool Stmt::is() { assert(!"unimplemented is()"); }
 
 // Expressions
 // ===========
@@ -345,7 +346,7 @@ template <> inline bool Expr::is<UnaryExpr>() { return kind == unary; }
 template <> inline bool Expr::is<BinaryExpr>() { return kind == binary; }
 template <> inline bool Expr::is<TypeExpr>() { return kind == type_; }
 template <> inline bool Expr::is<BadExpr>() { return kind == bad; }
-template <typename T> inline bool Expr::is() { return false; }
+template <typename T> inline bool Expr::is() { assert(!"unimplemented is()"); }
 
 // Declarations
 // ============
@@ -499,7 +500,7 @@ template <> inline bool Decl::is<EnumVariantDecl>() {
 }
 template <> inline bool Decl::is<EnumDecl>() { return kind == enum_; }
 template <> inline bool Decl::is<BadDecl>() { return kind == bad; }
-template <typename T> inline bool Decl::is() { return false; }
+template <typename T> inline bool Decl::is() { assert(!"unimplemented is()"); }
 
 template <> inline bool AstNode::is<File>() { return kind == file; }
 template <> inline bool AstNode::is<Stmt>() { return kind == stmt; }
