@@ -401,21 +401,8 @@ struct VarDecl : public Decl {
     // Mutability of the variable.
     bool mut = false;
 
-    // Whether this variable has been moved out.
-    bool moved = false;
-
     // Whether this variable is a function-local variable.
     bool local = false;
-
-    // Whether this variable has been borrowed.  Used for borrow checking.
-    // TODO: Deprecate in favor of borrow_table.
-    bool borrowed = false;
-
-    // Lifetime of this variable.
-    Lifetime *lifetime = nullptr;
-
-    // [References] Lifetime of the value that this reference borrowed from.
-    Lifetime *borrowee_lifetime = nullptr;
 
     // ID of the VarDecl that is local inside the current stack frame (~current
     // function).  Used for codegen to easily designate the address to which we
