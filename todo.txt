@@ -5,6 +5,7 @@
 Prerequisites for built-in string type:
 
 * alloc(), or C malloc()
+* pointer arithmetic? *a = 0
 
 ## Programmable lifetime
 
