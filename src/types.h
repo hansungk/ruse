@@ -112,9 +112,9 @@ struct Type {
         copyable = k == TypeKind::ref;
     }
 
-    bool is_struct() const;
-    bool is_pointer() const;
-    bool is_builtin(Sema &sema) const;
+    bool isStruct() const;
+    bool isPointer() const;
+    bool isBuiltin(Sema &sema) const;
 };
 
 } // namespace cmp

@@ -7,7 +7,7 @@ std::string qbeAbityString(const Type *type) {
   if (type->builtin) {
     // TODO: "l", "s", "d", ...
     s = "w";
-  } else if (type->is_pointer()) {
+  } else if (type->isPointer()) {
     s = "l";
   } else {
     s = fmt::format(":{}", type->name->text);
@@ -31,6 +31,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     assert(!"not implemented");
     // TODO: generate address of the string struct, which is something like
     // { buf: *uint8, len: int64 }
+    // These should probably be stored in VarDecl as children decls.
     break;
   case Expr::decl_ref: {
     auto dre = e->as<DeclRefExpr>();

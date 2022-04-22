@@ -423,6 +423,8 @@ struct VarDecl : public Decl {
     VarDecl(Name *n, Kind k, Expr *t, Expr *expr)
         : Decl(Decl::var, n), kind(k), type_expr(t), assign_expr(expr) {}
     VarDecl(Name *n, Type *t, bool m) : Decl(Decl::var, n, t), mut(m) {}
+
+    VarDecl *findMemberDecl(const Name *member_name) const;
 };
 
 // Function declaration.  There is no separate function definition: functions

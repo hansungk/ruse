@@ -86,16 +86,16 @@ void Sema::scope_close() {
     borrow_table.scope_close();
 }
 
-bool Type::is_struct() const {
+bool Type::isStruct() const {
     return kind == TypeKind::value && origin_decl &&
            origin_decl->kind == Decl::struct_;
 }
 
-bool Type::is_pointer() const {
+bool Type::isPointer() const {
     return kind == TypeKind::ref || kind == TypeKind::var_ref;
 }
 
-bool Type::is_builtin(Sema &sema) const {
+bool Type::isBuiltin(Sema &sema) const {
     return this == sema.context.int_type || this == sema.context.char_type ||
            this == sema.context.void_type || this == sema.context.string_type;
 }
@@ -179,7 +179,7 @@ bool typecheck_assignable(const Type *to, const Type *from) {
     // 2. Exact same match.
 
     // Allow promotion from mutable to immutable pointer.
-    if (to->kind == TypeKind::ref && from->is_pointer()) {
+    if (to->kind == TypeKind::ref && from->isPointer()) {
         // NOTE: this may be related to 'unification'. Ref:
         // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
         return typecheck_assignable(to->referee_type, from->referee_type);
@@ -202,7 +202,7 @@ bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
         if (!typecheck_expr(sema, u->operand))
             return false;
 
-        if (!u->operand->type->is_pointer()) {
+        if (!u->operand->type->isPointer()) {
             return error(u->loc, "dereferenced a non-pointer type '{}'",
                          u->operand->type->name->text);
         }
@@ -258,283 +258,276 @@ Name *name_of_member_expr(Sema &sema, MemberExpr *mem) {
     return sema.name_table.push(text.c_str());
 }
 
+VarDecl *VarDecl::findMemberDecl(const Name *member_name) const {
+  for (auto child : children) {
+    if (child->name == member_name) {
+      return child;
+    }
+  }
+  return nullptr;
+}
+
 bool typecheck_expr(Sema &sema, Expr *e) {
-    switch (e->kind) {
-    case Expr::integer_literal: {
-        e->as<IntegerLiteral>()->type = sema.context.int_type;
-        break;
+  switch (e->kind) {
+  case Expr::integer_literal: {
+    e->as<IntegerLiteral>()->type = sema.context.int_type;
+    break;
+  }
+  case Expr::string_literal: {
+    e->as<StringLiteral>()->type = sema.context.string_type;
+    break;
+  }
+  case Expr::decl_ref: {
+    auto de = e->as<DeclRefExpr>();
+    auto sym = sema.decl_table.find(de->name);
+    if (!sym) {
+      return error(de->loc, "undeclared identifier '{}'", de->name->text);
     }
-    case Expr::string_literal: {
-        e->as<StringLiteral>()->type = sema.context.string_type;
-        break;
+    de->decl = sym->value;
+    assert(de->decl);
+    de->type = de->decl->type;
+    // DeclRefExprs don't always have a non-null type associated, i.e. when
+    // it designates a function.
+    if (de->decl->kind != Decl::func) {
+      // A DeclRefExpr may succeed name binding but may have failed
+      // typechecking, e.g. when its declaration failed typechecking:
+      //
+      //     let a = invalid()
+      //     a + ...
+      //
+      // In those cases, just give up here so that outer constructs do
+      // not bother.
+      if (!de->type)
+        return false;
     }
-    case Expr::decl_ref: {
-        auto de = e->as<DeclRefExpr>();
-        auto sym = sema.decl_table.find(de->name);
-        if (!sym) {
-            return error(de->loc, "undeclared identifier '{}'", de->name->text);
-        }
-        de->decl = sym->value;
-        assert(de->decl);
-        de->type = de->decl->type;
-        // DeclRefExprs don't always have a non-null type associated, i.e. when
-        // it designates a function.
-        if (de->decl->kind != Decl::func) {
-            // A DeclRefExpr may succeed name binding but may have failed
-            // typechecking, e.g. when its declaration failed typechecking:
-            //
-            //     let a = invalid()
-            //     a + ...
-            //
-            // In those cases, just give up here so that outer constructs do
-            // not bother.
-            if (!de->type)
-                return false;
-        }
-        break;
-    }
-    case Expr::call: {
-        auto c = e->as<CallExpr>();
-        if (c->kind != CallExpr::func) {
-            assert(!"not implemented");
-        }
-
-        if (!typecheck_expr(sema, c->callee_expr))
-            return false;
-
-        assert(c->callee_expr->decl);
-
-        c->callee_decl = c->callee_expr->decl;
-        if (c->callee_decl->kind != Decl::func) {
-            return error(
-                c->loc,
-                "'{}' is not a function or a method", // FIXME differentiate
-                                                      // between function and
-                                                      // method?
-                c->callee_decl->name->text);
-        }
-        auto func_decl = c->callee_decl->as<FuncDecl>();
-        assert(func_decl->ret_type);
-        c->type = func_decl->ret_type;
-
-        if (c->args.size() != func_decl->params.size()) {
-            return error(c->loc,
-                         "function '{}' accepts {} arguments, but {} are given",
-                         func_decl->name->text, func_decl->params.size(),
-                         c->args.size());
-        }
-
-        for (size_t i = 0; i < c->args.size(); i++) {
-            if (!typecheck_expr(sema, c->args[i]))
-                return false;
-
-            if (!typecheck_assignable(func_decl->params[i]->type,
-                                      c->args[i]->type)) {
-                auto suffix = (i == 0)   ? "st"
-                              : (i == 1) ? "nd"
-                              : (i == 2) ? "rd"
-                                         : "th";
-                return error(c->args[i]->loc,
-                             "type mismatch for {}{} argument: cannot assign "
-                             "'{}' type to '{}'",
-                             i + 1, suffix, c->args[i]->type->name->text,
-                             func_decl->params[i]->type->name->text);
-            }
-        }
-
-        break;
-    }
-    case Expr::struct_def: {
-        auto sde = e->as<StructDefExpr>();
-        if (!typecheck_expr(sema, sde->name_expr))
-            return false;
-
-        // @Cleanup: It doesn't make sense that 'name_expr' should have a type,
-        // but then we need this kludgy error check below. I think eventually we
-        // should rather have it just be a Name and do a lookup on it.
-        if (!sde->name_expr->decl || !sde->name_expr->decl->type)
-            return false;
-
-        Type *struct_type = sde->name_expr->decl->type;
-        if (!struct_type->is_struct()) {
-            return error(sde->name_expr->loc, "type '{}' is not a struct",
-                         struct_type->name->text);
-        }
-        for (auto &term : sde->terms) {
-            FieldDecl *matched_field = nullptr;
-            for (auto field :
-                 sde->name_expr->decl->as<StructDecl>()->fields) {
-                if (term.name == field->name) {
-                    matched_field = field;
-                    term.field_decl = matched_field;
-                    break;
-                }
-            }
-            if (!matched_field) {
-                return error(sde->loc, "'{}' is not a member of struct '{}'",
-                             term.name->text, struct_type->name->text);
-            }
-
-            if (!typecheck_expr(sema, term.initexpr))
-                return false;
-
-            if (!typecheck_assignable(matched_field->type,
-                                      term.initexpr->type)) {
-                return error(term.initexpr->loc,
-                             "cannot assign '{}' type to '{}'",
-                             term.initexpr->type->name->text,
-                             matched_field->type->name->text);
-            }
-        }
-
-        sde->type = struct_type;
-        break;
-    }
-    case Expr::member: {
-        auto mem = e->as<MemberExpr>();
-        if (!typecheck_expr(sema, mem->parent_expr))
-            return false;
-
-        auto parent_type = mem->parent_expr->type;
-        Decl *parent_type_decl = nullptr;
-        Name *reported_name = nullptr;
-        if (parent_type->is_pointer()) {
-            reported_name = parent_type->referee_type->name;
-            if (parent_type->referee_type->is_struct()) {
-                parent_type_decl = parent_type->referee_type->origin_decl;
-
-                // How do we get the VarDecl of the target of the pointer?
-                // Best way to do this would be to rewrite the AST to (*p).mem.
-                // Then, a second sema pass would bind a temporary VarDecl to
-                // (*p) without any further modification.
-                auto new_parent = sema.make_node_pos<UnaryExpr>(
-                    mem->parent_expr->pos, UnaryExpr::deref, mem->parent_expr);
-                mem->parent_expr = new_parent;
-
-                // Redo with the rewritten node.
-                return typecheck_expr(sema, mem);
-            }
-        }
-
-        reported_name = parent_type->name;
-        if (parent_type->is_struct()) {
-            parent_type_decl = parent_type->origin_decl;
-        }
-
-        if (!parent_type_decl) {
-            assert(reported_name);
-            return error(mem->parent_expr->loc, "type '{}' is not a struct",
-                         reported_name->text);
-        }
-
-        // At this point, parent_expr is either a struct or a pointer to
-        // struct.  Now we have to check the member side.
-
-        auto parent_type_struct_decl =
-            parent_type_decl->as<StructDecl>();
-        auto sym = parent_type_struct_decl->decl_table.find(mem->member_name);
-        if (!sym) {
-            return error(mem->loc, "'{}' is not a member of struct '{}'",
-                         mem->member_name->text, reported_name->text);
-        }
-
-        // Figure out if this is a field or a method.
-        if (sym->value->kind == Decl::field) {
-            mem->field_decl = sym->value->as<FieldDecl>();
-
-            // If parent is an lvalue, its child is also an lvalue.  So find
-            // the right children VarDecl of the paren tand bind it to this
-            // MemberExpr as well.
-            if (mem->parent_expr->decl) {
-                assert(mem->parent_expr->decl->kind == Decl::var);
-                auto parent_var_decl =
-                    mem->parent_expr->decl->as<VarDecl>();
-                assert(!parent_var_decl->children.empty());
-                for (auto child : parent_var_decl->children) {
-                    if (child->name == mem->member_name) {
-                        mem->decl = child;
-                        break;
-                    }
-                }
-                assert(mem->decl && "struct member failed to namebind");
-            }
-
-            mem->type = mem->field_decl->type;
-            assert(mem->type);
-        } else {
-            assert(sym->value->kind == Decl::func);
-
-            // For methods, we need to keep track of the original declaration
-            // of the method.
-            mem->decl = sym->value->as<FuncDecl>();
-        }
-
-        break;
-    }
-    case Expr::unary:
-        return typecheck_unary_expr(sema, e->as<UnaryExpr>());
-    case Expr::binary: {
-        auto b = e->as<BinaryExpr>();
-        if (!typecheck_expr(sema, b->lhs))
-            return false;
-        if (!typecheck_expr(sema, b->rhs))
-            return false;
-
-        auto lhs_type = b->lhs->type;
-        auto rhs_type = b->rhs->type;
-
-        if (lhs_type != rhs_type) {
-            return error(b->loc,
-                         "incompatible binary op with type '{}' and '{}'",
-                         lhs_type->name->text, rhs_type->name->text);
-        }
-
-        b->type = lhs_type;
-
-        break;
-    }
-    case Expr::type_: {
-        auto t = e->as<TypeExpr>();
-
-        // Namebinding for TypeExprs only include linking existing Decls to the
-        // type names used in the expression, not declaring new ones.  The
-        // declaration would be done when visiting VarDecls and StructDecls,
-        // etc.
-
-        if (t->subexpr) {
-            if (!typecheck_expr(sema, t->subexpr))
-                return false;
-        }
-
-        if (t->kind == TypeKind::value) {
-            // This is the very first point a new value type is encountered.
-            auto sym = sema.decl_table.find(t->name);
-            if (!sym)
-                return error(t->loc, "undefined type '{}'", t->name->text);
-            t->decl = sym->value;
-            assert(t->decl);
-
-            // Builtin types, or user types that have showed up before.
-            t->type = t->decl->type;
-            assert(t->type &&
-                   "type not resolved after visiting corresponding *Decl");
-        } else if (t->kind == TypeKind::ref || t->kind == TypeKind::var_ref ||
-                   t->kind == TypeKind::ptr) {
-            t->type = get_derived_type(sema, t->kind, t->subexpr->type);
-        } else {
-            assert(!"unknown type kind");
-        }
-        break;
-    }
-    default:
-        assert(!"unknown expr kind");
+    break;
+  }
+  case Expr::call: {
+    auto c = e->as<CallExpr>();
+    if (c->kind != CallExpr::func) {
+      assert(!"not implemented");
     }
 
-    // TODO: doc why this is allowed non-null.
-    // assert(e->type);
+    if (!typecheck_expr(sema, c->callee_expr))
+      return false;
 
-    // No more work is supposed to be done here.
-    return true;
+    assert(c->callee_expr->decl);
+
+    c->callee_decl = c->callee_expr->decl;
+    if (c->callee_decl->kind != Decl::func) {
+      return error(c->loc,
+                   "'{}' is not a function or a method", // FIXME differentiate
+                                                         // between function and
+                                                         // method?
+                   c->callee_decl->name->text);
+    }
+    auto func_decl = c->callee_decl->as<FuncDecl>();
+    assert(func_decl->ret_type);
+    c->type = func_decl->ret_type;
+
+    if (c->args.size() != func_decl->params.size()) {
+      return error(
+          c->loc, "function '{}' accepts {} arguments, but {} are given",
+          func_decl->name->text, func_decl->params.size(), c->args.size());
+    }
+
+    for (size_t i = 0; i < c->args.size(); i++) {
+      if (!typecheck_expr(sema, c->args[i]))
+        return false;
+
+      if (!typecheck_assignable(func_decl->params[i]->type, c->args[i]->type)) {
+        auto suffix = (i == 0)   ? "st"
+                      : (i == 1) ? "nd"
+                      : (i == 2) ? "rd"
+                                 : "th";
+        return error(c->args[i]->loc,
+                     "type mismatch for {}{} argument: cannot assign "
+                     "'{}' type to '{}'",
+                     i + 1, suffix, c->args[i]->type->name->text,
+                     func_decl->params[i]->type->name->text);
+      }
+    }
+
+    break;
+  }
+  case Expr::struct_def: {
+    auto sde = e->as<StructDefExpr>();
+    if (!typecheck_expr(sema, sde->name_expr))
+      return false;
+
+    // @Cleanup: It doesn't make sense that 'name_expr' should have a type,
+    // but then we need this kludgy error check below. I think eventually we
+    // should rather have it just be a Name and do a lookup on it.
+    if (!sde->name_expr->decl || !sde->name_expr->decl->type)
+      return false;
+
+    Type *struct_type = sde->name_expr->decl->type;
+    if (!struct_type->isStruct()) {
+      return error(sde->name_expr->loc, "type '{}' is not a struct",
+                   struct_type->name->text);
+    }
+    for (auto &term : sde->terms) {
+      FieldDecl *matched_field = nullptr;
+      for (auto field : sde->name_expr->decl->as<StructDecl>()->fields) {
+        if (term.name == field->name) {
+          matched_field = field;
+          term.field_decl = matched_field;
+          break;
+        }
+      }
+      if (!matched_field) {
+        return error(sde->loc, "'{}' is not a member of struct '{}'",
+                     term.name->text, struct_type->name->text);
+      }
+
+      if (!typecheck_expr(sema, term.initexpr))
+        return false;
+
+      if (!typecheck_assignable(matched_field->type, term.initexpr->type)) {
+        return error(term.initexpr->loc, "cannot assign '{}' type to '{}'",
+                     term.initexpr->type->name->text,
+                     matched_field->type->name->text);
+      }
+    }
+
+    sde->type = struct_type;
+    break;
+  }
+  case Expr::member: {
+    auto mem = e->as<MemberExpr>();
+    if (!typecheck_expr(sema, mem->parent_expr))
+      return false;
+
+    auto parent_type = mem->parent_expr->type;
+    Decl *parent_type_decl = nullptr;
+    Name *reported_name = nullptr;
+    if (parent_type->isPointer()) {
+      reported_name = parent_type->referee_type->name;
+      if (parent_type->referee_type->isStruct()) {
+        parent_type_decl = parent_type->referee_type->origin_decl;
+
+        // How do we get the VarDecl of the target of the pointer?
+        // Best way to do this would be to rewrite the AST to (*p).mem.
+        // Then, a second sema pass would bind a temporary VarDecl to
+        // (*p) without any further modification.
+        auto new_parent = sema.make_node_pos<UnaryExpr>(
+            mem->parent_expr->pos, UnaryExpr::deref, mem->parent_expr);
+        mem->parent_expr = new_parent;
+
+        // Redo with the rewritten node.
+        return typecheck_expr(sema, mem);
+      }
+    }
+
+    reported_name = parent_type->name;
+    if (parent_type->isStruct()) {
+      parent_type_decl = parent_type->origin_decl;
+    }
+
+    if (!parent_type_decl) {
+      assert(reported_name);
+      return error(mem->parent_expr->loc, "type '{}' is not a struct",
+                   reported_name->text);
+    }
+
+    // At this point, parent_expr is either a struct or a pointer to
+    // struct.  Now we have to check the member side.
+
+    auto parent_type_struct_decl = parent_type_decl->as<StructDecl>();
+    auto sym = parent_type_struct_decl->decl_table.find(mem->member_name);
+    if (!sym) {
+      return error(mem->loc, "'{}' is not a member of struct '{}'",
+                   mem->member_name->text, reported_name->text);
+    }
+
+    // Figure out if this is a field or a method.
+    if (sym->value->kind == Decl::field) {
+      mem->field_decl = sym->value->as<FieldDecl>();
+
+      // If parent is an lvalue, its child is also an lvalue.  So find
+      // the right children VarDecl of the paren tand bind it to this
+      // MemberExpr as well.
+      if (mem->parent_expr->decl) {
+        assert(mem->parent_expr->decl->kind == Decl::var);
+        auto parent_var_decl = mem->parent_expr->decl->as<VarDecl>();
+        mem->decl = parent_var_decl->findMemberDecl(mem->member_name);
+        assert(mem->decl && "struct member failed to namebind");
+      }
+
+      mem->type = mem->field_decl->type;
+      assert(mem->type);
+    } else {
+      assert(sym->value->kind == Decl::func);
+
+      // For methods, we need to keep track of the original declaration
+      // of the method.
+      mem->decl = sym->value->as<FuncDecl>();
+    }
+
+    break;
+  }
+  case Expr::unary:
+    return typecheck_unary_expr(sema, e->as<UnaryExpr>());
+  case Expr::binary: {
+    auto b = e->as<BinaryExpr>();
+    if (!typecheck_expr(sema, b->lhs))
+      return false;
+    if (!typecheck_expr(sema, b->rhs))
+      return false;
+
+    auto lhs_type = b->lhs->type;
+    auto rhs_type = b->rhs->type;
+
+    if (lhs_type != rhs_type) {
+      return error(b->loc, "incompatible binary op with type '{}' and '{}'",
+                   lhs_type->name->text, rhs_type->name->text);
+    }
+
+    b->type = lhs_type;
+
+    break;
+  }
+  case Expr::type_: {
+    auto t = e->as<TypeExpr>();
+
+    // Namebinding for TypeExprs only include linking existing Decls to the
+    // type names used in the expression, not declaring new ones.  The
+    // declaration would be done when visiting VarDecls and StructDecls,
+    // etc.
+
+    if (t->subexpr) {
+      if (!typecheck_expr(sema, t->subexpr))
+        return false;
+    }
+
+    if (t->kind == TypeKind::value) {
+      // This is the very first point a new value type is encountered.
+      auto sym = sema.decl_table.find(t->name);
+      if (!sym)
+        return error(t->loc, "undefined type '{}'", t->name->text);
+      t->decl = sym->value;
+      assert(t->decl);
+
+      // Builtin types, or user types that have showed up before.
+      t->type = t->decl->type;
+      assert(t->type && "type not resolved after visiting corresponding *Decl");
+    } else if (t->kind == TypeKind::ref || t->kind == TypeKind::var_ref ||
+               t->kind == TypeKind::ptr) {
+      t->type = get_derived_type(sema, t->kind, t->subexpr->type);
+    } else {
+      assert(!"unknown type kind");
+    }
+    break;
+  }
+  default:
+    assert(!"unknown expr kind");
+  }
+
+  // TODO: doc why this is allowed non-null.
+  // assert(e->type);
+
+  // No more work is supposed to be done here.
+  return true;
 }
 
 bool typecheck_stmt(Sema &sema, Stmt *s) {
@@ -647,8 +640,8 @@ static bool typecheckFuncDecl(Sema &sema, FuncDecl *f) {
     auto struct_param_type_expr = f->struct_param->type_expr->as<TypeExpr>();
 
     // By-pointer methods
-    if (struct_param_type->is_pointer()) {
-      if (!struct_param_type->referee_type->is_struct()) {
+    if (struct_param_type->isPointer()) {
+      if (!struct_param_type->referee_type->isStruct()) {
         return error(struct_param_type_expr->subexpr->loc,
                      "cannot declare a method for '{}' which is not a struct",
                      struct_param_type->referee_type->name->text);
@@ -657,7 +650,7 @@ static bool typecheckFuncDecl(Sema &sema, FuncDecl *f) {
           struct_param_type->referee_type->origin_decl->as<StructDecl>();
     }
     // By-value methods
-    else if (!struct_param_type->is_struct()) {
+    else if (!struct_param_type->isStruct()) {
       return error(struct_param_type_expr->loc,
                    "cannot declare a method for '{}' which is not a struct",
                    struct_param_type->name->text);
@@ -718,67 +711,71 @@ static bool typecheckFuncDecl(Sema &sema, FuncDecl *f) {
 // Note that this function will also do declare() for new symbols, so the
 // caller would have to set new scopes accordingly.
 bool typecheck_decl(Sema &sema, Decl *d) {
-    switch (d->kind) {
-    case Decl::var: {
-        auto v = d->as<VarDecl>();
-        // if (!declare(sema, v->name, v))
-        //     return false;
-        if (v->assign_expr) {
-            if (!typecheck_expr(sema, v->assign_expr))
-                return false;
-            v->type = v->assign_expr->type;
-        } else if (v->type_expr) {
-            if (!typecheck_expr(sema, v->type_expr))
-                return false;
-            v->type = v->type_expr->type;
-        }
-
-        // For struct-typed VarDecls, instantiate all of its fields.
-        if (v->type->is_struct()) {
-            auto struct_decl = v->type->origin_decl->as<StructDecl>();
-            for (auto field : struct_decl->fields) {
-                instantiate_field(sema, v, field->name, field->type);
-                // FIXME: should we typecheck_decl() children here?
-            }
-        }
-
-        break;
-    }
-    case Decl::func:
-        return typecheckFuncDecl(sema, d->as<FuncDecl>());
-    case Decl::field: {
-        auto f = d->as<FieldDecl>();
-        // field redeclaration check
-        // if (!declare(sema, f->name, f))
-        //     return false;
-
-        if (!typecheck_expr(sema, f->type_expr))
-            return false;
-        f->type = f->type_expr->type;
-        break;
-    }
-    case Decl::struct_: {
-        auto s = d->as<StructDecl>();
-        s->type = make_value_type(sema, s->name, s);
-
-        // if (!declare(sema, f->name, f))
-        //     return false;
-
-        sema.decl_table.scope_open();
-        bool success = true;
-        for (auto field : s->fields) {
-            if (!typecheck_decl(sema, field)) {
-                success = false;
-            }
-        }
-        sema.decl_table.scope_close();
-        return success;
-    }
-    default:
-        assert(!"unknown decl kind");
+  switch (d->kind) {
+  case Decl::var: {
+    auto v = d->as<VarDecl>();
+    // if (!declare(sema, v->name, v))
+    //     return false;
+    if (v->assign_expr) {
+      if (!typecheck_expr(sema, v->assign_expr))
+        return false;
+      v->type = v->assign_expr->type;
+    } else if (v->type_expr) {
+      if (!typecheck_expr(sema, v->type_expr))
+        return false;
+      v->type = v->type_expr->type;
     }
 
-    return true;
+    // For struct-typed VarDecls, instantiate all of its fields.
+    if (v->type->isStruct()) {
+      auto struct_decl = v->type->origin_decl->as<StructDecl>();
+      for (auto field : struct_decl->fields) {
+        instantiate_field(sema, v, field->name, field->type);
+        // FIXME: should we typecheck_decl() children here?
+      }
+    } else if (v->type == sema.context.string_type) {
+      // String types have hidden children decls of { buf: *uint8, len: int64 }.
+      // Instantiate these decls here.
+      assert(!"unimplemented");
+    }
+
+    break;
+  }
+  case Decl::func:
+    return typecheckFuncDecl(sema, d->as<FuncDecl>());
+  case Decl::field: {
+    auto f = d->as<FieldDecl>();
+    // field redeclaration check
+    // if (!declare(sema, f->name, f))
+    //     return false;
+
+    if (!typecheck_expr(sema, f->type_expr))
+      return false;
+    f->type = f->type_expr->type;
+    break;
+  }
+  case Decl::struct_: {
+    auto s = d->as<StructDecl>();
+    s->type = make_value_type(sema, s->name, s);
+
+    // if (!declare(sema, f->name, f))
+    //     return false;
+
+    sema.decl_table.scope_open();
+    bool success = true;
+    for (auto field : s->fields) {
+      if (!typecheck_decl(sema, field)) {
+        success = false;
+      }
+    }
+    sema.decl_table.scope_close();
+    return success;
+  }
+  default:
+    assert(!"unknown decl kind");
+  }
+
+  return true;
 }
 
 bool typecheck(Sema &sema, AstNode *n) {
