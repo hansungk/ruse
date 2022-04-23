@@ -13,7 +13,7 @@ bool Driver::compile() {
         return false;
     }
 
-    setup_builtin_types(sema);
+    setupBuiltinTypes(sema);
     if (!typecheck(sema, node)) {
         return false;
     }

@@ -138,31 +138,33 @@ struct Sema {
     }
 };
 
-void setup_builtin_types(Sema &s);
+void setupBuiltinTypes(Sema &s);
 
 bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl);
 bool declare(Sema &sema, Decl *decl);
 bool typecheck(Sema &sema, AstNode *n);
 
-enum class ValueKind {
-    value,
-    address,
-};
-
 struct Value {
-    ValueKind kind;
-    int id;
+  enum Kind {
+    temp,
+    address,
+    global,
+  } kind;
+  int id = 0;
+  std::string name = "";
 
-    std::string format() const {
-        switch (kind) {
-        case ValueKind::value:
-            return fmt::format("%_{}", id);
-        case ValueKind::address:
-            return fmt::format("%a{}", id);
-        default:
-            assert(false);
-        }
+  std::string format() const {
+    switch (kind) {
+    case Kind::temp:
+      return fmt::format("%_{}", id);
+    case Kind::address:
+      return fmt::format("%a{}", id);
+    case Kind::global:
+      return fmt::format("${}", name);
+    default:
+      assert(false);
     }
+  }
 };
 
 // Valstack is a means for AST nodes to communicate information in the codegen
@@ -178,8 +180,8 @@ struct Valstack {
     // "%_0" in the IL.
     // This does not take any argument because the actual value is emitted to
     // the code.
-    void pushValue() {
-        buf.push_back(Value{ValueKind::value, next_id});
+    void pushTemp() {
+        buf.push_back(Value{.kind = Value::temp, .id = next_id});
         next_id++;
     }
 
@@ -189,13 +191,19 @@ struct Valstack {
     // This does not take any argument because the actual address is emitted to
     // the code.
     void pushAddress() {
-        buf.push_back(Value{ValueKind::address, next_id});
+        buf.push_back(Value{.kind = Value::address, .id = next_id});
         next_id++;
+    }
+
+    // Push a global value that is defined in the data {} section.
+    void pushGlobal(const std::string &name) {
+      buf.push_back(Value{.kind = Value::global, .id = next_id, .name = name});
+      next_id++;
     }
 
     // Explicitly give the id of the value which will be reused.
     void pushAddressExplicit(int id) {
-        buf.push_back(Value{ValueKind::address, id});
+        buf.push_back(Value{.kind = Value::address, .id = id});
     }
 
     Value peek() const { return buf.back(); }
@@ -258,6 +266,7 @@ struct QbeGenerator {
   long emitStackAlloc(const Type *type, size_t line, std::string_view text);
 
   void codegen(AstNode *n);
+  void codegenDataSection();
   void codegenDecl(Decl *d);
   void codegenExpr(Expr *e);
   void codegenExprAddress(Expr *e);

@@ -25,13 +25,12 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     emitln("%_{} =w add 0, {}", valstack.next_id,
            e->as<IntegerLiteral>()->value);
     annotate("{}: integer literal", e->loc.line);
-    valstack.pushValue();
+    valstack.pushTemp();
     break;
   case Expr::string_literal:
-    assert(!"not implemented");
-    // TODO: generate address of the string struct, which is something like
-    // { buf: *uint8, len: int64 }
-    // These should probably be stored in VarDecl as children decls.
+    valstack.pushGlobal("string");
+    // TODO: generate address of the string literal, possibly stored in .text
+    // area
     break;
   case Expr::decl_ref: {
     auto dre = e->as<DeclRefExpr>();
@@ -71,11 +70,11 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         } else if (dre->type->size == 8) {
           emitln("%_{} =l loadl {}", valstack.next_id, valstack.pop().format());
           annotate("{}: load {}", dre->loc.line, dre->text(sema));
-          valstack.pushValue();
+          valstack.pushTemp();
         } else if (dre->type->size == 4) {
           emitln("%_{} =w loadw {}", valstack.next_id, valstack.pop().format());
           annotate("{}: load {}", dre->loc.line, dre->text(sema));
-          valstack.pushValue();
+          valstack.pushTemp();
         } else {
           assert(!"unknown alignment");
         }
@@ -109,7 +108,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
 
       emit(")");
 
-      valstack.pushValue();
+      valstack.pushTemp();
     } else {
       emitln("call ${}(", c->callee_decl->name->text);
 
@@ -181,7 +180,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
       // TODO: for struct values?
       emitln("%_{} =w loadw {}", valstack.next_id, valstack.pop().format());
       annotate("{}: load {}", mem->loc.line, mem->text(sema));
-      valstack.pushValue();
+      valstack.pushTemp();
     }
 
     break;
@@ -200,7 +199,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
         // FIXME: size?
         emitln("%_{} =w loadw {}", valstack.next_id, valstack.pop().format());
         annotate("{}: dereference {}", ue->loc.line, ue->operand->text(sema));
-        valstack.pushValue();
+        valstack.pushTemp();
       }
       // Otherwise, the address that the pointer contains is on the
       // valstack and we're done.
@@ -232,7 +231,7 @@ void QbeGenerator::codegenExprExplicit(Expr *e, bool value) {
     emitln("%_{} =w {} {}, {}", valstack.next_id, op_str,
            valstack.pop().format(), valstack.pop().format());
     annotate("{}: binary op '{}'", binary->loc.line, binary->op.str());
-    valstack.pushValue();
+    valstack.pushTemp();
     break;
   }
   default:
@@ -439,7 +438,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
   // structs allocated on the stack.
   auto rhs_value = valstack.pop();
   auto lhs_address = valstack.pop();
-  assert(lhs_address.kind == ValueKind::address);
+  assert(lhs_address.kind == Value::address);
 
   // For structs, copy every field one by one.
   // XXX: This assumes that any LHS type that is larger than an eightbyte is
@@ -469,7 +468,7 @@ void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
         assert(!"unknown alignment");
       }
       annotate("{}: load {}", rhs->loc.line, rhs_text);
-      valstack.pushValue();
+      valstack.pushTemp();
 
       // calculate the address of the LHS field first
       auto lhs_text = fmt::format("{}.{}", lhs->name->text, field->name->text);
@@ -542,9 +541,14 @@ long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
   return id;
 }
 
+void QbeGenerator::codegenDataSection() {
+  emitln("data $string = {{ b \"hello\" }}");
+}
+
 void QbeGenerator::codegen(AstNode *n) {
   switch (n->kind) {
   case AstNode::file: {
+    codegenDataSection();
     for (auto toplevel : n->as<File>()->toplevels) {
       codegen(toplevel);
     }
