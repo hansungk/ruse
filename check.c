@@ -190,7 +190,7 @@ static struct node *declare(struct context *ctx, struct node *n) {
 		char buf[TOKLEN];
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
 		// FIXME: should this be done in the caller?
-		error(ctx, n->tok.loc, "'%s' is already declared", buf);
+		error(ctx, n->loc, "'%s' is already declared", buf);
 		return NULL;
 	}
 	return n;
@@ -266,7 +266,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 		break;
 	case NIDEXPR:
 		if (!(decl = lookup(ctx, n)))
-			return error(ctx, n->tok.loc, "undeclared variable '%s'", buf);
+			return error(ctx, n->loc, "undeclared variable '%s'", buf);
 		n->decl = decl;
 		n->type = decl->type;
 		break;
@@ -348,7 +348,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 			}
 		}
 		if (!member_match)
-			return error(ctx, n->tok.loc, "'%s' is not a member of type '%s'",
+			return error(ctx, n->loc, "'%s' is not a member of type '%s'",
 			             n->tok.name, n->parent->type->tok.name);
 		n->type = member_match->type;
 		break;
@@ -364,7 +364,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 		n->type = lookup_type(ctx, buf);
 		if (!n->type) {
 			if (n->typekind == TYPE_VAL) {
-				return error(ctx, n->tok.loc, "unknown type '%s'", buf);
+				return error(ctx, n->loc, "unknown type '%s'", buf);
 			} else {
 				assert(n->typekind == TYPE_POINTER);
 				n->type = makepointertype(n->rhs->type, n->tok);
@@ -428,8 +428,7 @@ static void check_decl(struct context *ctx, struct node *n) {
 			n->type->rettype =
 			    lookup_type(ctx, n->rettypeexpr->tok.name);
 			if (!n->type->rettype)
-				return error(ctx, n->rettypeexpr->tok.loc,
-				             "unknown type '%s'",
+				return error(ctx, n->rettypeexpr->loc, "unknown type '%s'",
 				             n->rettypeexpr->tok.name);
 		}
 
