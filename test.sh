@@ -68,3 +68,4 @@ _test test/struct.ruse
 _test test/ref.ruse
 _test test/func.ruse
 _test test/gen_ref.ruse
+_test test/gen_func.ruse

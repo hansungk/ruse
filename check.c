@@ -265,8 +265,9 @@ static void check_expr(struct context *ctx, struct node *n) {
 		n->type = ty_int;
 		break;
 	case NIDEXPR:
-		if (!(decl = lookup(ctx, n)))
+		if (!(decl = lookup(ctx, n))) {
 			return error(ctx, n->loc, "undeclared variable '%s'", buf);
+		}
 		n->decl = decl;
 		n->type = decl->type;
 		break;
@@ -298,8 +299,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 			return;
 		// lvalue check
 		if (!n->rhs->decl)
-			return error(ctx, n->loc,
-			             "cannot take reference of a non-lvalue");
+			return error(ctx, n->loc, "cannot take reference of a non-lvalue");
 		n->type = makepointertype(n->rhs->type, n->tok);
 		break;
 	case NCALL:
