@@ -114,7 +114,7 @@ enum node_kind {
 	NIDEXPR,
 	NBINEXPR,
 	NDEREFEXPR, // *expr
-	NREFEXPR, // &expr
+	NREFEXPR,   // &expr
 	NCALL,
 	NMEMBER,
 
@@ -162,7 +162,7 @@ struct node {
 	enum type_kind typekind;
 	struct type *type; // type of this node.  This being NULL equals the
 	                   // typecheck on this node having failed
-	struct node *lhs;
+	struct node *lhs;  // func name in callexpr
 	struct node *rhs;         // ref, assign expr, typeexpr
 	struct node *rettypeexpr; // TODO: merge with typeexpr
 };

@@ -280,6 +280,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 		if (n->lhs->type != n->rhs->type)
 			return error(ctx, n->tok.loc,
 			             "incompatible types for binary operation");
+		n->type = n->lhs->type;
 		break;
 	case NDEREFEXPR:
 		check_expr(ctx, n->rhs);
@@ -305,16 +306,18 @@ static void check_expr(struct context *ctx, struct node *n) {
 	case NCALL:
 		// callee name is a node (n->lhs), not a token!
 		check_expr(ctx, n->lhs);
-		if (!n->lhs->type)
+		if (!n->lhs->type) {
 			return;
+        }
 		if (n->lhs->type->kind != TYPE_FUNC) {
 			tokenstr(ctx->src->buf, n->lhs->tok, buf, sizeof(buf));
-			return error(ctx, n->lhs->tok.loc, "'%s' is not a function", buf);
+			return error(ctx, n->lhs->loc, "'%s' is not a function", buf);
 		}
-		if (arrlen(n->lhs->type->params) != arrlen(n->children))
-			return error(ctx, n->lhs->tok.loc,
+		if (arrlen(n->lhs->type->params) != arrlen(n->children)) {
+			return error(ctx, n->lhs->loc,
 			             "argument mismatch: expected %ld, got %ld",
 			             arrlen(n->lhs->type->params), arrlen(n->children));
+		}
 		for (long i = 0; i < arrlen(n->children); i++) {
 			check_expr(ctx, n->children[i]);
 			if (!n->children[i]->type)
@@ -332,6 +335,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 				             expect_buf, got_buf);
 			}
 		}
+		n->type = n->lhs->type->rettype;
 		break;
 	case NMEMBER:
 		check_expr(ctx, n->parent);
@@ -375,6 +379,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 	default:
 		assert(!"unknown expr kind");
 	}
+	assert(n->type);
 }
 
 static int check_assignment(struct context *ctx, struct node *asignee,
@@ -395,8 +400,9 @@ static void check_decl(struct context *ctx, struct node *n) {
 		// var decl has an init expression, ex. var i = 4
 		if (n->rhs) {
 			check_expr(ctx, n->rhs);
-			if (!n->rhs->type)
+			if (!n->rhs->type) {
 				return;
+            }
 			n->type = n->rhs->type;
 		}
 		// var decl has a type specifier, ex. var i: int
