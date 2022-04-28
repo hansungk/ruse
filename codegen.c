@@ -73,7 +73,7 @@ static void emit(char *c, ...) {
 
 static int valstack_push_value(struct context *ctx) {
 	struct qbeval v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id,
-	                         .data_size = 4};
+	                   .data_size = 4};
 	arrput(ctx->valstack.data, v);
 	return ctx->valstack.curr_temp_id++;
 }
@@ -150,9 +150,6 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		     val_lhs.temp_id, val_rhs.temp_id);
 		valstack_push_value(ctx);
 		break;
-	case NREFEXPR:
-		codegen_expr_addr(ctx, n->rhs);
-		break;
 	case NDEREFEXPR:
 		codegen_expr_value(ctx, n->rhs);
 		// Right now, the target of this derefexpr's value is generated and
@@ -170,6 +167,17 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 			}
 			valstack_push_value(ctx);
 		}
+		break;
+	case NREFEXPR:
+		codegen_expr_addr(ctx, n->rhs);
+		break;
+	case NCALL:
+		if (!n->lhs->type->rettype) {
+			assert(!"func without return value not implemented");
+		}
+		emit("    %%.%d =w ", ctx->valstack.curr_temp_id);
+		emit("call $%s()\n", n->lhs->tok.name);
+		valstack_push_value(ctx);
 		break;
 	default:
 		assert(!"unknown expr kind");
