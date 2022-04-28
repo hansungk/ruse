@@ -71,38 +71,46 @@ static void emit(char *c, ...) {
 #endif
 }
 
-static int valstack_push_value(struct context *ctx) {
-	struct qbeval v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id,
-	                   .data_size = 4};
+static void valstack_push_param(struct context *ctx, const char *name) {
+	struct qbe_val v = {VAL_PARAM, .param_name = name,
+	                    .data_size = 4 /* FIXME */};
+	arrput(ctx->valstack.data, v);
+}
+
+static int valstack_push_temp(struct context *ctx) {
+	struct qbe_val v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id,
+	                    .data_size = 4 /* FIXME */};
 	arrput(ctx->valstack.data, v);
 	return ctx->valstack.curr_temp_id++;
 }
 
 static void valstack_push_addr(struct context *ctx, int addr_id) {
-	struct qbeval v = {VAL_ADDR, .addr_id = addr_id, .data_size = 8};
+	struct qbe_val v = {VAL_ADDR, .addr_id = addr_id, .data_size = 8};
 	arrput(ctx->valstack.data, v);
 }
 
-static char *qbeval_name(struct qbeval *val) {
+static char *qbe_val_name(struct qbe_val *val) {
 	// TODO: skip generating if already generated
 	int len;
 
-	memset(val->name, 0, sizeof(val->name));
+	memset(val->qbe_text, 0, sizeof(val->qbe_text));
 	switch (val->kind) {
 	case VAL_TEMP:
-		len = snprintf(val->name, sizeof(val->name), "%%.%d", val->temp_id);
+		len = snprintf(val->qbe_text, sizeof(val->qbe_text), "%%.%d",
+		               val->temp_id);
 		break;
 	case VAL_ADDR:
-		len = snprintf(val->name, sizeof(val->name), "%%A%d", val->addr_id);
+		len = snprintf(val->qbe_text, sizeof(val->qbe_text), "%%A%d",
+		               val->addr_id);
 		break;
 	default:
 		assert(!"unknown valstack kind");
 	}
 
-	if (len < 0 || (size_t)len >= sizeof(val->name)) {
+	if (len < 0 || (size_t)len >= sizeof(val->qbe_text)) {
 		fatal("%s(): snprintf error", __func__);
 	}
-	return val->name;
+	return val->qbe_text;
 }
 
 static void codegen_expr_value(struct context *ctx, struct node *n);
@@ -113,26 +121,31 @@ static void codegen_expr_addr(struct context *ctx, struct node *n);
 // of the expression (which has to be lvalue) will be put on the valstack.
 static void codegen_expr(struct context *ctx, struct node *n, int value) {
 	char buf[TOKLEN]; // FIXME: stack usage
-	struct qbeval val_lhs, val_rhs;
+	struct qbe_val val_lhs, val_rhs;
 
 	switch (n->kind) {
 	case NLITERAL:
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
 		emit("    %%.%d =w add 0, %s\n", ctx->valstack.curr_temp_id, buf);
-		valstack_push_value(ctx);
+		valstack_push_temp(ctx);
 		break;
 	case NIDEXPR:
+		assert(ctx->scope);
 		if (value) {
+			// TODO: check if this is function parameter, and if then use $name
+			// stored in the valstack instead of $address
+			// TODO: to do that, we need to first find out the function we're
+			// in
 			if (n->decl->type->size == 8) {
 				emit("    %%.%d =l loadl %%A%d\n", ctx->valstack.curr_temp_id,
-				     n->decl->id);
+				     n->decl->local_id);
 			} else {
 				emit("    %%.%d =w loadw %%A%d\n", ctx->valstack.curr_temp_id,
-				     n->decl->id);
+				     n->decl->local_id);
 			}
-			valstack_push_value(ctx);
+			valstack_push_temp(ctx);
 		} else {
-			valstack_push_addr(ctx, n->decl->id);
+			valstack_push_addr(ctx, n->decl->local_id);
 		}
 		break;
 	case NBINEXPR:
@@ -148,7 +161,7 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		assert(val_lhs.kind == VAL_TEMP);
 		emit("    %%.%d =w add %%.%d, %%.%d\n", ctx->valstack.curr_temp_id,
 		     val_lhs.temp_id, val_rhs.temp_id);
-		valstack_push_value(ctx);
+		valstack_push_temp(ctx);
 		break;
 	case NDEREFEXPR:
 		codegen_expr_value(ctx, n->rhs);
@@ -157,15 +170,15 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		// memory location of where the decl '*c' sits.  If we want to generate
 		// value of '*c' itself, we have to generate another load.
 		if (value) {
-			struct qbeval val = arrpop(ctx->valstack.data);
+			struct qbe_val val = arrpop(ctx->valstack.data);
 			if (val.data_size == 8) {
 				emit("    %%.%d =l loadl %s\n", ctx->valstack.curr_temp_id,
-				     qbeval_name(&val));
+				     qbe_val_name(&val));
 			} else {
 				emit("    %%.%d =w loadw %s\n", ctx->valstack.curr_temp_id,
-				     qbeval_name(&val));
+				     qbe_val_name(&val));
 			}
-			valstack_push_value(ctx);
+			valstack_push_temp(ctx);
 		}
 		break;
 	case NREFEXPR:
@@ -177,7 +190,7 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		}
 		emit("    %%.%d =w ", ctx->valstack.curr_temp_id);
 		emit("call $%s()\n", n->lhs->tok.name);
-		valstack_push_value(ctx);
+		valstack_push_temp(ctx);
 		break;
 	default:
 		assert(!"unknown expr kind");
@@ -194,25 +207,26 @@ static void codegen_expr_addr(struct context *ctx, struct node *n) {
 
 static void codegen_decl(struct context *ctx, struct node *n) {
 	char buf[TOKLEN];
-	struct qbeval val;
+	struct qbe_val val;
 
 	tokenstr(ctx->src->buf, n->decl->tok, buf, sizeof(buf));
 
 	switch (n->kind) {
 	case NVARDECL:
 		// FIXME: is it better to assign decl_id here or in check?
-		n->id = ctx->curr_decl_id++;
-		emit("    %%A%d =l alloc4 4\n", n->id);
+		n->local_id = ctx->curr_decl_id++;
+		emit("    %%A%d =l alloc4 4\n", n->local_id);
 		codegen(ctx, n->rhs);
 		assert(arrlen(ctx->valstack.data) > 0);
 		val = arrpop(ctx->valstack.data);
 		// TODO: proper datasize handling
+		// TODO: unify this with assignment
 		if (val.data_size == 8) {
 			emit("    storel");
 		} else {
 			emit("    storew");
 		}
-		emit(" %s, %%A%d\n", qbeval_name(&val), n->id);
+		emit(" %s, %%A%d\n", qbe_val_name(&val), n->local_id);
 		break;
 	default:
 		assert(!"unreachable");
@@ -220,7 +234,7 @@ static void codegen_decl(struct context *ctx, struct node *n) {
 }
 
 static void codegen_stmt(struct context *ctx, struct node *n) {
-	struct qbeval val_lhs, val_rhs;
+	struct qbe_val val_lhs, val_rhs;
 
 	switch (n->kind) {
 	case NEXPRSTMT:
@@ -236,7 +250,7 @@ static void codegen_stmt(struct context *ctx, struct node *n) {
 		} else {
 			emit("    storew");
 		}
-		emit(" %s, %s\n", qbeval_name(&val_rhs), qbeval_name(&val_lhs));
+		emit(" %s, %s\n", qbe_val_name(&val_rhs), qbe_val_name(&val_lhs));
 		break;
 	case NRETURN:
 		codegen(ctx, n->rhs);
@@ -257,12 +271,39 @@ void codegen(struct context *ctx, struct node *n) {
 		}
 		break;
 	case NFUNC:
-		emit("export function w $%s() {\n", n->tok.name);
+		emit("export function w $%s(", n->tok.name);
+		for (int i = 0; i < arrlen(n->args); i++) {
+			if (i > 0) {
+				emit(", ");
+			}
+			const struct node *arg = n->args[i];
+			emit("w %%%s", arg->tok.name);
+		}
+		emit(") {\n");
 		emit("@start\n");
+
+		assert(n->scope);
+		scope_open_with(ctx, n->scope);
+		// generate stores of args to stack
+		for (int i = 0; i < arrlen(n->args); i++) {
+			const struct node *arg = n->args[i];
+			valstack_push_param(ctx, arg->tok.name);
+			// const struct node *arg_vardecl = lookup(ctx, arg);
+			// // FIXME: This fails because pop_scope() when exiting function in
+			// // check.c completely deletes the in-function decl table.
+			// assert(arg_vardecl);
+			// emit("    storew %%%s, %%A%d\n", arg_vardecl->tok.name,
+			//      arg_vardecl->local_id);
+		}
+		// body
 		for (int i = 0; i < arrlen(n->children); i++) {
 			codegen(ctx, n->children[i]);
 		}
+		scope_close(ctx);
+		// TODO: free scope here?
+
 		emit("}\n");
+		emit("\n");
 		break;
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {

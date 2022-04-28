@@ -153,16 +153,17 @@ struct node {
 	enum node_kind kind;
 	struct src_loc loc;     // location in source
 	struct token tok;       // name of var or func. etc.
-	int id;                 // scope-unique decl id for codegen
+	int local_id;           // scope-unique decl id for codegen
+	struct scope *scope;	// scope of this function
 	struct node *decl;      // original declaration of this node
 	struct node *parent;    // for memberexpr
 	struct node **args;     // func args/params
 	struct node **children; // func body, struct fields
 	struct node *typeexpr;  // ast node of type specifier
 	enum type_kind typekind;
-	struct type *type; // type of this node.  This being NULL equals the
-	                   // typecheck on this node having failed
-	struct node *lhs;  // func name in callexpr
+	struct type *type;        // type of this node.  This being NULL equals the
+	                          // typecheck on this node having failed
+	struct node *lhs;         // func name in callexpr
 	struct node *rhs;         // ref, assign expr, typeexpr
 	struct node *rettypeexpr; // TODO: merge with typeexpr
 };
@@ -209,6 +210,8 @@ struct decl {
 struct scope {
 	struct map map;
 	struct scope *outer;
+	// The decl that defines this scope, e.g. function, struct, etc.
+	struct node *decl;
 };
 
 #define VHLEN 10
@@ -219,27 +222,33 @@ struct context {
 	struct scope *typescope;
 	struct error *errors;
 	int curr_decl_id; // next scope-unique decl id
-	struct qbevalstack {
+	struct qbe_valstack {
 		// qbeval is used as a handle for referring to the temporary QBE values
 		// that are so far generated.
-		struct qbeval {
+		struct qbe_val {
 			enum val_kind {
+				VAL_PARAM,
 				VAL_TEMP,
 				VAL_ADDR,
 			} kind;
+			const char *param_name;
 			int temp_id;
 			int addr_id;
-			char name[VHLEN]; // used to hold the un-parsed name of
-			                  // the values
+			char qbe_text[VHLEN]; // used to hold the unparsed name of the
+			                      // values, e.g. %.1
 			int data_size;
 		} *data;
 		int curr_temp_id; // next id to be pushed to valstack
 	} valstack;
 };
 
+void scope_open(struct context *ctx);
+void scope_open_with(struct context *ctx, struct scope *scope);
+void scope_close(struct context *ctx);
 struct type *maketype(enum type_kind kind, struct token tok);
 void context_init(struct context *ctx, struct parser *p);
 void context_free(struct context *ctx);
+struct node *lookup(struct context *ctx, const struct node *n);
 void check(struct context *ctx, struct node *n);
 int do_errors(const struct error *errors);
 

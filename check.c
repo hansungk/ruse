@@ -170,17 +170,24 @@ void context_free(struct context *ctx) {
 	free(ctx->errors);
 }
 
-void push_scope(struct context *ctx) {
+// Open a scope, creating a new one.
+void scope_open(struct context *ctx) {
 	struct scope *new_scope = makescope();
 	new_scope->outer = ctx->scope;
 	ctx->scope = new_scope;
 	// TODO: typescope
 }
 
-void pop_scope(struct context *ctx) {
-	struct scope *innermost = ctx->scope;
+// Open a scope using an existing scope that is already constructed.
+void scope_open_with(struct context *ctx, struct scope *scope) {
+	scope->outer = ctx->scope;
+	ctx->scope = scope;
+}
+
+void scope_close(struct context *ctx) {
+	struct scope *current = ctx->scope;
 	ctx->scope = ctx->scope->outer;
-	freescope(innermost);
+	// TODO: freescope(current);
 	// TODO: typescope
 }
 
@@ -198,7 +205,7 @@ static struct node *declare(struct context *ctx, struct node *n) {
 
 // Finds the declaration node that first declared the variable referenced by
 // 'n'.
-static struct node *lookup(struct context *ctx, struct node *n) {
+struct node *lookup(struct context *ctx, const struct node *n) {
 	struct scope *s = ctx->scope;
 	while (s) {
 		struct node *found = mapget(&s->map, n->tok.name);
@@ -308,7 +315,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 		check_expr(ctx, n->lhs);
 		if (!n->lhs->type) {
 			return;
-        }
+		}
 		if (n->lhs->type->kind != TYPE_FUNC) {
 			tokenstr(ctx->src->buf, n->lhs->tok, buf, sizeof(buf));
 			return error(ctx, n->lhs->loc, "'%s' is not a function", buf);
@@ -438,20 +445,24 @@ static void check_decl(struct context *ctx, struct node *n) {
 				             n->rettypeexpr->tok.name);
 		}
 
-		push_scope(ctx);
+		scope_open(ctx);
+		n->scope = ctx->scope;
+		ctx->scope->decl = n;
 		// declare parameters
 		for (long i = 0; i < arrlen(n->args); i++) {
+			assert(n->args[i]->kind == NVARDECL);
 			check(ctx, n->args[i]);
-			if (n->args[i]->type)
+			if (n->args[i]->type) {
 				arrput(n->type->params, n->args[i]);
-			else
+			} else {
 				assert(!"FIXME: what now?");
+			}
 		}
 		// check body
 		for (long i = 0; i < arrlen(n->children); i++) {
 			check(ctx, n->children[i]);
 		}
-		pop_scope(ctx);
+		scope_close(ctx);
 
 		// TODO: check return stmts
 		break;
@@ -486,11 +497,11 @@ static void check_stmt(struct context *ctx, struct node *n) {
 			return;
 		break;
 	case NBLOCKSTMT:
-		push_scope(ctx);
+		scope_open(ctx);
 		for (long i = 0; i < arrlen(n->children); i++) {
 			check(ctx, n->children[i]);
 		}
-		pop_scope(ctx);
+		scope_close(ctx);
 		break;
 	case NRETURN:
 		check_expr(ctx, n->rhs);
