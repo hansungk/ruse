@@ -184,7 +184,6 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 	case NBINEXPR:
 		codegen_expr_value(ctx, n->lhs);
 		codegen_expr_value(ctx, n->rhs);
-
 		// 'id_rhs' comes first because lhs is pushed to the stack first
 		// during the post-order traversal.
 		assert(arrlen(ctx->valstack.data) >= 2);
@@ -203,14 +202,14 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		// memory location of where the decl '*c' sits.  If we want to generate
 		// value of '*c' itself, we have to generate another load.
 		if (value) {
-			struct qbe_val rhs = arrpop(ctx->valstack.data);
-			struct qbe_val newval = valstack_push_temp(ctx);
-			if (rhs.data_size == 8) {
-				emit("    %s =l loadl %s\n", newval.qbe_text,
-				     rhs.qbe_text);
+			val_rhs = arrpop(ctx->valstack.data);
+			val_lhs = valstack_push_temp(ctx);
+			if (val_rhs.data_size == 8) {
+				emit("    %s =l loadl %s\n", val_lhs.qbe_text,
+				     val_rhs.qbe_text);
 			} else {
-				emit("    %s =w loadw %s\n", newval.qbe_text,
-				     rhs.qbe_text);
+				emit("    %s =w loadw %s\n", val_lhs.qbe_text,
+				     val_rhs.qbe_text);
 			}
 		}
 		break;

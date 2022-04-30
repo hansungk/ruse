@@ -12,7 +12,7 @@ $ ./ruse
 ## todo
 
 * gen func params
-  * find out the current function, and look up param decls
+  * fix valstack_push_temp to always take the value as an explicit parameter
 * type instantiation
 * gen func and if
 * use unions rather than n->children and n->lhs for callexpr
