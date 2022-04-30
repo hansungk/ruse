@@ -162,7 +162,8 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		if (value) {
 			if (ctx->scope->decl->kind == NFUNC &&
 			    is_param(ctx->scope->decl, n)) {
-				valstack_push_param(ctx, n->tok.name);
+				// Do nothing, as parameters are already pushed to the valstack
+				// when handling NFUNC.
 			} else if (n->decl->type->size == 8) {
 				val_lhs = valstack_make_temp(ctx);
 				emit("    %s =l loadl %%A%d\n", val_lhs.qbe_text,
