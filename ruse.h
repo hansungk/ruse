@@ -158,7 +158,7 @@ struct node {
 	struct node *decl;      // original declaration of this node
 	struct node *parent;    // for memberexpr
 	struct node **args;     // func args/params
-	struct node **children; // func body, struct fields
+	struct node **children; // func body, call params, struct fields
 	struct node *typeexpr;  // ast node of type specifier
 	enum type_kind typekind;
 	struct type *type;        // type of this node.  This being NULL equals the
@@ -239,7 +239,7 @@ struct context {
 			char qbe_text[VHLEN];
 			int data_size;
 		} * data;
-		int curr_temp_id; // next id to be pushed to valstack
+		int next_temp_id; // next id to be pushed to valstack
 	} valstack;
 };
 

@@ -350,7 +350,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 			return;
 		if (!arrlen(n->parent->type->members))
 			return error(ctx, n->loc, "member access to a non-struct");
-		struct node *member_match = NULL;
+		const struct node *member_match = NULL;
 		for (long i = 0; i < arrlen(n->parent->type->members); i++) {
 			const struct node *m = n->parent->type->members[i];
 			if (strcmp(m->tok.name, n->tok.name) == 0) {

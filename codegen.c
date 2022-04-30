@@ -71,8 +71,9 @@ static void emit(char *c, ...) {
 #endif
 }
 
+// This *has* to be called at stack pusth time to ensure that it is safe to use
+// val->qbe_text afterwards.
 static char *qbe_val_name(struct qbe_val *val) {
-	// TODO: skip generating if already generated
 	int len = 0;
 
 	memset(val->qbe_text, 0, sizeof(val->qbe_text));
@@ -106,12 +107,24 @@ static void valstack_push_param(struct context *ctx, const char *name) {
 	arrput(ctx->valstack.data, v);
 }
 
+// Make a new temp value from valstack using the current ID, but don't push it.
+// This is useful when a statement is generating a new value, but we don't want
+// to push it as we want to access the old stack values that are used as
+// operands that produce the new value.
+static struct qbe_val valstack_make_temp(struct context *ctx) {
+	struct qbe_val v = {VAL_TEMP, .temp_id = ctx->valstack.next_temp_id,
+	                    .data_size = 4 /* FIXME */};
+	qbe_val_name(&v);
+	// We don't increment next_temp_id here, we only do that at the push time.
+	return v;
+}
+
 static struct qbe_val valstack_push_temp(struct context *ctx) {
-	struct qbe_val v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id,
+	struct qbe_val v = {VAL_TEMP, .temp_id = ctx->valstack.next_temp_id,
 	                    .data_size = 4 /* FIXME */};
 	qbe_val_name(&v);
 	arrput(ctx->valstack.data, v);
-	ctx->valstack.curr_temp_id++;
+	ctx->valstack.next_temp_id++;
 	return v;
 }
 
@@ -208,9 +221,21 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		if (!n->lhs->type->rettype) {
 			assert(!"func without return value not implemented");
 		}
-		val_lhs = valstack_push_temp(ctx);
+		// Push parameters in reverse order so that they are in correct order
+		// when popped.
+		for (long i = arrlen(n->children) - 1; i >= 0; i--) {
+			codegen_expr_value(ctx, n->children[i]);
+		}
+		val_lhs = valstack_make_temp(ctx);
 		emit("    %s =w ", val_lhs.qbe_text);
-		emit("call $%s()\n", n->lhs->tok.name);
+		emit("call $%s(", n->lhs->tok.name);
+		for (long i = 0; i < arrlen(n->children); i++) {
+			val_rhs = arrpop(ctx->valstack.data);
+			emit("w %s, ", val_rhs.qbe_text);
+		}
+		emit(")\n");
+		arrput(ctx->valstack.data, val_lhs);
+		ctx->valstack.next_temp_id++;
 		break;
 	default:
 		assert(!"unknown expr kind");
