@@ -106,12 +106,13 @@ static void valstack_push_param(struct context *ctx, const char *name) {
 	arrput(ctx->valstack.data, v);
 }
 
-static int valstack_push_temp(struct context *ctx) {
+static struct qbe_val valstack_push_temp(struct context *ctx) {
 	struct qbe_val v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id,
 	                    .data_size = 4 /* FIXME */};
 	qbe_val_name(&v);
 	arrput(ctx->valstack.data, v);
-	return ctx->valstack.curr_temp_id++;
+	ctx->valstack.curr_temp_id++;
+	return v;
 }
 
 static void valstack_push_addr(struct context *ctx, int addr_id) {
@@ -138,13 +139,13 @@ static int is_param(const struct node *func, const struct node *var) {
 // of the expression (which has to be lvalue) will be put on the valstack.
 static void codegen_expr(struct context *ctx, struct node *n, int value) {
 	char buf[TOKLEN]; // FIXME: stack usage
-	struct qbe_val val_lhs, val_rhs;
+	struct qbe_val val, val_lhs, val_rhs;
 
 	switch (n->kind) {
 	case NLITERAL:
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
-		emit("    %%.%d =w add 0, %s\n", ctx->valstack.curr_temp_id, buf);
-		valstack_push_temp(ctx);
+		val = valstack_push_temp(ctx);
+		emit("    %s =w add 0, %s\n", val.qbe_text, buf);
 		break;
 	case NIDEXPR:
 		assert(ctx->scope);
@@ -155,13 +156,13 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 			    is_param(ctx->scope->decl, n)) {
 				valstack_push_param(ctx, n->tok.name);
 			} else if (n->decl->type->size == 8) {
-				emit("    %%.%d =l loadl %%A%d\n", ctx->valstack.curr_temp_id,
+				val_lhs = valstack_push_temp(ctx);
+				emit("    %s =l loadl %%A%d\n", val_lhs.qbe_text,
 				     n->decl->local_id);
-				valstack_push_temp(ctx);
 			} else {
-				emit("    %%.%d =w loadw %%A%d\n", ctx->valstack.curr_temp_id,
+				val_lhs = valstack_push_temp(ctx);
+				emit("    %s =w loadw %%A%d\n", val_lhs.qbe_text,
 				     n->decl->local_id);
-				valstack_push_temp(ctx);
 			}
 		} else {
 			valstack_push_addr(ctx, n->decl->local_id);
@@ -178,9 +179,9 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		val_lhs = arrpop(ctx->valstack.data);
 		assert(val_rhs.kind != VAL_ADDR);
 		assert(val_lhs.kind != VAL_ADDR);
-		emit("    %%.%d =w add %s, %s\n", ctx->valstack.curr_temp_id,
-		     val_lhs.qbe_text, val_rhs.qbe_text);
-		valstack_push_temp(ctx);
+		struct qbe_val v = valstack_push_temp(ctx);
+		emit("    %s =w add %s, %s\n", v.qbe_text, val_lhs.qbe_text,
+		     val_rhs.qbe_text);
 		break;
 	case NDEREFEXPR:
 		codegen_expr_value(ctx, n->rhs);
@@ -189,15 +190,15 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		// memory location of where the decl '*c' sits.  If we want to generate
 		// value of '*c' itself, we have to generate another load.
 		if (value) {
-			struct qbe_val val = arrpop(ctx->valstack.data);
-			if (val.data_size == 8) {
-				emit("    %%.%d =l loadl %s\n", ctx->valstack.curr_temp_id,
-				     qbe_val_name(&val));
+			struct qbe_val rhs = arrpop(ctx->valstack.data);
+			struct qbe_val newval = valstack_push_temp(ctx);
+			if (rhs.data_size == 8) {
+				emit("    %s =l loadl %s\n", newval.qbe_text,
+				     rhs.qbe_text);
 			} else {
-				emit("    %%.%d =w loadw %s\n", ctx->valstack.curr_temp_id,
-				     qbe_val_name(&val));
+				emit("    %s =w loadw %s\n", newval.qbe_text,
+				     rhs.qbe_text);
 			}
-			valstack_push_temp(ctx);
 		}
 		break;
 	case NREFEXPR:
@@ -207,9 +208,9 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		if (!n->lhs->type->rettype) {
 			assert(!"func without return value not implemented");
 		}
-		emit("    %%.%d =w ", ctx->valstack.curr_temp_id);
+		val_lhs = valstack_push_temp(ctx);
+		emit("    %s =w ", val_lhs.qbe_text);
 		emit("call $%s()\n", n->lhs->tok.name);
-		valstack_push_temp(ctx);
 		break;
 	default:
 		assert(!"unknown expr kind");
@@ -273,7 +274,7 @@ static void codegen_stmt(struct context *ctx, struct node *n) {
 		break;
 	case NRETURN:
 		codegen(ctx, n->rhs);
-		emit("    ret %%.%d\n", arrpop(ctx->valstack.data).temp_id);
+		emit("    ret %s\n", arrpop(ctx->valstack.data).qbe_text);
 		break;
 	default:
 		assert(!"unknown stmt kind");
