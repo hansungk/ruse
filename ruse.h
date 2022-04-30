@@ -234,10 +234,11 @@ struct context {
 			const char *param_name;
 			int temp_id;
 			int addr_id;
-			char qbe_text[VHLEN]; // used to hold the unparsed name of the
-			                      // values, e.g. %.1
+			// Used to hold the unparsed name of the values, e.g. %.1.
+			// This will be lazily generated at push time.
+			char qbe_text[VHLEN];
 			int data_size;
-		} *data;
+		} * data;
 		int curr_temp_id; // next id to be pushed to valstack
 	} valstack;
 };

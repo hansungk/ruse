@@ -71,30 +71,16 @@ static void emit(char *c, ...) {
 #endif
 }
 
-static void valstack_push_param(struct context *ctx, const char *name) {
-	struct qbe_val v = {VAL_PARAM, .param_name = name,
-	                    .data_size = 4 /* FIXME */};
-	arrput(ctx->valstack.data, v);
-}
-
-static int valstack_push_temp(struct context *ctx) {
-	struct qbe_val v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id,
-	                    .data_size = 4 /* FIXME */};
-	arrput(ctx->valstack.data, v);
-	return ctx->valstack.curr_temp_id++;
-}
-
-static void valstack_push_addr(struct context *ctx, int addr_id) {
-	struct qbe_val v = {VAL_ADDR, .addr_id = addr_id, .data_size = 8};
-	arrput(ctx->valstack.data, v);
-}
-
 static char *qbe_val_name(struct qbe_val *val) {
 	// TODO: skip generating if already generated
-	int len;
+	int len = 0;
 
 	memset(val->qbe_text, 0, sizeof(val->qbe_text));
 	switch (val->kind) {
+	case VAL_PARAM:
+		len = snprintf(val->qbe_text, sizeof(val->qbe_text), "%%%s",
+		               val->param_name);
+		break;
 	case VAL_TEMP:
 		len = snprintf(val->qbe_text, sizeof(val->qbe_text), "%%.%d",
 		               val->temp_id);
@@ -113,8 +99,39 @@ static char *qbe_val_name(struct qbe_val *val) {
 	return val->qbe_text;
 }
 
+static void valstack_push_param(struct context *ctx, const char *name) {
+	struct qbe_val v = {VAL_PARAM, .param_name = name,
+	                    .data_size = 4 /* FIXME */};
+	qbe_val_name(&v);
+	arrput(ctx->valstack.data, v);
+}
+
+static int valstack_push_temp(struct context *ctx) {
+	struct qbe_val v = {VAL_TEMP, .temp_id = ctx->valstack.curr_temp_id,
+	                    .data_size = 4 /* FIXME */};
+	qbe_val_name(&v);
+	arrput(ctx->valstack.data, v);
+	return ctx->valstack.curr_temp_id++;
+}
+
+static void valstack_push_addr(struct context *ctx, int addr_id) {
+	struct qbe_val v = {VAL_ADDR, .addr_id = addr_id, .data_size = 8};
+	qbe_val_name(&v);
+	arrput(ctx->valstack.data, v);
+}
+
 static void codegen_expr_value(struct context *ctx, struct node *n);
 static void codegen_expr_addr(struct context *ctx, struct node *n);
+
+static int is_param(const struct node *func, const struct node *var) {
+	for (long i = 0; i < arrlen(func->args); i++) {
+		const struct node *arg = func->args[i];
+		if (strcmp(var->tok.name, arg->tok.name) == 0) {
+			return 1;
+		}
+	}
+	return 0;
+}
 
 // 'value' is whether codegen_expr() has to generate the actual value of the
 // expression and put it on the valstack.  If its value is 0, only the address
@@ -134,16 +151,18 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		if (value) {
 			// TODO: check if this is function parameter, and if then use $name
 			// stored in the valstack instead of $address
-			// TODO: to do that, we need to first find out the function we're
-			// in
-			if (n->decl->type->size == 8) {
+			if (ctx->scope->decl->kind == NFUNC &&
+			    is_param(ctx->scope->decl, n)) {
+				valstack_push_param(ctx, n->tok.name);
+			} else if (n->decl->type->size == 8) {
 				emit("    %%.%d =l loadl %%A%d\n", ctx->valstack.curr_temp_id,
 				     n->decl->local_id);
+				valstack_push_temp(ctx);
 			} else {
 				emit("    %%.%d =w loadw %%A%d\n", ctx->valstack.curr_temp_id,
 				     n->decl->local_id);
+				valstack_push_temp(ctx);
 			}
-			valstack_push_temp(ctx);
 		} else {
 			valstack_push_addr(ctx, n->decl->local_id);
 		}
@@ -157,10 +176,10 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		assert(arrlen(ctx->valstack.data) >= 2);
 		val_rhs = arrpop(ctx->valstack.data);
 		val_lhs = arrpop(ctx->valstack.data);
-		assert(val_rhs.kind == VAL_TEMP);
-		assert(val_lhs.kind == VAL_TEMP);
-		emit("    %%.%d =w add %%.%d, %%.%d\n", ctx->valstack.curr_temp_id,
-		     val_lhs.temp_id, val_rhs.temp_id);
+		assert(val_rhs.kind != VAL_ADDR);
+		assert(val_lhs.kind != VAL_ADDR);
+		emit("    %%.%d =w add %s, %s\n", ctx->valstack.curr_temp_id,
+		     val_lhs.qbe_text, val_rhs.qbe_text);
 		valstack_push_temp(ctx);
 		break;
 	case NDEREFEXPR:
