@@ -200,13 +200,15 @@ struct node {
 			struct node *expr;
 		} expr_stmt;
 		struct ast_type_expr {
+			struct src_loc loc;
+			enum type_kind typekind;
+			struct token tok;
 			struct node *pointee;
 		} type_expr;
 	};
 	struct node *typeexpr; // ast node of type specifier
-	enum type_kind typekind;
-	struct type *type;        // type of this node.  This being NULL equals the
-	                          // typecheck on this node having failed
+	struct type *type; // type of this node.  This being NULL equals the
+	                   // typecheck on this node having failed
 };
 
 struct error {
