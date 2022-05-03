@@ -8,7 +8,7 @@
 
 static struct node *parse_expr(struct parser *p);
 static struct node *parse_stmt(struct parser *p);
-static struct node *parse_typeexpr(struct parser *p);
+static struct ast_type_expr *parse_type_expr(struct parser *p);
 
 static struct node *makenode(struct parser *p, enum node_kind k,
                              struct src_loc loc) {
@@ -84,21 +84,27 @@ static struct node *makemember(struct parser *p, struct token member,
 	return n;
 }
 
-static struct node *maketypeexpr(struct parser *p, enum type_kind kind,
-                                 struct token tok) {
-	struct node *n = makenode(p, NTYPEEXPR, tok.loc);
-	n->type_expr.loc = tok.loc;
-	n->type_expr.tok = tok;
-	n->type_expr.typekind = kind;
-	return n;
+static struct ast_type_expr *maketypeexpr(enum type_kind kind,
+                                          struct token tok) {
+	// TODO proper arena allocation
+	struct ast_type_expr *texpr = calloc(1, sizeof(struct ast_type_expr));
+	if (!texpr) {
+		fprintf(stderr, "alloc error\n");
+		exit(1);
+	}
+	texpr->loc = tok.loc;
+	texpr->tok = tok;
+	texpr->typekind = kind;
+	return texpr;
 }
 
 static struct node *makevardecl(struct parser *p, struct token name,
-                                struct node *init_expr, struct node *typeexpr) {
+                                struct node *init_expr,
+                                struct ast_type_expr *type_expr) {
 	struct node *n = makenode(p, NVARDECL, name.loc);
 	n->tok = name;
 	n->var_decl.init_expr = init_expr;
-	n->typeexpr = typeexpr;
+	n->type_expr = type_expr;
 	return n;
 }
 
@@ -240,9 +246,9 @@ static struct node *parse_vardecl(struct parser *p) {
 	struct token name = p->tok;
 	next(p);
 
-	struct node *typeexpr = NULL;
+	struct ast_type_expr *texpr = NULL;
 	if (p->tok.type != TEQUAL) {
-		typeexpr = parse_typeexpr(p);
+		texpr = parse_type_expr(p);
 	}
 
 	struct node *rhs = NULL;
@@ -251,7 +257,7 @@ static struct node *parse_vardecl(struct parser *p) {
 		rhs = parse_expr(p);
 	}
 
-	return makevardecl(p, name, rhs, typeexpr);
+	return makevardecl(p, name, rhs, texpr);
 }
 
 static struct node *parse_blockstmt(struct parser *p) {
@@ -467,21 +473,20 @@ static struct node *parse_stmt(struct parser *p) {
 	return stmt;
 }
 
-static struct node *parse_typeexpr(struct parser *p) {
+static struct ast_type_expr *parse_type_expr(struct parser *p) {
 	struct token tok = p->tok;
 
 	if (p->tok.type == TINT) {
 		expect(p, TINT);
-		return maketypeexpr(p, TYPE_VAL, tok);
+		return maketypeexpr(TYPE_VAL, tok);
 	} else if (p->tok.type == TIDENT) {
 		expect(p, TIDENT);
-		return maketypeexpr(p, TYPE_VAL, tok);
+		return maketypeexpr(TYPE_VAL, tok);
 	} else if (p->tok.type == TSTAR) {
 		expect(p, TSTAR);
-		struct node *pointee = parse_typeexpr(p);
-		struct node *n = maketypeexpr(p, TYPE_POINTER, tok);
-		n->type_expr.pointee = pointee;
-		return n;
+		struct ast_type_expr *texpr = maketypeexpr(TYPE_POINTER, tok);
+		texpr->pointee = parse_type_expr(p);
+		return texpr;
 	} else {
 		assert(!"unimplemented");
 	}
@@ -499,8 +504,8 @@ static struct node *parse_func(struct parser *p) {
 	while (p->tok.type != TRPAREN) {
 		struct token tok = p->tok;
 		expect(p, TIDENT);
-		struct node *typeexpr = parse_typeexpr(p);
-		arrput(f->func.params, makevardecl(p, tok, NULL, typeexpr));
+		struct ast_type_expr *texpr = parse_type_expr(p);
+		arrput(f->func.params, makevardecl(p, tok, NULL, texpr));
 		if (p->tok.type != TRPAREN) {
 			if (!expect(p, TCOMMA))
 				// recover error
@@ -511,7 +516,7 @@ static struct node *parse_func(struct parser *p) {
 
 	// return type
 	if (p->tok.type != TLBRACE) {
-		f->func.rettypeexpr = parse_typeexpr(p);
+		f->func.ret_type_expr = parse_type_expr(p);
 	}
 
 	// body
@@ -541,8 +546,8 @@ static struct node *parse_struct(struct parser *p) {
 	while (p->tok.type != TRBRACE) {
 		struct token tok = p->tok;
 		expect(p, TIDENT);
-		struct node *typeexpr = parse_typeexpr(p);
-		struct node *field = makevardecl(p, tok, NULL, typeexpr);
+		struct ast_type_expr *texpr = parse_type_expr(p);
+		struct node *field = makevardecl(p, tok, NULL, texpr);
 		arrput(s->struct_.fields, field);
 		skip_newlines(p);
 	}

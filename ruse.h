@@ -171,7 +171,7 @@ struct node {
 		struct ast_function {
 			struct node **params;
 			struct node **stmts;
-			struct node *rettypeexpr; // TODO: merge with typeexpr
+			struct ast_type_expr *ret_type_expr;
 		} func;
 		struct ast_struct {
 			struct node **fields;
@@ -199,14 +199,13 @@ struct node {
 		struct ast_expr_stmt {
 			struct node *expr;
 		} expr_stmt;
-		struct ast_type_expr {
-			struct src_loc loc;
-			enum type_kind typekind;
-			struct token tok;
-			struct node *pointee;
-		} type_expr;
 	};
-	struct node *typeexpr; // ast node of type specifier
+	struct ast_type_expr {
+		struct src_loc loc;
+		enum type_kind typekind;
+		struct token tok;
+		struct ast_type_expr *pointee;
+	} *type_expr;
 	struct type *type; // type of this node.  This being NULL equals the
 	                   // typecheck on this node having failed
 };

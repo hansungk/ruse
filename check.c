@@ -72,28 +72,28 @@ static char *typename(const struct type *type, char *buf, size_t buflen) {
 }
 
 // XXX: @copypaste from typename()
-static char *typeexprname(const struct ast_type_expr *typeexpr, char *buf,
+static char *typeexprname(const struct ast_type_expr *type_expr, char *buf,
                           size_t buflen) {
 	int wlen = 0;
 	char *cur = NULL;
 	size_t curlen = 0;
 
-	assert(typeexpr);
-	switch (typeexpr->typekind) {
+	assert(type_expr);
+	switch (type_expr->typekind) {
 	case TYPE_VAL:
-		strncpy(buf, typeexpr->tok.name, buflen - 1);
+		strncpy(buf, type_expr->tok.name, buflen - 1);
 		buf[buflen - 1] = '\0';
 		break;
 	case TYPE_POINTER:
 		wlen = snprintf(buf, buflen, "*");
 		curlen = buflen - wlen;
 		cur = buf + wlen;
-		typeexprname(&typeexpr->pointee->type_expr /* FIXME */, cur, curlen);
+		typeexprname(type_expr->pointee, cur, curlen);
 		break;
 	case TYPE_FUNC:
 		assert(!"unimplemented");
 	default:
-		printf("type kind=%d\n", typeexpr->typekind);
+		printf("type kind=%d\n", type_expr->typekind);
 		assert(!"unknown type kind");
 	}
 
@@ -272,11 +272,11 @@ static struct type *resolve_type_expr(struct context *ctx,
 	if (type_expr->pointee) {
 		assert(type_expr->typekind == TYPE_POINTER);
 		struct type *pointee_type =
-		    resolve_type_expr(ctx, &type_expr->pointee->type_expr);
+		    resolve_type_expr(ctx, type_expr->pointee);
 		if (!pointee_type) {
 			return NULL;
 		}
-		return makepointertype(pointee_type, type_expr->pointee->type_expr.tok);
+		return makepointertype(pointee_type, type_expr->pointee->tok);
 	}
 	typeexprname(type_expr, buf, sizeof(buf));
 	type = lookup_type(ctx, buf);
@@ -446,18 +446,14 @@ static void check_decl(struct context *ctx, struct node *n) {
 			n->type = n->var_decl.init_expr->type;
 		}
 		// var decl has a type specifier, ex. var i: int
-		if (n->typeexpr) {
-			// check_expr(ctx, n->typeexpr);
-			// if (!n->typeexpr->type)
-			// 	return;
-			// n->type = n->typeexpr->type;
-			n->type = resolve_type_expr(ctx, &n->typeexpr->type_expr);
+		if (n->type_expr) {
+			n->type = resolve_type_expr(ctx, n->type_expr);
 			if (!n->type) {
 				printf("resolve_type_expr failed at line %d\n", n->loc.line);
 				return;
 			}
 		}
-		if (n->typeexpr && n->var_decl.init_expr) {
+		if (n->type_expr && n->var_decl.init_expr) {
 			// if both type and init expr is specified, check assignability
 			if (!check_assignment(ctx, n, n->var_decl.init_expr)) {
 				return;
@@ -477,11 +473,12 @@ static void check_decl(struct context *ctx, struct node *n) {
 			return;
 		n->type = maketype(TYPE_FUNC, n->tok);
 		// !n->rettypeexpr is possible for void return type
-		if (n->func.rettypeexpr) {
-			n->type->rettype = resolve_type_expr(ctx, &n->func.rettypeexpr->type_expr);
+		if (n->func.ret_type_expr) {
+			n->type->rettype =
+			    resolve_type_expr(ctx, n->func.ret_type_expr);
 			if (!n->type->rettype)
-				return error(ctx, n->func.rettypeexpr->loc, "unknown type '%s'",
-				             n->func.rettypeexpr->tok.name);
+				return error(ctx, n->func.ret_type_expr->loc, "unknown type '%s'",
+				             n->func.ret_type_expr->tok.name);
 		}
 
 		scope_open(ctx);
