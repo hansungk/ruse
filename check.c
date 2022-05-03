@@ -459,8 +459,8 @@ static void check_decl(struct context *ctx, struct node *n) {
 			}
 		}
 		// check body
-		for (long i = 0; i < arrlen(n->children); i++) {
-			check(ctx, n->children[i]);
+		for (long i = 0; i < arrlen(n->func.stmts); i++) {
+			check(ctx, n->func.stmts[i]);
 		}
 		scope_close(ctx);
 
@@ -470,8 +470,8 @@ static void check_decl(struct context *ctx, struct node *n) {
 		n->type = maketype(TYPE_VAL, n->tok);
 		push_type(ctx, n->type);
 		// fields
-		for (long i = 0; i < arrlen(n->children); i++) {
-			struct node *child = n->children[i];
+		for (long i = 0; i < arrlen(n->struct_.fields); i++) {
+			struct node *child = n->struct_.fields[i];
 			check_decl(ctx, child);
 			assert(child->decl);
 			arrput(n->type->members, child);
@@ -498,8 +498,8 @@ static void check_stmt(struct context *ctx, struct node *n) {
 		break;
 	case NBLOCKSTMT:
 		scope_open(ctx);
-		for (long i = 0; i < arrlen(n->children); i++) {
-			check(ctx, n->children[i]);
+		for (long i = 0; i < arrlen(n->block.stmts); i++) {
+			check(ctx, n->block.stmts[i]);
 		}
 		scope_close(ctx);
 		break;
@@ -516,8 +516,8 @@ static void check_stmt(struct context *ctx, struct node *n) {
 void check(struct context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NFILE:
-		for (long i = 0; i < arrlen(n->children); i++) {
-			check(ctx, n->children[i]);
+		for (long i = 0; i < arrlen(n->file.body); i++) {
+			check(ctx, n->file.body[i]);
 		}
 		break;
 	default:

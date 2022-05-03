@@ -27,7 +27,7 @@ static struct node *makenode(struct parser *p, enum node_kind k,
 
 static struct node *makefile(struct parser *p, struct node **toplevel) {
 	struct node *n = makenode(p, NFILE, p->tok.loc);
-	n->children = toplevel;
+	n->file.body = toplevel;
 	return n;
 }
 
@@ -142,8 +142,7 @@ void parser_cleanup(struct parser *p) {
 	for (int i = 0; i < arrlen(p->nodeptrbuf); i++) {
 		struct node *n = p->nodeptrbuf[i];
 		if (n) {
-			if (n->children)
-				arrfree(n->children);
+			// TODO: free arrays in the unions
 			free(n->tok.name);
 			free(n);
 		}
@@ -260,7 +259,7 @@ static struct node *parse_blockstmt(struct parser *p) {
 	expect(p, TLBRACE);
 	while (p->tok.type != TRBRACE) {
 		struct node *s = parse_stmt(p);
-		arrput(n->children, s);
+		arrput(n->block.stmts, s);
 		skip_newlines(p);
 	}
 	expect(p, TRBRACE);
@@ -519,7 +518,7 @@ static struct node *parse_func(struct parser *p) {
 	while (p->tok.type != TRBRACE) {
 		struct node *stmt = parse_stmt(p);
 		if (stmt)
-			arrput(f->children, stmt);
+			arrput(f->func.stmts, stmt);
 
 		skip_newlines(p);
 	}
@@ -542,7 +541,7 @@ static struct node *parse_struct(struct parser *p) {
 		expect(p, TIDENT);
 		struct node *typeexpr = parse_typeexpr(p);
 		struct node *field = makevardecl(p, tok, NULL, typeexpr);
-		arrput(s->children, field);
+		arrput(s->struct_.fields, field);
 		skip_newlines(p);
 	}
 	expect(p, TRBRACE);

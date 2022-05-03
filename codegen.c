@@ -222,13 +222,13 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		}
 		// Push parameters in reverse order so that they are in correct order
 		// when popped.
-		for (long i = arrlen(n->children) - 1; i >= 0; i--) {
-			codegen_expr_value(ctx, n->children[i]);
+		for (long i = arrlen(n->call.args) - 1; i >= 0; i--) {
+			codegen_expr_value(ctx, n->call.args[i]);
 		}
 		val_lhs = valstack_make_temp(ctx);
 		emit("    %s =w ", val_lhs.qbe_text);
 		emit("call $%s(", n->lhs->tok.name);
-		for (long i = 0; i < arrlen(n->children); i++) {
+		for (long i = 0; i < arrlen(n->call.args); i++) {
 			val_rhs = arrpop(ctx->valstack.data);
 			emit("w %s, ", val_rhs.qbe_text);
 		}
@@ -310,8 +310,8 @@ void codegen(struct context *ctx, struct node *n) {
 
 	switch (n->kind) {
 	case NFILE:
-		for (int i = 0; i < arrlen(n->children); i++) {
-			codegen(ctx, n->children[i]);
+		for (int i = 0; i < arrlen(n->file.body); i++) {
+			codegen(ctx, n->file.body[i]);
 		}
 		break;
 	case NFUNC:
@@ -334,8 +334,8 @@ void codegen(struct context *ctx, struct node *n) {
 			valstack_push_param(ctx, arg->tok.name);
 		}
 		// body
-		for (int i = 0; i < arrlen(n->children); i++) {
-			codegen(ctx, n->children[i]);
+		for (int i = 0; i < arrlen(n->func.stmts); i++) {
+			codegen(ctx, n->func.stmts[i]);
 		}
 		scope_close(ctx);
 		// TODO: free scope here?

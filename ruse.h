@@ -151,20 +151,32 @@ struct type {
 
 struct node {
 	enum node_kind kind;
-	struct src_loc loc;     // location in source
-	struct token tok;       // name of var or func. etc.
-	int local_id;           // scope-unique decl id for codegen
-	struct scope *scope;	// scope of this function
-	struct node *decl;      // original declaration of this node
-	struct node *parent;    // for memberexpr
-	struct node **args;     // func args/params
+	struct src_loc loc;  // location in source
+	struct token tok;    // name of var or func. etc.
+	int local_id;        // scope-unique decl id for codegen
+	struct scope *scope; // scope of this function
+	struct node *decl;   // original declaration of this node
+	struct node *parent; // for memberexpr
+	struct node **args;  // func args/params
 	union {
 		struct ast_call_expr {
 			struct node **args;
 		} call;
+		struct ast_file {
+			struct node **body;
+		} file;
+		struct block_stmt {
+			struct node **stmts;
+		} block;
+		struct ast_function {
+			struct node **stmts;
+			// TODO
+		} func;
+		struct ast_struct {
+			struct node **fields;
+		} struct_;
 	};
-	struct node **children; // func body, call params, struct fields
-	struct node *typeexpr;  // ast node of type specifier
+	struct node *typeexpr; // ast node of type specifier
 	enum type_kind typekind;
 	struct type *type;        // type of this node.  This being NULL equals the
 	                          // typecheck on this node having failed
