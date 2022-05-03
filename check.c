@@ -351,7 +351,7 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		}
 		if (arrlen(n->call.func->type->params) != arrlen(n->call.args)) {
 			return error(ctx, n->call.func->loc,
-			             "argument mismatch: expected %ld, got %ld",
+			             "wrong number of arguments: expected %ld, got %ld",
 			             arrlen(n->call.func->type->params),
 			             arrlen(n->call.args));
 		}
@@ -368,7 +368,7 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 				         sizeof(expect_buf));
 				typename(n->call.args[i]->type, got_buf, sizeof(got_buf));
 				return error(ctx, n->call.args[i]->loc,
-				             "argument type mismatch: expected %s, got %s",
+				             "wrong type of argument: expected %s, got %s",
 				             expect_buf, got_buf);
 			}
 		}
