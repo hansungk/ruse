@@ -395,27 +395,6 @@ static void check_expr(struct context *ctx, struct node *n) {
 			             n->tok.name, n->parent->type->tok.name);
 		n->type = member_match->type;
 		break;
-	case NTYPEEXPR:
-		assert(!"on its way out");
-		// type expressions are recursive themselves; make sure to recurse down
-		// to instantiate all underlying types
-		// if (n->type_expr.pointee) {
-		// 	check_expr(ctx, n->type_expr.pointee);
-		// 	if (!n->type_expr.pointee->type)
-		// 		return;
-		// }
-		// typeexprname(n, buf, sizeof(buf));
-		// n->type = lookup_type(ctx, buf);
-		// if (!n->type) {
-		// 	if (n->typekind == TYPE_VAL) {
-		// 		return error(ctx, n->loc, "unknown type '%s'", buf);
-		// 	} else {
-		// 		assert(n->typekind == TYPE_POINTER);
-		// 		n->type = makepointertype(n->type_expr.pointee->type, n->tok);
-		// 	}
-		// }
-		// assert(n->type);
-		break;
 	default:
 		assert(!"unknown expr kind");
 	}

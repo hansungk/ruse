@@ -118,8 +118,6 @@ enum node_kind {
 	NCALL,
 	NMEMBER,
 
-	NTYPEEXPR,
-
 	NDECL,
 	NVARDECL = NDECL,
 	NFUNC,
@@ -206,8 +204,9 @@ struct node {
 		struct token tok;
 		struct ast_type_expr *pointee;
 	} *type_expr;
-	struct type *type; // type of this node.  This being NULL equals the
-	                   // typecheck on this node having failed
+	// Type of this node.  If this is NULL that means the typecheck on this
+	// node have failed.
+	struct type *type;
 };
 
 struct error {
