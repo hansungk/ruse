@@ -7,32 +7,33 @@ RS="\033[0m"
 outputfile=/tmp/ruse.out
 outputlinefile=/tmp/ruse.out.lines
 truthlinefile=/tmp/ruse.truth.lines
+difffile=/tmp/ruse.diff
 
 _cleanup() {
     rm -f $outputfile
     rm -f $outputlinefile
     rm -f $truthlinefile
+    rm -f $difffile
 }
 
 _pass() {
-    _cleanup
     echo "${GREEN}PASS${RS} $1"
 }
 
 _fail() {
-    _cleanup
     echo "${RED}FAIL${RS} $1"
 }
 
 _errordiff() {
     grep "error:" /tmp/ruse.out | cut -d':' -f2 >$outputlinefile
     grep -n "// error" $1 | cut -d':' -f1 >$truthlinefile
-    if diff $outputlinefile $truthlinefile
+    if diff $outputlinefile $truthlinefile >$difffile
     then
         _pass "$1"
     else
-        echo "< got, > want"
         _fail "$1"
+        cat $difffile
+        echo "< got, > want"
     fi
 }
 
@@ -53,6 +54,7 @@ _test() {
     else
         _fail "$1"
     fi
+    _cleanup
 }
 
 if ! [ -x "ruse" ]; then
