@@ -134,8 +134,8 @@ static void codegen_expr_value(struct context *ctx, struct node *n);
 static void codegen_expr_addr(struct context *ctx, struct node *n);
 
 static int is_param(const struct node *func, const struct node *var) {
-	for (long i = 0; i < arrlen(func->args); i++) {
-		const struct node *arg = func->args[i];
+	for (long i = 0; i < arrlen(func->func.params); i++) {
+		const struct node *arg = func->func.params[i];
 		if (strcmp(var->tok.name, arg->tok.name) == 0) {
 			return 1;
 		}
@@ -180,8 +180,8 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		}
 		break;
 	case NBINEXPR:
-		codegen_expr_value(ctx, n->lhs);
-		codegen_expr_value(ctx, n->rhs);
+		codegen_expr_value(ctx, n->bin.lhs);
+		codegen_expr_value(ctx, n->bin.rhs);
 		// 'id_rhs' comes first because lhs is pushed to the stack first
 		// during the post-order traversal.
 		assert(arrlen(ctx->valstack.data) >= 2);
@@ -195,7 +195,7 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		valstack_push_temp(ctx, val);
 		break;
 	case NDEREFEXPR:
-		codegen_expr_value(ctx, n->rhs);
+		codegen_expr_value(ctx, n->bin.rhs);
 		// Right now, the target of this derefexpr's value is generated and
 		// pushed onto the stack: i.e. value of 'c' in '*c'.  This is the
 		// memory location of where the decl '*c' sits.  If we want to generate
@@ -214,10 +214,10 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		}
 		break;
 	case NREFEXPR:
-		codegen_expr_addr(ctx, n->rhs);
+		codegen_expr_addr(ctx, n->ref.target);
 		break;
 	case NCALL:
-		if (!n->lhs->type->rettype) {
+		if (!n->call.func->type->rettype) {
 			assert(!"func without return value not implemented");
 		}
 		// Push parameters in reverse order so that they are in correct order
@@ -227,7 +227,7 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		}
 		val_lhs = valstack_make_temp(ctx);
 		emit("    %s =w ", val_lhs.qbe_text);
-		emit("call $%s(", n->lhs->tok.name);
+		emit("call $%s(", n->call.func->tok.name);
 		for (long i = 0; i < arrlen(n->call.args); i++) {
 			val_rhs = arrpop(ctx->valstack.data);
 			emit("w %s, ", val_rhs.qbe_text);
@@ -260,7 +260,7 @@ static void codegen_decl(struct context *ctx, struct node *n) {
 		// FIXME: is it better to assign decl_id here or in check?
 		n->local_id = ctx->curr_decl_id++;
 		emit("    %%A%d =l alloc4 4\n", n->local_id);
-		codegen(ctx, n->rhs);
+		codegen(ctx, n->var_decl.init_expr);
 		assert(arrlen(ctx->valstack.data) > 0);
 		val = arrpop(ctx->valstack.data);
 		// TODO: proper datasize handling
@@ -282,11 +282,11 @@ static void codegen_stmt(struct context *ctx, struct node *n) {
 
 	switch (n->kind) {
 	case NEXPRSTMT:
-		codegen_expr_value(ctx, n->rhs);
+		codegen_expr_value(ctx, n->expr_stmt.expr);
 		break;
 	case NASSIGN:
-		codegen_expr_value(ctx, n->rhs);
-		codegen_expr_addr(ctx, n->lhs);
+		codegen_expr_value(ctx, n->assign_expr.init_expr);
+		codegen_expr_addr(ctx, n->assign_expr.lhs);
 		val_lhs = arrpop(ctx->valstack.data);
 		val_rhs = arrpop(ctx->valstack.data);
 		if (val_rhs.data_size == 8) {
@@ -297,7 +297,7 @@ static void codegen_stmt(struct context *ctx, struct node *n) {
 		emit(" %s, %s\n", qbe_val_name(&val_rhs), qbe_val_name(&val_lhs));
 		break;
 	case NRETURN:
-		codegen(ctx, n->rhs);
+		codegen(ctx, n->return_expr.expr);
 		emit("    ret %s\n", arrpop(ctx->valstack.data).qbe_text);
 		break;
 	default:
@@ -316,11 +316,11 @@ void codegen(struct context *ctx, struct node *n) {
 		break;
 	case NFUNC:
 		emit("export function w $%s(", n->tok.name);
-		for (int i = 0; i < arrlen(n->args); i++) {
+		for (int i = 0; i < arrlen(n->func.params); i++) {
 			if (i > 0) {
 				emit(", ");
 			}
-			const struct node *arg = n->args[i];
+			const struct node *arg = n->func.params[i];
 			emit("w %%%s", arg->tok.name);
 		}
 		emit(") {\n");
@@ -329,8 +329,8 @@ void codegen(struct context *ctx, struct node *n) {
 		assert(n->scope);
 		scope_open_with(ctx, n->scope);
 		// generate stores of args to stack
-		for (int i = 0; i < arrlen(n->args); i++) {
-			const struct node *arg = n->args[i];
+		for (int i = 0; i < arrlen(n->func.params); i++) {
+			const struct node *arg = n->func.params[i];
 			valstack_push_param(ctx, arg->tok.name);
 		}
 		// body

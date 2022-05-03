@@ -78,6 +78,7 @@ static char *typeexprname(const struct node *typeexpr, char *buf,
 	char *cur = NULL;
 	size_t curlen = 0;
 
+	assert(typeexpr);
 	switch (typeexpr->typekind) {
 	case TYPE_VAL:
 		strncpy(buf, typeexpr->tok.name, buflen - 1);
@@ -87,7 +88,7 @@ static char *typeexprname(const struct node *typeexpr, char *buf,
 		wlen = snprintf(buf, buflen, "*");
 		curlen = buflen - wlen;
 		cur = buf + wlen;
-		typeexprname(typeexpr->rhs, cur, curlen);
+		typeexprname(typeexpr->type_expr.pointee, cur, curlen);
 		break;
 	case TYPE_FUNC:
 		assert(!"unimplemented");
@@ -279,62 +280,63 @@ static void check_expr(struct context *ctx, struct node *n) {
 		n->type = decl->type;
 		break;
 	case NBINEXPR:
-		check_expr(ctx, n->lhs);
-		check_expr(ctx, n->rhs);
-		if (!n->lhs->type || !n->rhs->type)
+		check_expr(ctx, n->bin.lhs);
+		check_expr(ctx, n->bin.rhs);
+		if (!n->bin.lhs->type || !n->bin.rhs->type)
 			return;
 		// TODO: proper type compatibility check
-		if (n->lhs->type != n->rhs->type)
+		if (n->bin.lhs->type != n->bin.rhs->type)
 			return error(ctx, n->tok.loc,
 			             "incompatible types for binary operation");
-		n->type = n->lhs->type;
+		n->type = n->bin.lhs->type;
 		break;
 	case NDEREFEXPR:
-		check_expr(ctx, n->rhs);
-		if (!n->rhs->type)
+		check_expr(ctx, n->deref.target);
+		if (!n->deref.target->type)
 			return;
 		// FIXME: This way every (*c) will generate a new decl.
 		// Declare itself.  Don't put this in the symbol map as we don't need
 		// these temporary decls to be referrable by any specific name.
 		n->decl = n;
-		if (n->rhs->type->kind != TYPE_POINTER)
+		if (n->deref.target->type->kind != TYPE_POINTER)
 			return error(ctx, n->loc, "cannot dereference a non-pointer");
-		n->type = n->rhs->type->target;
+		n->type = n->deref.target->type->target;
 		break;
 	case NREFEXPR:
-		check_expr(ctx, n->rhs);
-		if (!n->rhs->type)
+		check_expr(ctx, n->ref.target);
+		if (!n->ref.target->type)
 			return;
 		// lvalue check
-		if (!n->rhs->decl)
+		if (!n->ref.target->decl)
 			return error(ctx, n->loc, "cannot take reference of a non-lvalue");
-		n->type = makepointertype(n->rhs->type, n->tok);
+		n->type = makepointertype(n->ref.target->type, n->tok);
 		break;
 	case NCALL:
-		// callee name is a node (n->lhs), not a token!
-		check_expr(ctx, n->lhs);
-		if (!n->lhs->type) {
+		// callee name is a node (n->call.func), not a token!
+		check_expr(ctx, n->call.func);
+		if (!n->call.func->type) {
 			return;
 		}
-		if (n->lhs->type->kind != TYPE_FUNC) {
-			tokenstr(ctx->src->buf, n->lhs->tok, buf, sizeof(buf));
-			return error(ctx, n->lhs->loc, "'%s' is not a function", buf);
+		if (n->call.func->type->kind != TYPE_FUNC) {
+			tokenstr(ctx->src->buf, n->call.func->tok, buf, sizeof(buf));
+			return error(ctx, n->call.func->loc, "'%s' is not a function", buf);
 		}
-		if (arrlen(n->lhs->type->params) != arrlen(n->call.args)) {
-			return error(ctx, n->lhs->loc,
+		if (arrlen(n->call.func->type->params) != arrlen(n->call.args)) {
+			return error(ctx, n->call.func->loc,
 			             "argument mismatch: expected %ld, got %ld",
-			             arrlen(n->lhs->type->params), arrlen(n->call.args));
+			             arrlen(n->call.func->type->params),
+			             arrlen(n->call.args));
 		}
 		for (long i = 0; i < arrlen(n->call.args); i++) {
 			check_expr(ctx, n->call.args[i]);
 			if (!n->call.args[i]->type)
 				break;
-			assert(n->lhs->type->params[i]->type);
+			assert(n->call.func->type->params[i]->type);
 			// TODO: proper type compatibility check
-			if (n->call.args[i]->type != n->lhs->type->params[i]->type) {
+			if (n->call.args[i]->type != n->call.func->type->params[i]->type) {
 				char expect_buf[TOKLEN];
 				char got_buf[TOKLEN];
-				typename(n->lhs->type->params[i]->type, expect_buf,
+				typename(n->call.func->type->params[i]->type, expect_buf,
 				         sizeof(expect_buf));
 				typename(n->call.args[i]->type, got_buf, sizeof(got_buf));
 				return error(ctx, n->call.args[i]->loc,
@@ -342,7 +344,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 				             expect_buf, got_buf);
 			}
 		}
-		n->type = n->lhs->type->rettype;
+		n->type = n->call.func->type->rettype;
 		break;
 	case NMEMBER:
 		check_expr(ctx, n->parent);
@@ -366,9 +368,9 @@ static void check_expr(struct context *ctx, struct node *n) {
 	case NTYPEEXPR:
 		// type expressions are recursive themselves; make sure to recurse down
 		// to instantiate all underlying types
-		if (n->rhs) {
-			check_expr(ctx, n->rhs);
-			if (!n->rhs->type)
+		if (n->type_expr.pointee) {
+			check_expr(ctx, n->type_expr.pointee);
+			if (!n->type_expr.pointee->type)
 				return;
 		}
 		typeexprname(n, buf, sizeof(buf));
@@ -378,7 +380,7 @@ static void check_expr(struct context *ctx, struct node *n) {
 				return error(ctx, n->loc, "unknown type '%s'", buf);
 			} else {
 				assert(n->typekind == TYPE_POINTER);
-				n->type = makepointertype(n->rhs->type, n->tok);
+				n->type = makepointertype(n->type_expr.pointee->type, n->tok);
 			}
 		}
 		assert(n->type);
@@ -405,12 +407,12 @@ static void check_decl(struct context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NVARDECL:
 		// var decl has an init expression, ex. var i = 4
-		if (n->rhs) {
-			check_expr(ctx, n->rhs);
-			if (!n->rhs->type) {
+		if (n->var_decl.init_expr) {
+			check_expr(ctx, n->var_decl.init_expr);
+			if (!n->var_decl.init_expr->type) {
 				return;
             }
-			n->type = n->rhs->type;
+			n->type = n->var_decl.init_expr->type;
 		}
 		// var decl has a type specifier, ex. var i: int
 		if (n->typeexpr) {
@@ -419,17 +421,18 @@ static void check_decl(struct context *ctx, struct node *n) {
 				return;
 			n->type = n->typeexpr->type;
 		}
-		if (n->typeexpr && n->rhs) {
+		if (n->typeexpr && n->var_decl.init_expr) {
 			// if both type and init expr is specified, check assignability
-			if (!check_assignment(ctx, n, n->rhs))
+			if (!check_assignment(ctx, n, n->var_decl.init_expr))
 				return;
 		}
 		// only declare after the whole thing succeeds typecheck
 		// FIXME: This is a little awkward because original declarations would
 		// have 'n == n->decl'.  Or is this a good thing?  Maybe make a
 		// separate Decl struct?
-		if (!(n->decl = declare(ctx, n)))
+		if (!(n->decl = declare(ctx, n))) {
 			return;
+		}
 		assert(n->type);
 		break;
 	case NFUNC:
@@ -437,23 +440,23 @@ static void check_decl(struct context *ctx, struct node *n) {
 			return;
 		n->type = maketype(TYPE_FUNC, n->tok);
 		// !n->rettypeexpr is possible for void return type
-		if (n->rettypeexpr) {
+		if (n->func.rettypeexpr) {
 			n->type->rettype =
-			    lookup_type(ctx, n->rettypeexpr->tok.name);
+			    lookup_type(ctx, n->func.rettypeexpr->tok.name);
 			if (!n->type->rettype)
-				return error(ctx, n->rettypeexpr->loc, "unknown type '%s'",
-				             n->rettypeexpr->tok.name);
+				return error(ctx, n->func.rettypeexpr->loc, "unknown type '%s'",
+				             n->func.rettypeexpr->tok.name);
 		}
 
 		scope_open(ctx);
 		n->scope = ctx->scope;
 		ctx->scope->decl = n;
 		// declare parameters
-		for (long i = 0; i < arrlen(n->args); i++) {
-			assert(n->args[i]->kind == NVARDECL);
-			check(ctx, n->args[i]);
-			if (n->args[i]->type) {
-				arrput(n->type->params, n->args[i]);
+		for (long i = 0; i < arrlen(n->func.params); i++) {
+			assert(n->func.params[i]->kind == NVARDECL);
+			check(ctx, n->func.params[i]);
+			if (n->func.params[i]->type) {
+				arrput(n->type->params, n->func.params[i]);
 			} else {
 				assert(!"FIXME: what now?");
 			}
@@ -486,16 +489,18 @@ static void check_decl(struct context *ctx, struct node *n) {
 static void check_stmt(struct context *ctx, struct node *n) {
 	switch (n->kind) {
 	case NEXPRSTMT:
-		check_expr(ctx, n->rhs);
+		check_expr(ctx, n->expr_stmt.expr);
 		break;
-	case NASSIGN:
-		check_expr(ctx, n->rhs);
-		check_expr(ctx, n->lhs);
-		if (!n->lhs->type || !n->rhs->type)
+	case NASSIGN: {
+		struct ast_assign_expr assign = n->assign_expr;
+		check_expr(ctx, assign.init_expr);
+		check_expr(ctx, assign.lhs);
+		if (!assign.lhs->type || !assign.init_expr->type)
 			return;
-		if (!check_assignment(ctx, n->lhs, n->rhs))
+		if (!check_assignment(ctx, assign.lhs, assign.init_expr))
 			return;
 		break;
+	}
 	case NBLOCKSTMT:
 		scope_open(ctx);
 		for (long i = 0; i < arrlen(n->block.stmts); i++) {
@@ -504,8 +509,8 @@ static void check_stmt(struct context *ctx, struct node *n) {
 		scope_close(ctx);
 		break;
 	case NRETURN:
-		check_expr(ctx, n->rhs);
-		if (!n->rhs->type)
+		check_expr(ctx, n->return_expr.expr);
+		if (!n->return_expr.expr->type)
 			return;
 		break;
 	default:

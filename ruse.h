@@ -157,9 +157,9 @@ struct node {
 	struct scope *scope; // scope of this function
 	struct node *decl;   // original declaration of this node
 	struct node *parent; // for memberexpr
-	struct node **args;  // func args/params
 	union {
 		struct ast_call_expr {
+			struct node *func;
 			struct node **args;
 		} call;
 		struct ast_file {
@@ -169,20 +169,44 @@ struct node {
 			struct node **stmts;
 		} block;
 		struct ast_function {
+			struct node **params;
 			struct node **stmts;
-			// TODO
+			struct node *rettypeexpr; // TODO: merge with typeexpr
 		} func;
 		struct ast_struct {
 			struct node **fields;
 		} struct_;
+		struct ast_bin_expr {
+			struct node *lhs;
+			struct node *rhs;
+		} bin;
+		struct ast_ref_expr {
+			struct node *target;
+		} ref;
+		struct ast_deref_expr {
+			struct node *target;
+		} deref;
+		struct ast_assign_expr {
+			struct node *lhs;
+			struct node *init_expr;
+		} assign_expr;
+		struct ast_return_expr {
+			struct node *expr;
+		} return_expr;
+		struct ast_var_decl {
+			struct node *init_expr;
+		} var_decl;
+		struct ast_expr_stmt {
+			struct node *expr;
+		} expr_stmt;
+		struct ast_type_expr {
+			struct node *pointee;
+		} type_expr;
 	};
 	struct node *typeexpr; // ast node of type specifier
 	enum type_kind typekind;
 	struct type *type;        // type of this node.  This being NULL equals the
 	                          // typecheck on this node having failed
-	struct node *lhs;         // func name in callexpr
-	struct node *rhs;         // ref, assign expr, typeexpr
-	struct node *rettypeexpr; // TODO: merge with typeexpr
 };
 
 struct error {

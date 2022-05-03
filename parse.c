@@ -46,30 +46,30 @@ static struct node *makestruct(struct parser *p, struct token name) {
 static struct node *makebinexpr(struct parser *p, struct node *lhs,
                                 struct token op, struct node *rhs) {
 	struct node *n = makenode(p, NBINEXPR, op.loc);
-	n->lhs = lhs;
-	n->rhs = rhs;
+	n->bin.lhs = lhs;
+	n->bin.rhs = rhs;
 	n->tok = op;
 	return n;
 }
 
-static struct node *makederefexpr(struct parser *p, struct node *rhs,
+static struct node *makederefexpr(struct parser *p, struct node *target,
                                   struct token star) {
 	struct node *n = makenode(p, NDEREFEXPR, star.loc);
-	n->rhs = rhs;
+	n->deref.target = target;
 	return n;
 }
 
-static struct node *makerefexpr(struct parser *p, struct node *rhs,
+static struct node *makerefexpr(struct parser *p, struct node *target,
                                 struct token amp) {
 	struct node *n = makenode(p, NREFEXPR, amp.loc);
-	n->rhs = rhs;
+	n->ref.target = target;
 	return n;
 }
 
-static struct node *makecall(struct parser *p, struct node *lhs,
+static struct node *makecall(struct parser *p, struct node *func,
                              struct node **args) {
-	struct node *n = makenode(p, NCALL, lhs->loc);
-	n->lhs = lhs;
+	struct node *n = makenode(p, NCALL, func->loc);
+	n->call.func = func;
 	assert(!n->call.args);
 	n->call.args = args;
 	return n;
@@ -93,31 +93,31 @@ static struct node *maketypeexpr(struct parser *p, enum type_kind kind,
 }
 
 static struct node *makevardecl(struct parser *p, struct token name,
-                                struct node *initexpr, struct node *typeexpr) {
+                                struct node *init_expr, struct node *typeexpr) {
 	struct node *n = makenode(p, NVARDECL, name.loc);
 	n->tok = name;
-	n->rhs = initexpr;
+	n->var_decl.init_expr = init_expr;
 	n->typeexpr = typeexpr;
 	return n;
 }
 
 static struct node *makereturn(struct parser *p, struct node *rhs) {
 	struct node *n = makenode(p, NRETURN, rhs->loc);
-	n->rhs = rhs;
+	n->return_expr.expr = rhs;
 	return n;
 }
 
 static struct node *makeexprstmt(struct parser *p, struct node *rhs) {
 	struct node *n = makenode(p, NEXPRSTMT, rhs->loc);
-	n->rhs = rhs;
+	n->expr_stmt.expr = rhs;
 	return n;
 }
 
 static struct node *makeassign(struct parser *p, struct node *lhs,
                                struct node *rhs) {
 	struct node *n = makenode(p, NASSIGN, lhs->loc);
-	n->lhs = lhs;
-	n->rhs = rhs;
+	n->assign_expr.lhs = lhs;
+	n->assign_expr.init_expr = rhs;
 	return n;
 }
 
@@ -479,7 +479,7 @@ static struct node *parse_typeexpr(struct parser *p) {
 		expect(p, TSTAR);
 		struct node *pointee = parse_typeexpr(p);
 		struct node *n = maketypeexpr(p, TYPE_POINTER, tok);
-		n->rhs = pointee;
+		n->type_expr.pointee = pointee;
 		return n;
 	} else {
 		assert(!"unimplemented");
@@ -499,7 +499,7 @@ static struct node *parse_func(struct parser *p) {
 		struct token tok = p->tok;
 		expect(p, TIDENT);
 		struct node *typeexpr = parse_typeexpr(p);
-		arrput(f->args, makevardecl(p, tok, NULL, typeexpr));
+		arrput(f->func.params, makevardecl(p, tok, NULL, typeexpr));
 		if (p->tok.type != TRPAREN) {
 			if (!expect(p, TCOMMA))
 				// recover error
@@ -509,8 +509,9 @@ static struct node *parse_func(struct parser *p) {
 	expect(p, TRPAREN);
 
 	// return type
-	if (p->tok.type != TLBRACE)
-		f->rettypeexpr = parse_typeexpr(p);
+	if (p->tok.type != TLBRACE) {
+		f->func.rettypeexpr = parse_typeexpr(p);
+	}
 
 	// body
 	expect(p, TLBRACE);
