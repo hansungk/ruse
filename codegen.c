@@ -150,6 +150,7 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 	char buf[TOKLEN]; // FIXME: stack usage
 	struct qbe_val val, val_lhs, val_rhs;
 
+	assert(n);
 	switch (n->kind) {
 	case NLITERAL:
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
@@ -195,7 +196,7 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 		valstack_push_temp(ctx, val);
 		break;
 	case NDEREFEXPR:
-		codegen_expr_value(ctx, n->bin.rhs);
+		codegen_expr_value(ctx, n->deref.target);
 		// Right now, the target of this derefexpr's value is generated and
 		// pushed onto the stack: i.e. value of 'c' in '*c'.  This is the
 		// memory location of where the decl '*c' sits.  If we want to generate

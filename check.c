@@ -281,7 +281,6 @@ static struct type *resolve_type_expr(struct context *ctx,
 	typeexprname(type_expr, buf, sizeof(buf));
 	type = lookup_type(ctx, buf);
 	if (!type) {
-		printf("typekind was: %d\n", type_expr->typekind);
 		assert(type_expr->typekind == TYPE_VAL);
 		error(ctx, type_expr->loc, "unknown type '%s'", buf);
 		return NULL;
@@ -428,7 +427,6 @@ static void check_decl(struct context *ctx, struct node *n) {
 		if (n->type_expr) {
 			n->type = resolve_type_expr(ctx, n->type_expr);
 			if (!n->type) {
-				printf("resolve_type_expr failed at line %d\n", n->loc.line);
 				return;
 			}
 		}

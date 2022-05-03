@@ -11,7 +11,6 @@ $ ./ruse
 
 ## todo
 
-* use unions rather than n->children and n->lhs for callexpr
 * type instantiation
 * gen func and if
 * strlcpy
