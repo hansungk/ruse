@@ -23,7 +23,7 @@ void fatal(const char *fmt, ...) {
 }
 
 struct type *maketype(enum type_kind kind, struct token tok) {
-	struct type *t = calloc(1, sizeof(struct node));
+	struct type *t = calloc(1, sizeof(struct ast_node));
 	if (!t) {
 		fprintf(stderr, "alloc error\n");
 		exit(1);
@@ -122,8 +122,8 @@ static void error(struct context *ctx, struct src_loc loc, const char *fmt,
 int do_errors(const struct error *errors) {
 	for (long i = 0; i < arrlen(errors); i++) {
 		struct error e = errors[i];
-		fprintf(stderr, "%s:%d:%d: error: %s\n", e.loc.filename,
-		        e.loc.line, e.loc.col, e.msg);
+		fprintf(stderr, "%s:%d:%d: error: %s\n", e.loc.filename, e.loc.line,
+		        e.loc.col, e.msg);
 	}
 	return arrlen(errors) == 0;
 }
@@ -194,7 +194,7 @@ void scope_close(struct context *ctx) {
 }
 
 // Declare 'n' in the current scope.  'n' can be a variable or a function.
-static struct node *declare(struct context *ctx, struct node *n) {
+static struct ast_node *declare(struct context *ctx, struct ast_node *n) {
 	if (!mapput(&ctx->scope->map, n->tok.name, n)) {
 		char buf[TOKLEN];
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
@@ -207,10 +207,10 @@ static struct node *declare(struct context *ctx, struct node *n) {
 
 // Finds the declaration node that first declared the variable referenced by
 // 'n'.
-struct node *lookup(struct context *ctx, const struct node *n) {
+struct ast_node *lookup(struct context *ctx, const struct ast_node *n) {
 	struct scope *s = ctx->scope;
 	while (s) {
-		struct node *found = mapget(&s->map, n->tok.name);
+		struct ast_node *found = mapget(&s->map, n->tok.name);
 		if (found)
 			return found;
 		s = s->outer;
@@ -271,8 +271,7 @@ static struct type *resolve_type_expr(struct context *ctx,
 	// to instantiate all underlying types
 	if (type_expr->pointee) {
 		assert(type_expr->typekind == TYPE_POINTER);
-		struct type *pointee_type =
-		    resolve_type_expr(ctx, type_expr->pointee);
+		struct type *pointee_type = resolve_type_expr(ctx, type_expr->pointee);
 		if (!pointee_type) {
 			return NULL;
 		}
@@ -289,9 +288,9 @@ static struct type *resolve_type_expr(struct context *ctx,
 	return type;
 }
 
-static void check_expr(struct context *ctx, struct node *n) {
+static void check_expr(struct context *ctx, struct ast_node *n) {
 	char buf[TOKLEN];
-	struct node *decl = NULL;
+	struct ast_node *decl = NULL;
 
 	assert(n);
 	tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
@@ -381,9 +380,9 @@ static void check_expr(struct context *ctx, struct node *n) {
 			return;
 		if (!arrlen(n->parent->type->members))
 			return error(ctx, n->loc, "member access to a non-struct");
-		const struct node *member_match = NULL;
+		const struct ast_node *member_match = NULL;
 		for (long i = 0; i < arrlen(n->parent->type->members); i++) {
-			const struct node *m = n->parent->type->members[i];
+			const struct ast_node *m = n->parent->type->members[i];
 			if (strcmp(m->tok.name, n->tok.name) == 0) {
 				member_match = m;
 				break;
@@ -400,19 +399,18 @@ static void check_expr(struct context *ctx, struct node *n) {
 	assert(n->type);
 }
 
-static int check_assignment(struct context *ctx, struct node *asignee,
-                             struct node *expr) {
+static int check_assignment(struct context *ctx, struct ast_node *asignee,
+                            struct ast_node *expr) {
 	// TODO: proper type compatibility check
 	assert(asignee->type && expr->type);
 	if (asignee->type != expr->type) {
-		error(ctx, asignee->tok.loc,
-		             "cannot assign to an incompatible type");
+		error(ctx, asignee->tok.loc, "cannot assign to an incompatible type");
 		return 0;
 	}
 	return 1;
 }
 
-static void check_decl(struct context *ctx, struct node *n) {
+static void check_decl(struct context *ctx, struct ast_node *n) {
 	switch (n->kind) {
 	case NVARDECL:
 		// var decl has an init expression, ex. var i = 4
@@ -451,10 +449,10 @@ static void check_decl(struct context *ctx, struct node *n) {
 		n->type = maketype(TYPE_FUNC, n->tok);
 		// !n->rettypeexpr is possible for void return type
 		if (n->func.ret_type_expr) {
-			n->type->rettype =
-			    resolve_type_expr(ctx, n->func.ret_type_expr);
+			n->type->rettype = resolve_type_expr(ctx, n->func.ret_type_expr);
 			if (!n->type->rettype)
-				return error(ctx, n->func.ret_type_expr->loc, "unknown type '%s'",
+				return error(ctx, n->func.ret_type_expr->loc,
+				             "unknown type '%s'",
 				             n->func.ret_type_expr->tok.name);
 		}
 
@@ -484,7 +482,7 @@ static void check_decl(struct context *ctx, struct node *n) {
 		push_type(ctx, n->type);
 		// fields
 		for (long i = 0; i < arrlen(n->struct_.fields); i++) {
-			struct node *child = n->struct_.fields[i];
+			struct ast_node *child = n->struct_.fields[i];
 			check_decl(ctx, child);
 			assert(child->decl);
 			arrput(n->type->members, child);
@@ -496,7 +494,7 @@ static void check_decl(struct context *ctx, struct node *n) {
 	}
 }
 
-static void check_stmt(struct context *ctx, struct node *n) {
+static void check_stmt(struct context *ctx, struct ast_node *n) {
 	switch (n->kind) {
 	case NEXPRSTMT:
 		check_expr(ctx, n->expr_stmt.expr);
@@ -528,7 +526,7 @@ static void check_stmt(struct context *ctx, struct node *n) {
 	}
 }
 
-void check(struct context *ctx, struct node *n) {
+void check(struct context *ctx, struct ast_node *n) {
 	switch (n->kind) {
 	case NFILE:
 		for (long i = 0; i < arrlen(n->file.body); i++) {

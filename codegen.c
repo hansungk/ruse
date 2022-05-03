@@ -130,12 +130,12 @@ static void valstack_push_addr(struct context *ctx, int addr_id) {
 	arrput(ctx->valstack.data, v);
 }
 
-static void codegen_expr_value(struct context *ctx, struct node *n);
-static void codegen_expr_addr(struct context *ctx, struct node *n);
+static void codegen_expr_value(struct context *ctx, struct ast_node *n);
+static void codegen_expr_addr(struct context *ctx, struct ast_node *n);
 
-static int is_param(const struct node *func, const struct node *var) {
+static int is_param(const struct ast_node *func, const struct ast_node *var) {
 	for (long i = 0; i < arrlen(func->func.params); i++) {
-		const struct node *arg = func->func.params[i];
+		const struct ast_node *arg = func->func.params[i];
 		if (strcmp(var->tok.name, arg->tok.name) == 0) {
 			return 1;
 		}
@@ -146,7 +146,7 @@ static int is_param(const struct node *func, const struct node *var) {
 // 'value' is whether codegen_expr() has to generate the actual value of the
 // expression and put it on the valstack.  If its value is 0, only the address
 // of the expression (which has to be lvalue) will be put on the valstack.
-static void codegen_expr(struct context *ctx, struct node *n, int value) {
+static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 	char buf[TOKLEN]; // FIXME: stack usage
 	struct qbe_val val, val_lhs, val_rhs;
 
@@ -242,15 +242,15 @@ static void codegen_expr(struct context *ctx, struct node *n, int value) {
 	}
 }
 
-static void codegen_expr_value(struct context *ctx, struct node *n) {
+static void codegen_expr_value(struct context *ctx, struct ast_node *n) {
 	codegen_expr(ctx, n, 1);
 }
 
-static void codegen_expr_addr(struct context *ctx, struct node *n) {
+static void codegen_expr_addr(struct context *ctx, struct ast_node *n) {
 	codegen_expr(ctx, n, 0);
 }
 
-static void codegen_decl(struct context *ctx, struct node *n) {
+static void codegen_decl(struct context *ctx, struct ast_node *n) {
 	char buf[TOKLEN];
 	struct qbe_val val;
 
@@ -278,7 +278,7 @@ static void codegen_decl(struct context *ctx, struct node *n) {
 	}
 }
 
-static void codegen_stmt(struct context *ctx, struct node *n) {
+static void codegen_stmt(struct context *ctx, struct ast_node *n) {
 	struct qbe_val val_lhs, val_rhs;
 
 	switch (n->kind) {
@@ -306,7 +306,7 @@ static void codegen_stmt(struct context *ctx, struct node *n) {
 	}
 }
 
-void codegen(struct context *ctx, struct node *n) {
+void codegen(struct context *ctx, struct ast_node *n) {
 	assert(n);
 
 	switch (n->kind) {
@@ -321,7 +321,7 @@ void codegen(struct context *ctx, struct node *n) {
 			if (i > 0) {
 				emit(", ");
 			}
-			const struct node *arg = n->func.params[i];
+			const struct ast_node *arg = n->func.params[i];
 			emit("w %%%s", arg->tok.name);
 		}
 		emit(") {\n");
@@ -331,7 +331,7 @@ void codegen(struct context *ctx, struct node *n) {
 		scope_open_with(ctx, n->scope);
 		// generate stores of args to stack
 		for (int i = 0; i < arrlen(n->func.params); i++) {
-			const struct node *arg = n->func.params[i];
+			const struct ast_node *arg = n->func.params[i];
 			valstack_push_param(ctx, arg->tok.name);
 		}
 		// body

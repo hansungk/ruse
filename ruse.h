@@ -140,62 +140,62 @@ struct type {
 	enum type_kind kind;
 	struct token tok; // name of the type (for value types)
 	                  // TODO: swap this out with a char *n
-	struct node **params;
-	struct node **members;
+	struct ast_node **params;
+	struct ast_node **members;
 	struct type *target; // referred type
 	struct type *rettype;
 	size_t size; // memory size in bytes
 };
 
-struct node {
+struct ast_node {
 	enum node_kind kind;
-	struct src_loc loc;  // location in source
-	struct token tok;    // name of var or func. etc.
-	int local_id;        // scope-unique decl id for codegen
-	struct scope *scope; // scope of this function
-	struct node *decl;   // original declaration of this node
-	struct node *parent; // for memberexpr
+	struct src_loc loc;      // location in source
+	struct token tok;        // name of var or func. etc.
+	int local_id;            // scope-unique decl id for codegen
+	struct scope *scope;     // scope of this function
+	struct ast_node *decl;   // original declaration of this node
+	struct ast_node *parent; // for memberexpr
 	union {
 		struct ast_call_expr {
-			struct node *func;
-			struct node **args;
+			struct ast_node *func;
+			struct ast_node **args;
 		} call;
 		struct ast_file {
-			struct node **body;
+			struct ast_node **body;
 		} file;
 		struct block_stmt {
-			struct node **stmts;
+			struct ast_node **stmts;
 		} block;
 		struct ast_function {
-			struct node **params;
-			struct node **stmts;
+			struct ast_node **params;
+			struct ast_node **stmts;
 			struct ast_type_expr *ret_type_expr;
 		} func;
 		struct ast_struct {
-			struct node **fields;
+			struct ast_node **fields;
 		} struct_;
 		struct ast_bin_expr {
-			struct node *lhs;
-			struct node *rhs;
+			struct ast_node *lhs;
+			struct ast_node *rhs;
 		} bin;
 		struct ast_ref_expr {
-			struct node *target;
+			struct ast_node *target;
 		} ref;
 		struct ast_deref_expr {
-			struct node *target;
+			struct ast_node *target;
 		} deref;
 		struct ast_assign_expr {
-			struct node *lhs;
-			struct node *init_expr;
+			struct ast_node *lhs;
+			struct ast_node *init_expr;
 		} assign_expr;
 		struct ast_return_expr {
-			struct node *expr;
+			struct ast_node *expr;
 		} return_expr;
 		struct ast_var_decl {
-			struct node *init_expr;
+			struct ast_node *init_expr;
 		} var_decl;
 		struct ast_expr_stmt {
-			struct node *expr;
+			struct ast_node *expr;
 		} expr_stmt;
 	};
 	struct ast_type_expr {
@@ -203,7 +203,7 @@ struct node {
 		enum type_kind typekind;
 		struct token tok;
 		struct ast_type_expr *pointee;
-	} *type_expr;
+	} * type_expr;
 	// Type of this node.  If this is NULL that means the typecheck on this
 	// node have failed.
 	struct type *type;
@@ -216,17 +216,17 @@ struct error {
 
 // struct source text = ['tok' 'lookahead...' ...unlexed...]
 struct parser {
-	struct lexer l;                  // lexer driven by this parser
-	struct token tok;                // current token
-	struct token *lookahead;         // lookahead tokens
-	struct error *errors;            // parse errors
-	struct node **nodeptrbuf; // pointers to the allocated nodes
+	struct lexer l;               // lexer driven by this parser
+	struct token tok;             // current token
+	struct token *lookahead;      // lookahead tokens
+	struct error *errors;         // parse errors
+	struct ast_node **nodeptrbuf; // pointers to the allocated nodes
 };
 
 void parser_from_file(struct parser *p, const char *filename);
 void parser_from_buf(struct parser *p, const char *buf, size_t len);
 void parser_cleanup(struct parser *p);
-struct node *parse(struct parser *p);
+struct ast_node *parse(struct parser *p);
 
 struct map {
 	size_t bucketlen;
@@ -252,7 +252,7 @@ struct scope {
 	struct map map;
 	struct scope *outer;
 	// The decl that defines this scope, e.g. function, struct, etc.
-	struct node *decl;
+	struct ast_node *decl;
 };
 
 #define VHLEN 10
@@ -290,10 +290,10 @@ void scope_close(struct context *ctx);
 struct type *maketype(enum type_kind kind, struct token tok);
 void context_init(struct context *ctx, struct parser *p);
 void context_free(struct context *ctx);
-struct node *lookup(struct context *ctx, const struct node *n);
-void check(struct context *ctx, struct node *n);
+struct ast_node *lookup(struct context *ctx, const struct ast_node *n);
+void check(struct context *ctx, struct ast_node *n);
 int do_errors(const struct error *errors);
 
-void codegen(struct context *ctx, struct node *n);
+void codegen(struct context *ctx, struct ast_node *n);
 
 #endif

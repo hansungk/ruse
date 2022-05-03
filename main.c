@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
 
 	struct parser p;
 	parser_from_file(&p, argv[1]);
-	struct node *n = parse(&p);
+	struct ast_node *n = parse(&p);
 
 	struct context ctx;
 	context_init(&ctx, &p);

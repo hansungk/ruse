@@ -11,7 +11,6 @@ $ ./ruse
 
 ## todo
 
-* type instantiation
 * gen func and if
 * strlcpy
 * cleaner emit of loads and stores
