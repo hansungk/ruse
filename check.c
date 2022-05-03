@@ -320,24 +320,24 @@ static void check_expr(struct context *ctx, struct node *n) {
 			tokenstr(ctx->src->buf, n->lhs->tok, buf, sizeof(buf));
 			return error(ctx, n->lhs->loc, "'%s' is not a function", buf);
 		}
-		if (arrlen(n->lhs->type->params) != arrlen(n->children)) {
+		if (arrlen(n->lhs->type->params) != arrlen(n->call.args)) {
 			return error(ctx, n->lhs->loc,
 			             "argument mismatch: expected %ld, got %ld",
-			             arrlen(n->lhs->type->params), arrlen(n->children));
+			             arrlen(n->lhs->type->params), arrlen(n->call.args));
 		}
-		for (long i = 0; i < arrlen(n->children); i++) {
-			check_expr(ctx, n->children[i]);
-			if (!n->children[i]->type)
+		for (long i = 0; i < arrlen(n->call.args); i++) {
+			check_expr(ctx, n->call.args[i]);
+			if (!n->call.args[i]->type)
 				break;
 			assert(n->lhs->type->params[i]->type);
 			// TODO: proper type compatibility check
-			if (n->children[i]->type != n->lhs->type->params[i]->type) {
+			if (n->call.args[i]->type != n->lhs->type->params[i]->type) {
 				char expect_buf[TOKLEN];
 				char got_buf[TOKLEN];
 				typename(n->lhs->type->params[i]->type, expect_buf,
 				         sizeof(expect_buf));
-				typename(n->children[i]->type, got_buf, sizeof(got_buf));
-				return error(ctx, n->children[i]->loc,
+				typename(n->call.args[i]->type, got_buf, sizeof(got_buf));
+				return error(ctx, n->call.args[i]->loc,
 				             "argument type mismatch: expected %s, got %s",
 				             expect_buf, got_buf);
 			}

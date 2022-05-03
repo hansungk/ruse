@@ -1,6 +1,6 @@
 /* vim: set ft=c: */
-#ifndef RUSE_H
-#define RUSE_H
+#ifndef _RUSE_H
+#define _RUSE_H
 
 #include <stddef.h>
 
@@ -158,6 +158,11 @@ struct node {
 	struct node *decl;      // original declaration of this node
 	struct node *parent;    // for memberexpr
 	struct node **args;     // func args/params
+	union {
+		struct ast_call_expr {
+			struct node **args;
+		} call;
+	};
 	struct node **children; // func body, call params, struct fields
 	struct node *typeexpr;  // ast node of type specifier
 	enum type_kind typekind;
@@ -231,12 +236,12 @@ struct context {
 				VAL_TEMP,
 				VAL_ADDR,
 			} kind;
-			const char *param_name;
-			int temp_id;
-			int addr_id;
 			// Used to hold the unparsed name of the values, e.g. %.1.
 			// This will be lazily generated at push time.
 			char qbe_text[VHLEN];
+			const char *param_name;
+			int temp_id;
+			int addr_id;
 			int data_size;
 		} * data;
 		int next_temp_id; // next id to be pushed to valstack

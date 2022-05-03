@@ -70,8 +70,8 @@ static struct node *makecall(struct parser *p, struct node *lhs,
                              struct node **args) {
 	struct node *n = makenode(p, NCALL, lhs->loc);
 	n->lhs = lhs;
-	assert(!n->children);
-	n->children = args;
+	assert(!n->call.args);
+	n->call.args = args;
 	return n;
 }
 
