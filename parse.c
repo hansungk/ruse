@@ -112,7 +112,8 @@ static struct ast_node *makefielddecl(struct parser *p, struct token name,
                                       struct ast_type_expr *type_expr) {
 	// TODO proper arena allocation
 	struct ast_node *n = makenode(p, NFIELD, name.loc);
-	n->field.type_expr = type_expr;
+	n->tok = name;
+	n->type_expr = type_expr;
 	n->field.offset = 0;
 	return n;
 }

@@ -481,19 +481,32 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 		n->type = maketype(TYPE_VAL, n->tok);
 		push_type(ctx, n->type);
 		// fields
+		// Clear the field offset accumulation at struct entry.  This shouldn't
+		// be done for inner structs (TODO).
+		ctx->accum_field_offset = 0;
+		scope_open(ctx);
 		for (long i = 0; i < arrlen(n->struct_.fields); i++) {
 			struct ast_node *child = n->struct_.fields[i];
 			check_decl(ctx, child);
 			assert(child->decl);
 			arrput(n->type->members, child);
 		}
+		scope_close(ctx);
 		if (!(n->decl = declare(ctx, n))) {
 			return;
 		}
 		assert(n->type);
 		break;
 	case NFIELD:
-		assert(!"TODO: calculate offset for struct fields");
+		assert(n->type_expr);
+		if (!(n->type = resolve_type_expr(ctx, n->type_expr))) {
+			return;
+		}
+		if (!(n->decl = declare(ctx, n))) {
+			return;
+		}
+		n->field.offset = ctx->accum_field_offset;
+		ctx->accum_field_offset += 4; // FIXME
 		break;
 	default:
 		printf("n->kind=%d\n", n->kind);

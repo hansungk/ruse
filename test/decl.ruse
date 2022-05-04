@@ -12,6 +12,7 @@ fn main() int {
         a + b + c
     }
     c // error
+    var c int
 
     return d // error
 }

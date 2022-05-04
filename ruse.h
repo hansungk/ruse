@@ -196,7 +196,6 @@ struct ast_node {
 			struct ast_node *init_expr;
 		} var_decl;
 		struct ast_field_decl {
-			struct ast_type_expr *type_expr;
 			int offset;
 		} field;
 		struct ast_expr_stmt {
@@ -268,6 +267,9 @@ struct context {
 	struct scope *typescope;
 	struct error *errors;
 	int curr_decl_id; // next scope-unique decl id
+	// Increments at every parsing of a field decl to compute the offset of the
+	// field.
+	int accum_field_offset;
 	struct qbe_valstack {
 		// qbeval is used as a handle for referring to the temporary QBE values
 		// that are so far generated.
