@@ -122,6 +122,7 @@ enum node_kind {
 	NVARDECL = NDECL,
 	NFUNC,
 	NSTRUCT,
+	NFIELD,
 
 	NSTMT,
 	NEXPRSTMT = NSTMT,
@@ -194,6 +195,10 @@ struct ast_node {
 		struct ast_var_decl {
 			struct ast_node *init_expr;
 		} var_decl;
+		struct ast_field_decl {
+			struct ast_type_expr *type_expr;
+			int offset;
+		} field;
 		struct ast_expr_stmt {
 			struct ast_node *expr;
 		} expr_stmt;

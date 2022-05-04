@@ -187,7 +187,7 @@ void scope_open_with(struct context *ctx, struct scope *scope) {
 }
 
 void scope_close(struct context *ctx) {
-	struct scope *current = ctx->scope;
+	// struct scope *current = ctx->scope;
 	ctx->scope = ctx->scope->outer;
 	// TODO: freescope(current);
 	// TODO: typescope
@@ -491,6 +491,9 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 			return;
 		}
 		assert(n->type);
+		break;
+	case NFIELD:
+		assert(!"TODO: calculate offset for struct fields");
 		break;
 	default:
 		printf("n->kind=%d\n", n->kind);

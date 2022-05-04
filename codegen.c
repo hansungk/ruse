@@ -281,7 +281,9 @@ static void codegen_decl(struct context *ctx, struct ast_node *n) {
 		emit(" %s, %%A%d\n", qbe_val_name(&val), n->local_id);
 		break;
 	case NSTRUCT:
-		assert("do here");
+		for (long i = 0; i < arrlen(n->struct_.fields); i++) {
+			codegen_decl(ctx, n->struct_.fields[i]);
+		}
 		break;
 	default:
 		assert(!"unreachable");
@@ -359,8 +361,10 @@ void codegen(struct context *ctx, struct ast_node *n) {
 			codegen_expr_value(ctx, n);
 		} else if (NDECL <= n->kind && n->kind < NSTMT) {
 			codegen_decl(ctx, n);
-		} else if (NSTMT <= n->kind && n->kind) {
+		} else if (NSTMT <= n->kind) {
 			codegen_stmt(ctx, n);
+		} else {
+			assert(!"unknown node kind");
 		}
 		break;
 	}

@@ -108,6 +108,15 @@ static struct ast_node *makevardecl(struct parser *p, struct token name,
 	return n;
 }
 
+static struct ast_node *makefielddecl(struct parser *p, struct token name,
+                                      struct ast_type_expr *type_expr) {
+	// TODO proper arena allocation
+	struct ast_node *n = makenode(p, NFIELD, name.loc);
+	n->field.type_expr = type_expr;
+	n->field.offset = 0;
+	return n;
+}
+
 static struct ast_node *makereturn(struct parser *p, struct ast_node *rhs) {
 	struct ast_node *n = makenode(p, NRETURN, rhs->loc);
 	n->return_expr.expr = rhs;
@@ -547,7 +556,7 @@ static struct ast_node *parse_struct(struct parser *p) {
 		struct token tok = p->tok;
 		expect(p, TIDENT);
 		struct ast_type_expr *texpr = parse_type_expr(p);
-		struct ast_node *field = makevardecl(p, tok, NULL, texpr);
+		struct ast_node *field = makefielddecl(p, tok, texpr);
 		arrput(s->struct_.fields, field);
 		skip_newlines(p);
 	}
