@@ -155,7 +155,6 @@ struct ast_node {
 	int local_id;            // scope-unique decl id for codegen
 	struct scope *scope;     // scope of this function
 	struct ast_node *decl;   // original declaration of this node
-	struct ast_node *parent; // for memberexpr
 	union {
 		struct ast_call_expr {
 			struct ast_node *func;
@@ -192,6 +191,10 @@ struct ast_node {
 		struct ast_return_expr {
 			struct ast_node *expr;
 		} return_expr;
+		struct ast_member_expr {
+			struct ast_node *parent;
+			int offset;
+		} member;
 		struct ast_var_decl {
 			struct ast_node *init_expr;
 		} var_decl;

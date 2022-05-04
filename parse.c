@@ -80,7 +80,7 @@ static struct ast_node *makemember(struct parser *p, struct token member,
                                    struct ast_node *lhs) {
 	struct ast_node *n = makenode(p, NMEMBER, member.loc);
 	n->tok = member;
-	n->parent = lhs;
+	n->member.parent = lhs;
 	return n;
 }
 

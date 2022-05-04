@@ -238,7 +238,8 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		ctx->valstack.next_temp_id++;
 		break;
 	case NMEMBER:
-		assert(!"TODO: NMEMBER");
+		printf("offset=%d\n", n->member.offset);
+		assert(!"TODO: valstack push");
 		break;
 	default:
 		assert(!"unknown expr kind");
@@ -284,6 +285,9 @@ static void codegen_decl(struct context *ctx, struct ast_node *n) {
 		for (long i = 0; i < arrlen(n->struct_.fields); i++) {
 			codegen_decl(ctx, n->struct_.fields[i]);
 		}
+		break;
+	case NFIELD:
+		// no codegen
 		break;
 	default:
 		assert(!"unreachable");

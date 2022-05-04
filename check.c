@@ -375,23 +375,25 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		n->type = n->call.func->type->rettype;
 		break;
 	case NMEMBER:
-		check_expr(ctx, n->parent);
-		if (!n->parent->type)
+		check_expr(ctx, n->member.parent);
+		if (!n->member.parent->type)
 			return;
-		if (!arrlen(n->parent->type->members))
+		if (!arrlen(n->member.parent->type->members))
 			return error(ctx, n->loc, "member access to a non-struct");
-		const struct ast_node *member_match = NULL;
-		for (long i = 0; i < arrlen(n->parent->type->members); i++) {
-			const struct ast_node *m = n->parent->type->members[i];
-			if (strcmp(m->tok.name, n->tok.name) == 0) {
-				member_match = m;
+		const struct ast_node *field_match = NULL;
+		for (long i = 0; i < arrlen(n->member.parent->type->members); i++) {
+			const struct ast_node *f = n->member.parent->type->members[i];
+			if (strcmp(f->tok.name, n->tok.name) == 0) {
+				field_match = f;
 				break;
 			}
 		}
-		if (!member_match)
+		if (!field_match) {
 			return error(ctx, n->loc, "'%s' is not a member of type '%s'",
-			             n->tok.name, n->parent->type->tok.name);
-		n->type = member_match->type;
+			             n->tok.name, n->member.parent->type->tok.name);
+		}
+		n->type = field_match->type;
+		n->member.offset = field_match->field.offset;
 		break;
 	default:
 		assert(!"unknown expr kind");
