@@ -2,6 +2,7 @@
 
 struct S {
     a int
+    c int
 }
 
 fn main() {

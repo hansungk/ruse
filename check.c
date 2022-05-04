@@ -487,6 +487,10 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 			assert(child->decl);
 			arrput(n->type->members, child);
 		}
+		if (!(n->decl = declare(ctx, n))) {
+			return;
+		}
+		assert(n->type);
 		break;
 	default:
 		printf("n->kind=%d\n", n->kind);

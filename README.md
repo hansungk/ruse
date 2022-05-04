@@ -11,7 +11,8 @@ $ ./ruse
 
 ## todo
 
-* gen func and if
+* gen memberexpr
+* gen if
 * strlcpy
 * cleaner emit of loads and stores
 * strings

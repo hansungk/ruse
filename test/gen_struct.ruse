@@ -1,0 +1,13 @@
+// exit 9
+
+struct S {
+    a int
+    b int
+}
+
+fn main() int {
+    var s S
+    s.a = 4
+    s.b = 5
+    return s.a + s.b
+}

@@ -237,6 +237,9 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		arrput(ctx->valstack.data, val_lhs);
 		ctx->valstack.next_temp_id++;
 		break;
+	case NMEMBER:
+		assert(!"TODO: NMEMBER");
+		break;
 	default:
 		assert(!"unknown expr kind");
 	}
@@ -254,6 +257,7 @@ static void codegen_decl(struct context *ctx, struct ast_node *n) {
 	char buf[TOKLEN];
 	struct qbe_val val;
 
+	assert(n->decl);
 	tokenstr(ctx->src->buf, n->decl->tok, buf, sizeof(buf));
 
 	switch (n->kind) {
@@ -261,6 +265,9 @@ static void codegen_decl(struct context *ctx, struct ast_node *n) {
 		// FIXME: is it better to assign decl_id here or in check?
 		n->local_id = ctx->curr_decl_id++;
 		emit("    %%A%d =l alloc4 4\n", n->local_id);
+		if (!n->var_decl.init_expr) {
+			break;
+		}
 		codegen(ctx, n->var_decl.init_expr);
 		assert(arrlen(ctx->valstack.data) > 0);
 		val = arrpop(ctx->valstack.data);
@@ -272,6 +279,9 @@ static void codegen_decl(struct context *ctx, struct ast_node *n) {
 			emit("    storew");
 		}
 		emit(" %s, %%A%d\n", qbe_val_name(&val), n->local_id);
+		break;
+	case NSTRUCT:
+		assert("do here");
 		break;
 	default:
 		assert(!"unreachable");
