@@ -237,20 +237,21 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		arrput(ctx->valstack.data, val_lhs);
 		ctx->valstack.next_temp_id++;
 		break;
-	case NMEMBER:
+	case NMEMBER: {
 		codegen_expr_addr(ctx, n->member.parent);
-		val_rhs = arrpop(ctx->valstack.data);
-		val_lhs = valstack_make_temp(ctx);
-		emit("    %s =l add %s, %d\n", val_lhs.qbe_text, val_rhs.qbe_text,
-		     n->member.offset);
-		valstack_push_temp(ctx, val_lhs);
+		struct qbe_val parent_addr = arrpop(ctx->valstack.data);
+		struct qbe_val member_addr = valstack_make_temp(ctx);
+		emit("    %s =l add %s, %d\n", member_addr.qbe_text,
+		     parent_addr.qbe_text, n->member.offset);
+		valstack_push_temp(ctx, member_addr);
 		if (value) {
-			val_rhs = arrpop(ctx->valstack.data);
-			val_lhs = valstack_make_temp(ctx);
-			emit("    %s =w loadw %s\n", val_lhs.qbe_text, val_rhs.qbe_text);
-			valstack_push_temp(ctx, val_lhs);
+			member_addr = arrpop(ctx->valstack.data);
+			val = valstack_make_temp(ctx);
+			emit("    %s =w loadw %s\n", val.qbe_text, member_addr.qbe_text);
+			valstack_push_temp(ctx, val);
 		}
 		break;
+	}
 	default:
 		assert(!"unknown expr kind");
 	}
