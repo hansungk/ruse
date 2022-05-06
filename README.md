@@ -11,7 +11,7 @@ $ ./ruse
 
 ## todo
 
-* gen memberexpr
+* unify emit_load
 * gen if
 * strlcpy
 * cleaner emit of loads and stores

@@ -20,28 +20,28 @@ static void emit(struct context *ctx, char *c, ...) {
 static char *qbe_val_name(struct qbe_val *val) {
 	int len = 0;
 
-	memset(val->qbe_text, 0, sizeof(val->qbe_text));
+	memset(val->text, 0, sizeof(val->text));
 	switch (val->kind) {
 	case VAL_PARAM:
-		len = snprintf(val->qbe_text, sizeof(val->qbe_text), "%%%s",
+		len = snprintf(val->text, sizeof(val->text), "%%%s",
 		               val->param_name);
 		break;
 	case VAL_TEMP:
-		len = snprintf(val->qbe_text, sizeof(val->qbe_text), "%%.%d",
+		len = snprintf(val->text, sizeof(val->text), "%%.%d",
 		               val->temp_id);
 		break;
 	case VAL_ADDR:
-		len = snprintf(val->qbe_text, sizeof(val->qbe_text), "%%A%d",
+		len = snprintf(val->text, sizeof(val->text), "%%A%d",
 		               val->addr_id);
 		break;
 	default:
 		assert(!"unknown valstack kind");
 	}
 
-	if (len < 0 || (size_t)len >= sizeof(val->qbe_text)) {
+	if (len < 0 || (size_t)len >= sizeof(val->text)) {
 		fatal("%s(): snprintf error", __func__);
 	}
-	return val->qbe_text;
+	return val->text;
 }
 
 static void valstack_push_param(struct context *ctx, const char *name) {
@@ -99,7 +99,7 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 	case NLITERAL:
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
 		val = valstack_make_temp(ctx);
-		emit(ctx, "    %s =w add 0, %s\n", val.qbe_text, buf);
+		emit(ctx, "    %s =w add 0, %s\n", val.text, buf);
 		valstack_push_temp(ctx, val);
 		break;
 	case NIDEXPR:
@@ -111,12 +111,12 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 				// when handling NFUNC.
 			} else if (n->decl->type->size == 8) {
 				val_lhs = valstack_make_temp(ctx);
-				emit(ctx, "    %s =l loadl %%A%d\n", val_lhs.qbe_text,
+				emit(ctx, "    %s =l loadl %%A%d\n", val_lhs.text,
 				     n->decl->local_id);
 				valstack_push_temp(ctx, val_lhs);
 			} else {
 				val_lhs = valstack_make_temp(ctx);
-				emit(ctx, "    %s =w loadw %%A%d\n", val_lhs.qbe_text,
+				emit(ctx, "    %s =w loadw %%A%d\n", val_lhs.text,
 				     n->decl->local_id);
 				valstack_push_temp(ctx, val_lhs);
 			}
@@ -135,8 +135,8 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		assert(val_rhs.kind != VAL_ADDR);
 		assert(val_lhs.kind != VAL_ADDR);
 		val = valstack_make_temp(ctx);
-		emit(ctx, "    %s =w add %s, %s\n", val.qbe_text, val_lhs.qbe_text,
-		     val_rhs.qbe_text);
+		emit(ctx, "    %s =w add %s, %s\n", val.text, val_lhs.text,
+		     val_rhs.text);
 		valstack_push_temp(ctx, val);
 		break;
 	case NDEREFEXPR:
@@ -149,11 +149,11 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 			val_rhs = arrpop(ctx->valstack.data);
 			val_lhs = valstack_make_temp(ctx);
 			if (val_rhs.data_size == 8) {
-				emit(ctx, "    %s =l loadl %s\n", val_lhs.qbe_text,
-				     val_rhs.qbe_text);
+				emit(ctx, "    %s =l loadl %s\n", val_lhs.text,
+				     val_rhs.text);
 			} else {
-				emit(ctx, "    %s =w loadw %s\n", val_lhs.qbe_text,
-				     val_rhs.qbe_text);
+				emit(ctx, "    %s =w loadw %s\n", val_lhs.text,
+				     val_rhs.text);
 			}
 			valstack_push_temp(ctx, val_lhs);
 		}
@@ -171,11 +171,11 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 			codegen_expr_value(ctx, n->call.args[i]);
 		}
 		val_lhs = valstack_make_temp(ctx);
-		emit(ctx, "    %s =w ", val_lhs.qbe_text);
+		emit(ctx, "    %s =w ", val_lhs.text);
 		emit(ctx, "call $%s(", n->call.func->tok.name);
 		for (long i = 0; i < arrlen(n->call.args); i++) {
 			val_rhs = arrpop(ctx->valstack.data);
-			emit(ctx, "w %s, ", val_rhs.qbe_text);
+			emit(ctx, "w %s, ", val_rhs.text);
 		}
 		emit(ctx, ")\n");
 		arrput(ctx->valstack.data, val_lhs);
@@ -185,14 +185,14 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		codegen_expr_addr(ctx, n->member.parent);
 		struct qbe_val parent_addr = arrpop(ctx->valstack.data);
 		struct qbe_val member_addr = valstack_make_temp(ctx);
-		emit(ctx, "    %s =l add %s, %d\n", member_addr.qbe_text,
-		     parent_addr.qbe_text, n->member.offset);
+		emit(ctx, "    %s =l add %s, %d\n", member_addr.text,
+		     parent_addr.text, n->member.offset);
 		valstack_push_temp(ctx, member_addr);
 		if (value) {
 			member_addr = arrpop(ctx->valstack.data);
 			val = valstack_make_temp(ctx);
-			emit(ctx, "    %s =w loadw %s\n", val.qbe_text,
-			     member_addr.qbe_text);
+			emit(ctx, "    %s =w loadw %s\n", val.text,
+			     member_addr.text);
 			valstack_push_temp(ctx, val);
 		}
 		break;
@@ -271,7 +271,7 @@ static void codegen_stmt(struct context *ctx, struct ast_node *n) {
 		break;
 	case NRETURN:
 		codegen(ctx, n->return_expr.expr);
-		emit(ctx, "    ret %s\n", arrpop(ctx->valstack.data).qbe_text);
+		emit(ctx, "    ret %s\n", arrpop(ctx->valstack.data).text);
 		break;
 	default:
 		assert(!"unknown stmt kind");

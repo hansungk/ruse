@@ -285,7 +285,7 @@ struct context {
 			} kind;
 			// Used to hold the unparsed name of the values, e.g. %.1.
 			// This will be lazily generated at push time.
-			char qbe_text[QBELEN];
+			char text[QBELEN];
 			const char *param_name;
 			int temp_id;
 			int addr_id;
