@@ -6,6 +6,7 @@
 
 #define TOKLEN 64
 #define VALLEN 10
+#define QBELEN 10
 
 void fatal(const char *fmt, ...);
 
@@ -262,8 +263,6 @@ struct scope {
 	struct ast_node *decl;
 };
 
-#define VHLEN 10
-
 struct context {
 	struct source *src;
 	struct scope *scope;
@@ -284,7 +283,7 @@ struct context {
 			} kind;
 			// Used to hold the unparsed name of the values, e.g. %.1.
 			// This will be lazily generated at push time.
-			char qbe_text[VHLEN];
+			char qbe_text[QBELEN];
 			const char *param_name;
 			int temp_id;
 			int addr_id;

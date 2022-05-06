@@ -22,19 +22,19 @@ int main(int argc, char **argv) {
 
 	codegen(&ctx, n);
 
-	FILE *fp_qbe = popen("qbe out.qbe", "r");
-	if (!fp_qbe) {
-		fatal("popen() failed");
-	}
+	// FILE *fp_qbe = popen("qbe out.qbe", "r");
+	// if (!fp_qbe) {
+	// 	fatal("popen() failed");
+	// }
 
-	FILE *fp_assembly = fopen("out.s", "w");
-	if (!fp_assembly) {
-		fatal("fopen() failed");
-	}
-	char buf[1024] = {0};
-	while (fgets(buf, sizeof(buf), fp_qbe)) {
-		fwrite(buf, 1, strlen(buf), fp_assembly);
-	}
+	// FILE *fp_assembly = fopen("out.s", "w");
+	// if (!fp_assembly) {
+	// 	fatal("fopen() failed");
+	// }
+	// char buf[1024] = {0};
+	// while (fgets(buf, sizeof(buf), fp_qbe)) {
+	// 	fwrite(buf, 1, strlen(buf), fp_assembly);
+	// }
 
 	// if (system("qbe out.qbe > out.s") != 0) {
 	// 	fatal("system() failed");

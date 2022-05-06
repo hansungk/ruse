@@ -238,8 +238,18 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		ctx->valstack.next_temp_id++;
 		break;
 	case NMEMBER:
-		printf("offset=%d\n", n->member.offset);
-		assert(!"TODO: valstack push");
+		codegen_expr_addr(ctx, n->member.parent);
+		val_rhs = arrpop(ctx->valstack.data);
+		val_lhs = valstack_make_temp(ctx);
+		emit("    %s =l add %s, %d\n", val_lhs.qbe_text, val_rhs.qbe_text,
+		     n->member.offset);
+		valstack_push_temp(ctx, val_lhs);
+		if (value) {
+			val_rhs = arrpop(ctx->valstack.data);
+			val_lhs = valstack_make_temp(ctx);
+			emit("    %s =w loadw %s\n", val_lhs.qbe_text, val_rhs.qbe_text);
+			valstack_push_temp(ctx, val_lhs);
+		}
 		break;
 	default:
 		assert(!"unknown expr kind");
