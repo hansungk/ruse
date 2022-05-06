@@ -24,7 +24,7 @@ _fail() {
     echo "${RED}FAIL${RS} $1"
 }
 
-_errordiff() {
+_checkerror() {
     grep "error:" /tmp/ruse.out | cut -d':' -f2 >$outputlinefile
     grep -n "// error" $1 | cut -d':' -f1 >$truthlinefile
     if diff $outputlinefile $truthlinefile >$difffile
@@ -40,17 +40,23 @@ _errordiff() {
 _test() {
     ret=0
     header=$(head -n1 $1)
-    echo ${header} | grep -q "fail" && ret=1
+    echo ${header} | grep -q "fail" && ret=-1
     if echo ${header} | grep -q "run"
     then
         ret=$(echo ${header} | awk '{ print $3 }')
     fi
 
-    ./ruse $1 >$outputfile 2>&1
-
-    if [ $? -eq $ret ]
+    if ./ruse $1 >$outputfile 2>&1
     then
-        _errordiff "$1"
+        ./out
+        retgot="$?"
+    else
+        retgot=-1
+    fi
+
+    if [ $retgot -eq $ret ]
+    then
+        _checkerror "$1"
     else
         _fail "$1"
     fi
