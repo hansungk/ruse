@@ -13,62 +13,6 @@ static void emit(struct context *ctx, char *c, ...) {
 	va_start(args, c);
 	vfprintf(ctx->outfile, c, args);
 	va_end(args);
-
-#if 0
-    char *s;
-    char fmt_buf[1024];
-    va_list lst;
-    va_start(lst, c);
-
-    char *found = NULL;
-    while ((found = strstr(c, "%v")) != NULL) {
-        size_t len = found - c;
-        memset(fmt_buf, 0, sizeof(fmt_buf));
-        strncpy(fmt_buf, c, len);
-
-        printf("before %%v: [%s]\n", fmt_buf);
-
-        fputs(va_arg(lst, char *), stdout);
-
-        c = found + strlen("%v");
-    }
-
-    // process trailing fmt string
-    printf("trailing: [%s]\n", c);
-
-    va_end(lst);
-#endif
-
-#if 0
-    while (*c != '\0') {
-        if (*c != '%') {
-            putchar(*c);
-            c++;
-            continue;
-        }
-
-        c++;
-
-        if (*c == '\0') {
-            break;
-        }
-
-        switch (*c) {
-        case 's':
-            fputs(va_arg(lst, char *), stdout);
-            break;
-        case 'c':
-            putchar(va_arg(lst, int));
-            break;
-	default:
-	    // TODO: start here
-	    break;
-        }
-	c++;
-    }
-
-    va_end(lst);
-#endif
 }
 
 // This *has* to be called at stack pusth time to ensure that it is safe to use
