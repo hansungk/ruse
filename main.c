@@ -21,12 +21,12 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 
 	codegen(&ctx, n);
+	fflush(ctx.outfile);
 
 	// FILE *fp_qbe = popen("qbe out.qbe", "r");
 	// if (!fp_qbe) {
 	// 	fatal("popen() failed");
 	// }
-
 	// FILE *fp_assembly = fopen("out.s", "w");
 	// if (!fp_assembly) {
 	// 	fatal("fopen() failed");
@@ -35,13 +35,14 @@ int main(int argc, char **argv) {
 	// while (fgets(buf, sizeof(buf), fp_qbe)) {
 	// 	fwrite(buf, 1, strlen(buf), fp_assembly);
 	// }
+	// fflush(fp_assembly);
 
-	// if (system("qbe out.qbe > out.s") != 0) {
-	// 	fatal("system() failed");
-	// }
-	// if (system("gcc -o out out.s") != 0) {
-	// 	fatal("system() failed");
-	// }
+	if (system("qbe out.qbe > out.s") != 0) {
+		fatal("system() failed");
+	}
+	if (system("gcc -o out out.s") != 0) {
+		fatal("gcc failed");
+	}
 
 	context_free(&ctx);
 	parser_cleanup(&p);

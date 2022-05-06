@@ -156,6 +156,10 @@ static void setup_builtin_types(struct context *ctx) {
 void context_init(struct context *ctx, struct parser *p) {
 	memset(ctx, 0, sizeof(struct context));
 	ctx->src = &p->l.src;
+	ctx->outfile = fopen("out.qbe", "w");
+	if (!ctx->outfile) {
+		fatal("fopen() failed");
+	}
 	ctx->scope = makescope();
 	ctx->typescope = makescope();
 	// copy over errors
@@ -170,6 +174,7 @@ void context_free(struct context *ctx) {
 	arrfree(ctx->valstack.data);
 	// FIXME: free errors[i].msg
 	free(ctx->errors);
+	fclose(ctx->outfile);
 }
 
 // Open a scope, creating a new one.

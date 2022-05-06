@@ -7,11 +7,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void emit(char *c, ...) {
+static void emit(struct context *ctx, char *c, ...) {
 	va_list args;
 
 	va_start(args, c);
-	vprintf(c, args);
+	vfprintf(ctx->outfile, c, args);
 	va_end(args);
 
 #if 0
@@ -155,7 +155,7 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 	case NLITERAL:
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
 		val = valstack_make_temp(ctx);
-		emit("    %s =w add 0, %s\n", val.qbe_text, buf);
+		emit(ctx, "    %s =w add 0, %s\n", val.qbe_text, buf);
 		valstack_push_temp(ctx, val);
 		break;
 	case NIDEXPR:
@@ -167,12 +167,12 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 				// when handling NFUNC.
 			} else if (n->decl->type->size == 8) {
 				val_lhs = valstack_make_temp(ctx);
-				emit("    %s =l loadl %%A%d\n", val_lhs.qbe_text,
+				emit(ctx, "    %s =l loadl %%A%d\n", val_lhs.qbe_text,
 				     n->decl->local_id);
 				valstack_push_temp(ctx, val_lhs);
 			} else {
 				val_lhs = valstack_make_temp(ctx);
-				emit("    %s =w loadw %%A%d\n", val_lhs.qbe_text,
+				emit(ctx, "    %s =w loadw %%A%d\n", val_lhs.qbe_text,
 				     n->decl->local_id);
 				valstack_push_temp(ctx, val_lhs);
 			}
@@ -191,7 +191,7 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		assert(val_rhs.kind != VAL_ADDR);
 		assert(val_lhs.kind != VAL_ADDR);
 		val = valstack_make_temp(ctx);
-		emit("    %s =w add %s, %s\n", val.qbe_text, val_lhs.qbe_text,
+		emit(ctx, "    %s =w add %s, %s\n", val.qbe_text, val_lhs.qbe_text,
 		     val_rhs.qbe_text);
 		valstack_push_temp(ctx, val);
 		break;
@@ -205,10 +205,10 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 			val_rhs = arrpop(ctx->valstack.data);
 			val_lhs = valstack_make_temp(ctx);
 			if (val_rhs.data_size == 8) {
-				emit("    %s =l loadl %s\n", val_lhs.qbe_text,
+				emit(ctx, "    %s =l loadl %s\n", val_lhs.qbe_text,
 				     val_rhs.qbe_text);
 			} else {
-				emit("    %s =w loadw %s\n", val_lhs.qbe_text,
+				emit(ctx, "    %s =w loadw %s\n", val_lhs.qbe_text,
 				     val_rhs.qbe_text);
 			}
 			valstack_push_temp(ctx, val_lhs);
@@ -227,13 +227,13 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 			codegen_expr_value(ctx, n->call.args[i]);
 		}
 		val_lhs = valstack_make_temp(ctx);
-		emit("    %s =w ", val_lhs.qbe_text);
-		emit("call $%s(", n->call.func->tok.name);
+		emit(ctx, "    %s =w ", val_lhs.qbe_text);
+		emit(ctx, "call $%s(", n->call.func->tok.name);
 		for (long i = 0; i < arrlen(n->call.args); i++) {
 			val_rhs = arrpop(ctx->valstack.data);
-			emit("w %s, ", val_rhs.qbe_text);
+			emit(ctx, "w %s, ", val_rhs.qbe_text);
 		}
-		emit(")\n");
+		emit(ctx, ")\n");
 		arrput(ctx->valstack.data, val_lhs);
 		ctx->valstack.next_temp_id++;
 		break;
@@ -241,13 +241,14 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		codegen_expr_addr(ctx, n->member.parent);
 		struct qbe_val parent_addr = arrpop(ctx->valstack.data);
 		struct qbe_val member_addr = valstack_make_temp(ctx);
-		emit("    %s =l add %s, %d\n", member_addr.qbe_text,
+		emit(ctx, "    %s =l add %s, %d\n", member_addr.qbe_text,
 		     parent_addr.qbe_text, n->member.offset);
 		valstack_push_temp(ctx, member_addr);
 		if (value) {
 			member_addr = arrpop(ctx->valstack.data);
 			val = valstack_make_temp(ctx);
-			emit("    %s =w loadw %s\n", val.qbe_text, member_addr.qbe_text);
+			emit(ctx, "    %s =w loadw %s\n", val.qbe_text,
+			     member_addr.qbe_text);
 			valstack_push_temp(ctx, val);
 		}
 		break;
@@ -276,7 +277,7 @@ static void codegen_decl(struct context *ctx, struct ast_node *n) {
 	case NVARDECL:
 		// FIXME: is it better to assign decl_id here or in check?
 		n->local_id = ctx->curr_decl_id++;
-		emit("    %%A%d =l alloc4 4\n", n->local_id);
+		emit(ctx, "    %%A%d =l alloc4 4\n", n->local_id);
 		if (!n->var_decl.init_expr) {
 			break;
 		}
@@ -286,11 +287,11 @@ static void codegen_decl(struct context *ctx, struct ast_node *n) {
 		// TODO: proper datasize handling
 		// TODO: unify this with assignment
 		if (val.data_size == 8) {
-			emit("    storel");
+			emit(ctx, "    storel");
 		} else {
-			emit("    storew");
+			emit(ctx, "    storew");
 		}
-		emit(" %s, %%A%d\n", qbe_val_name(&val), n->local_id);
+		emit(ctx, " %s, %%A%d\n", qbe_val_name(&val), n->local_id);
 		break;
 	case NSTRUCT:
 		for (long i = 0; i < arrlen(n->struct_.fields); i++) {
@@ -318,15 +319,15 @@ static void codegen_stmt(struct context *ctx, struct ast_node *n) {
 		val_lhs = arrpop(ctx->valstack.data);
 		val_rhs = arrpop(ctx->valstack.data);
 		if (val_rhs.data_size == 8) {
-			emit("    storel");
+			emit(ctx, "    storel");
 		} else {
-			emit("    storew");
+			emit(ctx, "    storew");
 		}
-		emit(" %s, %s\n", qbe_val_name(&val_rhs), qbe_val_name(&val_lhs));
+		emit(ctx, " %s, %s\n", qbe_val_name(&val_rhs), qbe_val_name(&val_lhs));
 		break;
 	case NRETURN:
 		codegen(ctx, n->return_expr.expr);
-		emit("    ret %s\n", arrpop(ctx->valstack.data).qbe_text);
+		emit(ctx, "    ret %s\n", arrpop(ctx->valstack.data).qbe_text);
 		break;
 	default:
 		assert(!"unknown stmt kind");
@@ -343,16 +344,16 @@ void codegen(struct context *ctx, struct ast_node *n) {
 		}
 		break;
 	case NFUNC:
-		emit("export function w $%s(", n->tok.name);
+		emit(ctx, "export function w $%s(", n->tok.name);
 		for (int i = 0; i < arrlen(n->func.params); i++) {
 			if (i > 0) {
-				emit(", ");
+				emit(ctx, ", ");
 			}
 			const struct ast_node *arg = n->func.params[i];
-			emit("w %%%s", arg->tok.name);
+			emit(ctx, "w %%%s", arg->tok.name);
 		}
-		emit(") {\n");
-		emit("@start\n");
+		emit(ctx, ") {\n");
+		emit(ctx, "@start\n");
 
 		assert(n->scope);
 		scope_open_with(ctx, n->scope);
@@ -368,8 +369,8 @@ void codegen(struct context *ctx, struct ast_node *n) {
 		scope_close(ctx);
 		// TODO: free scope here?
 
-		emit("}\n");
-		emit("\n");
+		emit(ctx, "}\n");
+		emit(ctx, "\n");
 		break;
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {

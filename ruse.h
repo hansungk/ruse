@@ -3,6 +3,7 @@
 #define _RUSE_H
 
 #include <stddef.h>
+#include <stdio.h>
 
 #define TOKLEN 64
 #define VALLEN 10
@@ -265,6 +266,7 @@ struct scope {
 
 struct context {
 	struct source *src;
+	FILE *outfile;
 	struct scope *scope;
 	struct scope *typescope;
 	struct error *errors;
