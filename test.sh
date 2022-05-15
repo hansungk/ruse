@@ -24,7 +24,7 @@ _fail() {
     echo "${RED}FAIL${RS} $1"
 }
 
-_checkerror() {
+_checkdiag() {
     grep "error:" /tmp/ruse.out | cut -d':' -f2 >$outputlinefile
     grep -n "// error" $1 | cut -d':' -f1 >$truthlinefile
     if diff $outputlinefile $truthlinefile >$difffile
@@ -39,7 +39,7 @@ _checkerror() {
 
 _test() {
     ret=0
-    header=$(head -n1 $1)
+    header=$(head -n1 $1) || exit 1
     echo ${header} | grep -q "fail" && ret=-1
     if echo ${header} | grep -q "run"
     then
@@ -56,7 +56,7 @@ _test() {
 
     if [ $retgot -eq $ret ]
     then
-        _checkerror "$1"
+        _checkdiag "$1"
     else
         _fail "$1"
     fi

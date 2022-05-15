@@ -228,6 +228,7 @@ struct parser {
 	struct lexer l;               // lexer driven by this parser
 	struct token tok;             // current token
 	struct token *lookahead;      // lookahead tokens
+	// TODO: merge with context.errors
 	struct error *errors;         // parse errors
 	struct ast_node **nodeptrbuf; // pointers to the allocated nodes
 };
