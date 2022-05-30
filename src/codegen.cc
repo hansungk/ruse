@@ -256,18 +256,23 @@ void QbeGenerator::codegenStmt(Stmt *s) {
   case Stmt::assign: {
     auto as = s->as<AssignStmt>();
 
-    codegenExpr(as->rhs);
-    auto rhs_val_id = valstack.pop().id;
+    fmt::print("assign: {}:{}\n", as->loc.line, as->loc.col);
 
     codegenExprAddress(as->lhs);
+    // auto rhs_val_id = valstack.pop().id;
+    // codegenExpr(as->rhs);
+
+    emitAssignment(as->lhs->decl, as->rhs);
+
     // This assert doesn't work for pointer dereferences: their value is
     // the target address of this assignment, but they are designated as
     // ValueKind::value.
     // assert(valstack.peek().kind == ValueKind::address);
-    auto lhs_address = valstack.pop();
+    // auto lhs_address = valstack.pop();
 
-    emitln("storew %_{}, {}", rhs_val_id, lhs_address.format());
-    annotate("{}: assign to {}", as->loc.line, as->lhs->text(sema));
+    // emitln("storew %_{}, {}", rhs_val_id, lhs_address.format());
+    // annotate("{}: assign to {}", as->loc.line, as->lhs->text(sema));
+
     break;
   }
   case Stmt::return_:
@@ -420,8 +425,8 @@ void QbeGenerator::codegenDecl(Decl *d) {
 }
 
 // Emit a memory-to-memory value copy.
-// The memory address of the LHS and the value of the RHS are assumed to be
-// already pushed onto the valstack.
+// The memory address of the LHS is assumed to be already pushed onto the
+// valstack.
 // These memory copies may be reduced to register operations by QBE.
 //
 // TODO: what about a = 3?
@@ -432,6 +437,7 @@ void QbeGenerator::codegenDecl(Decl *d) {
 // S {.a=...}.a
 // f(S {.a=...})
 void QbeGenerator::emitAssignment(const Decl *lhs, Expr *rhs) {
+  assert(lhs);
   codegenExpr(rhs);
 
   // NOTE: rhs_value might not actually have ValueKind::value, e.g. for
@@ -542,7 +548,7 @@ long QbeGenerator::emitStackAlloc(const Type *type, size_t line,
 }
 
 void QbeGenerator::codegenDataSection() {
-  emitln("data $string = {{ b \"hello\" }}");
+  emitln("data $string = {{ b \"hello\", b 0 }}");
 }
 
 void QbeGenerator::codegen(AstNode *n) {
