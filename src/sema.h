@@ -138,11 +138,11 @@ struct Sema {
     }
 };
 
-void setupBuiltinTypes(Sema &s);
+void setup_builtin_types(Sema &s);
 
 bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl);
 bool declare(Sema &sema, Decl *decl);
-bool typecheck(Sema &sema, AstNode *n);
+bool check(Sema &sema, AstNode *n);
 
 struct QbeValue {
   enum Kind {

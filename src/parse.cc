@@ -630,6 +630,7 @@ Expr *Parser::parse_type_expr() {
   } else if (tok.kind == Token::lbracket) {
     expect(Token::lbracket);
     expect(Token::rbracket);
+    type_kind = TypeKind::array;
     subexpr = parse_type_expr();
     text = make_name_of_derived_type(sema.name_table, TypeKind::array,
                                      subexpr->as<TypeExpr>()->name)

@@ -13,8 +13,8 @@ bool Driver::compile() {
         return false;
     }
 
-    setupBuiltinTypes(sema);
-    if (!typecheck(sema, node)) {
+    setup_builtin_types(sema);
+    if (!check(sema, node)) {
         return false;
     }
     QbeGen c{sema, "out.qbe"};

@@ -18,13 +18,13 @@ template <typename... Args> static bool error(SourceLoc loc, Args &&...args) {
   // exit(EXIT_FAILURE);
 }
 
-static Type *makeValueType(Sema &sema, Name *n, Decl *decl) {
+static Type *make_value_type(Sema &sema, Name *n, Decl *decl) {
   Type *t = new Type(TypeKind::value, n, decl);
   sema.type_pool.push_back(t);
   return t;
 }
 
-static Type *makePointerType(Sema &sema, Name *name, TypeKind ptr_kind,
+static Type *make_pointer_type(Sema &sema, Name *name, TypeKind ptr_kind,
                              Type *referee_type) {
   Type *t = new Type(name, ptr_kind, referee_type);
   // assumes pointers are always 8 bytes
@@ -33,29 +33,29 @@ static Type *makePointerType(Sema &sema, Name *name, TypeKind ptr_kind,
   return t;
 }
 
-static Type *makeBuiltinType(Sema &sema, Name *n) {
+static Type *make_builtin_type(Sema &sema, Name *n) {
   Type *t = new Type(n);
   sema.type_pool.push_back(t);
   return t;
 }
 
-static Type *makeBuiltinTypeFromName(Sema &s, const std::string &str) {
+static Type *make_builtin_type_from_name(Sema &s, const std::string &str) {
   Name *name = s.name_table.pushlen(str.data(), str.length());
   auto struct_decl = s.make_node<StructDecl>(name);
-  struct_decl->type = makeBuiltinType(s, name);
+  struct_decl->type = make_builtin_type(s, name);
   s.decl_table.insert(name, struct_decl);
   return struct_decl->type;
 }
 
 // Push Decls for the builtin types into the global scope of decl_table, so
 // that they are visible from any point in the AST.
-void setupBuiltinTypes(Sema &s) {
-  s.context.void_type = makeBuiltinTypeFromName(s, "void");
-  s.context.int_type = makeBuiltinTypeFromName(s, "int");
+void setup_builtin_types(Sema &s) {
+  s.context.void_type = make_builtin_type_from_name(s, "void");
+  s.context.int_type = make_builtin_type_from_name(s, "int");
   s.context.int_type->size = 4;
-  s.context.char_type = makeBuiltinTypeFromName(s, "char");
+  s.context.char_type = make_builtin_type_from_name(s, "char");
   s.context.char_type->size = 1;
-  s.context.string_type = makeBuiltinTypeFromName(s, "string");
+  s.context.string_type = make_builtin_type_from_name(s, "string");
   // FIXME: size of a string is something like pointer + length
   s.context.string_type->size = 4;
   s.name_table.push("buf");
@@ -88,16 +88,16 @@ void Sema::scope_close() {
     borrow_table.scope_close();
 }
 
-bool Type::isStruct() const {
+bool Type::is_struct() const {
     return kind == TypeKind::value && origin_decl &&
            origin_decl->kind == Decl::struct_;
 }
 
-bool Type::isPointer() const {
+bool Type::is_pointer() const {
     return kind == TypeKind::ref || kind == TypeKind::var_ref;
 }
 
-bool Type::isBuiltin(Sema &sema) const {
+bool Type::is_builtin(Sema &sema) const {
     return this == sema.context.int_type || this == sema.context.char_type ||
            this == sema.context.void_type || this == sema.context.string_type;
 }
@@ -142,7 +142,7 @@ bool declare(Sema &sema, Decl *decl) {
     // For struct methods, we need to declare in a special struct-local scope.
     if (decl->kind == Decl::func) {
         auto fd = decl->as<FuncDecl>();
-        // If 'fd' is a struct method, if its struct parameter fails typecheck,
+        // If 'fd' is a struct method, if its struct parameter fails check,
         // we can't declare them in its method scope.
         if (fd->struct_param && fd->target_struct) {
             return declare_in_struct(fd->target_struct, fd->name, fd);
@@ -165,93 +165,93 @@ bool declare(Sema &sema, Decl *decl) {
 // code.  Trying to push them every time we see one is sufficient to keep this
 // invariant.
 Type *get_derived_type(Sema &sema, TypeKind kind, Type *type) {
-    Name *name = make_name_of_derived_type(sema.name_table, kind, type->name);
-    if (auto found = sema.type_table.find(name)) {
-        return found->value;
-    } else {
-        Type *derived = makePointerType(sema, name, kind, type);
-        return *sema.type_table.insert(name, derived);
-    }
+  Name *name = make_name_of_derived_type(sema.name_table, kind, type->name);
+  if (auto found = sema.type_table.find(name)) {
+    return found->value;
+  } else {
+    Type *derived = make_pointer_type(sema, name, kind, type);
+    return *sema.type_table.insert(name, derived);
+  }
 }
 
-bool typecheckAssignable(const Type *to, const Type *from) {
+bool check_assignable(const Type *to, const Type *from) {
     // TODO: Typecheck assignment rules so far:
     //
     // 1. Pointer <- mutable pointer.
     // 2. Exact same match.
 
     // Allow promotion from mutable to immutable pointer.
-    if (to->kind == TypeKind::ref && from->isPointer()) {
+    if (to->kind == TypeKind::ref && from->is_pointer()) {
         // NOTE: this may be related to 'unification'. Ref:
         // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
-        return typecheckAssignable(to->referee_type, from->referee_type);
+        return check_assignable(to->referee_type, from->referee_type);
     }
     return to == from;
 }
 
-bool typecheckExpr(Sema &sema, Expr *e);
-bool typecheckStmt(Sema &sema, Stmt *s);
-bool typecheckDecl(Sema &sema, Decl *d);
+bool check_expr(Sema &sema, Expr *e);
+bool check_stmt(Sema &sema, Stmt *s);
+bool check_decl(Sema &sema, Decl *d);
 
-bool typecheckUnaryExpr(Sema &sema, UnaryExpr *u) {
-    switch (u->kind) {
-    case UnaryExpr::paren:
-        if (!typecheckExpr(sema, u->operand))
-            return false;
-        u->type = u->operand->type;
-        break;
-    case UnaryExpr::deref: {
-        if (!typecheckExpr(sema, u->operand))
-            return false;
+bool check_unary_expr(Sema &sema, UnaryExpr *u) {
+  switch (u->kind) {
+  case UnaryExpr::paren:
+    if (!check_expr(sema, u->operand))
+      return false;
+    u->type = u->operand->type;
+    break;
+  case UnaryExpr::deref: {
+    if (!check_expr(sema, u->operand))
+      return false;
 
-        if (!u->operand->type->isPointer()) {
-            return error(u->loc, "dereferenced a non-pointer type '{}'",
-                         u->operand->type->name->text);
-        }
-        u->type = u->operand->type->referee_type;
-
-        // Bind a temporary VarDecl to this deref expression that respects the
-        // mutability of the reference type.  For example,
-        //
-        //     let v: var &int = ...
-        //     *v = 3
-        //
-        // The '*v' here has to have a valid VarDecl with 'mut' as true.
-        bool mut = (u->operand->type->kind == TypeKind::var_ref);
-        u->decl = sema.make_node<VarDecl>(nullptr, u->type, mut);
-
-        // We still need to do typecheck on this temporary decl to e.g. bind
-        // new decls for all struct children.
-        typecheckDecl(sema, u->decl);
-
-        // Temporary VarDecls are not pushed to the scoped decl table, because
-        // they are not meant to be accessible from other source locations.
-        // Therefore they don't need to have a name.
-
-        break;
+    if (!u->operand->type->is_pointer()) {
+      return error(u->loc, "dereferenced a non-pointer type '{}'",
+                   u->operand->type->name->text);
     }
-    case UnaryExpr::var_ref:
-    case UnaryExpr::ref: {
-        if (!typecheckExpr(sema, u->operand))
-            return false;
+    u->type = u->operand->type->referee_type;
 
-        // Prohibit taking address of an rvalue.
-        if (!is_lvalue(u->operand)) {
-            return error(u->loc, "cannot take address of an rvalue");
-        }
+    // Bind a temporary VarDecl to this deref expression that respects the
+    // mutability of the reference type.  For example,
+    //
+    //     let v: var &int = ...
+    //     *v = 3
+    //
+    // The '*v' here has to have a valid VarDecl with 'mut' as true.
+    bool mut = (u->operand->type->kind == TypeKind::var_ref);
+    u->decl = sema.make_node<VarDecl>(nullptr, u->type, mut);
 
-        // TODO: Prohibit mutable reference of an immutable variable.
+    // We still need to do typecheck on this temporary decl to e.g. bind
+    // new decls for all struct children.
+    check_decl(sema, u->decl);
 
-        auto type_kind =
-            (u->kind == UnaryExpr::var_ref) ? TypeKind::var_ref : TypeKind::ref;
-        u->type = get_derived_type(sema, type_kind, u->operand->type);
-        break;
-    }
-    default:
-        assert(!"unknown unary expr kind");
+    // Temporary VarDecls are not pushed to the scoped decl table, because
+    // they are not meant to be accessible from other source locations.
+    // Therefore they don't need to have a name.
+
+    break;
+  }
+  case UnaryExpr::var_ref:
+  case UnaryExpr::ref: {
+    if (!check_expr(sema, u->operand))
+      return false;
+
+    // Prohibit taking address of an rvalue.
+    if (!is_lvalue(u->operand)) {
+      return error(u->loc, "cannot take address of an rvalue");
     }
 
-    return true;
+    // TODO: Prohibit mutable reference of an immutable variable.
+
+    auto type_kind =
+        (u->kind == UnaryExpr::var_ref) ? TypeKind::var_ref : TypeKind::ref;
+    u->type = get_derived_type(sema, type_kind, u->operand->type);
+    break;
+  }
+  default:
+    assert(!"unknown unary expr kind");
+  }
+
+  return true;
 }
 
 Name *name_of_member_expr(Sema &sema, MemberExpr *mem) {
@@ -269,7 +269,7 @@ VarDecl *VarDecl::findMemberDecl(const Name *member_name) const {
   return nullptr;
 }
 
-bool typecheckExpr(Sema &sema, Expr *e) {
+bool check_expr(Sema &sema, Expr *e) {
   switch (e->kind) {
   case Expr::integer_literal: {
     e->as<IntegerLiteral>()->type = sema.context.int_type;
@@ -310,7 +310,7 @@ bool typecheckExpr(Sema &sema, Expr *e) {
       assert(!"not implemented");
     }
 
-    if (!typecheckExpr(sema, c->callee_expr))
+    if (!check_expr(sema, c->callee_expr))
       return false;
 
     assert(c->callee_expr->decl);
@@ -334,10 +334,10 @@ bool typecheckExpr(Sema &sema, Expr *e) {
     }
 
     for (size_t i = 0; i < c->args.size(); i++) {
-      if (!typecheckExpr(sema, c->args[i]))
+      if (!check_expr(sema, c->args[i]))
         return false;
 
-      if (!typecheckAssignable(func_decl->params[i]->type, c->args[i]->type)) {
+      if (!check_assignable(func_decl->params[i]->type, c->args[i]->type)) {
         auto suffix = (i == 0)   ? "st"
                       : (i == 1) ? "nd"
                       : (i == 2) ? "rd"
@@ -354,7 +354,7 @@ bool typecheckExpr(Sema &sema, Expr *e) {
   }
   case Expr::struct_def: {
     auto sde = e->as<StructDefExpr>();
-    if (!typecheckExpr(sema, sde->name_expr))
+    if (!check_expr(sema, sde->name_expr))
       return false;
 
     // @Cleanup: It doesn't make sense that 'name_expr' should have a type,
@@ -364,7 +364,7 @@ bool typecheckExpr(Sema &sema, Expr *e) {
       return false;
 
     Type *struct_type = sde->name_expr->decl->type;
-    if (!struct_type->isStruct()) {
+    if (!struct_type->is_struct()) {
       return error(sde->name_expr->loc, "type '{}' is not a struct",
                    struct_type->name->text);
     }
@@ -382,10 +382,10 @@ bool typecheckExpr(Sema &sema, Expr *e) {
                      term.name->text, struct_type->name->text);
       }
 
-      if (!typecheckExpr(sema, term.initexpr))
+      if (!check_expr(sema, term.initexpr))
         return false;
 
-      if (!typecheckAssignable(matched_field->type, term.initexpr->type)) {
+      if (!check_assignable(matched_field->type, term.initexpr->type)) {
         return error(term.initexpr->loc, "cannot assign '{}' type to '{}'",
                      term.initexpr->type->name->text,
                      matched_field->type->name->text);
@@ -397,15 +397,15 @@ bool typecheckExpr(Sema &sema, Expr *e) {
   }
   case Expr::member: {
     auto mem = e->as<MemberExpr>();
-    if (!typecheckExpr(sema, mem->parent_expr))
+    if (!check_expr(sema, mem->parent_expr))
       return false;
 
     auto parent_type = mem->parent_expr->type;
     Decl *parent_type_decl = nullptr;
     Name *reported_name = nullptr;
-    if (parent_type->isPointer()) {
+    if (parent_type->is_pointer()) {
       reported_name = parent_type->referee_type->name;
-      if (parent_type->referee_type->isStruct()) {
+      if (parent_type->referee_type->is_struct()) {
         parent_type_decl = parent_type->referee_type->origin_decl;
 
         // How do we get the VarDecl of the target of the pointer?
@@ -417,12 +417,12 @@ bool typecheckExpr(Sema &sema, Expr *e) {
         mem->parent_expr = new_parent;
 
         // Redo with the rewritten node.
-        return typecheckExpr(sema, mem);
+        return check_expr(sema, mem);
       }
     }
 
     reported_name = parent_type->name;
-    if (parent_type->isStruct()) {
+    if (parent_type->is_struct()) {
       parent_type_decl = parent_type->origin_decl;
     }
 
@@ -469,12 +469,12 @@ bool typecheckExpr(Sema &sema, Expr *e) {
     break;
   }
   case Expr::unary:
-    return typecheckUnaryExpr(sema, e->as<UnaryExpr>());
+    return check_unary_expr(sema, e->as<UnaryExpr>());
   case Expr::binary: {
     auto b = e->as<BinaryExpr>();
-    if (!typecheckExpr(sema, b->lhs))
+    if (!check_expr(sema, b->lhs))
       return false;
-    if (!typecheckExpr(sema, b->rhs))
+    if (!check_expr(sema, b->rhs))
       return false;
 
     auto lhs_type = b->lhs->type;
@@ -498,7 +498,7 @@ bool typecheckExpr(Sema &sema, Expr *e) {
     // etc.
 
     if (t->subexpr) {
-      if (!typecheckExpr(sema, t->subexpr))
+      if (!check_expr(sema, t->subexpr))
         return false;
     }
 
@@ -514,7 +514,7 @@ bool typecheckExpr(Sema &sema, Expr *e) {
       t->type = t->decl->type;
       assert(t->type && "type not resolved after visiting corresponding *Decl");
     } else if (t->kind == TypeKind::ref || t->kind == TypeKind::var_ref ||
-               t->kind == TypeKind::ptr) {
+               t->kind == TypeKind::ptr || t->kind == TypeKind::array) {
       t->type = get_derived_type(sema, t->kind, t->subexpr->type);
     } else {
       assert(!"unknown type kind");
@@ -532,13 +532,13 @@ bool typecheckExpr(Sema &sema, Expr *e) {
   return true;
 }
 
-bool typecheckStmt(Sema &sema, Stmt *s) {
+bool check_stmt(Sema &sema, Stmt *s) {
     switch (s->kind) {
     case Stmt::expr:
-        return typecheckExpr(sema, s->as<ExprStmt>()->expr);
+        return check_expr(sema, s->as<ExprStmt>()->expr);
     case Stmt::decl: {
         auto decl = s->as<DeclStmt>()->decl;
-        if (!typecheckDecl(sema, decl))
+        if (!check_decl(sema, decl))
             return false;
         if (!declare(sema, decl))
             return false;
@@ -546,9 +546,9 @@ bool typecheckStmt(Sema &sema, Stmt *s) {
     }
     case Stmt::assign: {
         auto as = s->as<AssignStmt>();
-        if (!typecheckExpr(sema, as->rhs))
+        if (!check_expr(sema, as->rhs))
             return false;
-        if (!typecheckExpr(sema, as->lhs))
+        if (!check_expr(sema, as->lhs))
             return false;
 
         auto lhs_type = as->lhs->type;
@@ -558,7 +558,7 @@ bool typecheckStmt(Sema &sema, Stmt *s) {
             return error(as->loc, "cannot assign to an rvalue");
         }
 
-        if (!typecheckAssignable(lhs_type, rhs_type)) {
+        if (!check_assignable(lhs_type, rhs_type)) {
             return error(as->loc, "cannot assign '{}' type to '{}'",
                          rhs_type->name->text, lhs_type->name->text);
         }
@@ -567,16 +567,16 @@ bool typecheckStmt(Sema &sema, Stmt *s) {
     }
     case Stmt::if_: {
         auto if_stmt = s->as<IfStmt>();
-        if (!typecheckExpr(sema, if_stmt->cond))
+        if (!check_expr(sema, if_stmt->cond))
             return false;
 
-        if (!typecheckStmt(sema, if_stmt->if_body))
+        if (!check_stmt(sema, if_stmt->if_body))
             return false;
         if (if_stmt->else_if_stmt) {
-            if (!typecheckStmt(sema, if_stmt->else_if_stmt))
+            if (!check_stmt(sema, if_stmt->else_if_stmt))
                 return false;
         } else if (if_stmt->else_body) {
-            if (!typecheckStmt(sema, if_stmt->else_body))
+            if (!check_stmt(sema, if_stmt->else_body))
                 return false;
         }
         break;
@@ -585,7 +585,7 @@ bool typecheckStmt(Sema &sema, Stmt *s) {
         auto r = s->as<ReturnStmt>();
         if (!r->expr)
             break;
-        if (!typecheckExpr(sema, r->expr))
+        if (!check_expr(sema, r->expr))
             return false;
 
         assert(!sema.context.func_stack.empty());
@@ -610,7 +610,7 @@ bool typecheckStmt(Sema &sema, Stmt *s) {
         bool success = true;
         sema.scope_open();
         for (auto line : s->as<CompoundStmt>()->stmts) {
-            if (!typecheck(sema, line)) {
+            if (!check(sema, line)) {
                 success = false;
             }
         }
@@ -631,18 +631,18 @@ VarDecl *instantiateMemberDecl(Sema &sema, VarDecl *parent, Name *name,
     return field;
 }
 
-static bool typecheckFuncDecl(Sema &sema, FuncDecl *f) {
+static bool check_func_decl(Sema &sema, FuncDecl *f) {
   // Struct methods.
   if (f->struct_param) {
-    if (!typecheckDecl(sema, f->struct_param))
+    if (!check_decl(sema, f->struct_param))
       return false;
 
     auto struct_param_type = f->struct_param->type;
     auto struct_param_type_expr = f->struct_param->type_expr->as<TypeExpr>();
 
     // By-pointer methods
-    if (struct_param_type->isPointer()) {
-      if (!struct_param_type->referee_type->isStruct()) {
+    if (struct_param_type->is_pointer()) {
+      if (!struct_param_type->referee_type->is_struct()) {
         return error(struct_param_type_expr->subexpr->loc,
                      "cannot declare a method for '{}' which is not a struct",
                      struct_param_type->referee_type->name->text);
@@ -651,7 +651,7 @@ static bool typecheckFuncDecl(Sema &sema, FuncDecl *f) {
           struct_param_type->referee_type->origin_decl->as<StructDecl>();
     }
     // By-value methods
-    else if (!struct_param_type->isStruct()) {
+    else if (!struct_param_type->is_struct()) {
       return error(struct_param_type_expr->loc,
                    "cannot declare a method for '{}' which is not a struct",
                    struct_param_type->name->text);
@@ -663,7 +663,7 @@ static bool typecheckFuncDecl(Sema &sema, FuncDecl *f) {
   }
 
   if (f->ret_type_expr) {
-    if (!typecheckExpr(sema, f->ret_type_expr))
+    if (!check_expr(sema, f->ret_type_expr))
       return false;
     f->ret_type = f->ret_type_expr->type;
   } else {
@@ -686,7 +686,7 @@ static bool typecheckFuncDecl(Sema &sema, FuncDecl *f) {
     }
 
     for (auto param : f->params) {
-      if (!typecheckDecl(sema, param)) {
+      if (!check_decl(sema, param)) {
         return false;
       }
       if (!declare(sema, param)) {
@@ -697,7 +697,7 @@ static bool typecheckFuncDecl(Sema &sema, FuncDecl *f) {
     // Extern function does not have a body.
     if (f->body) {
       for (auto line : f->body->stmts) {
-        if (!typecheck(sema, line)) {
+        if (!check(sema, line)) {
           success = false;
         }
       }
@@ -711,28 +711,28 @@ static bool typecheckFuncDecl(Sema &sema, FuncDecl *f) {
 
 // Note that this function will also do declare() for new symbols, so the
 // caller would have to set new scopes accordingly.
-bool typecheckDecl(Sema &sema, Decl *d) {
+bool check_decl(Sema &sema, Decl *d) {
   switch (d->kind) {
   case Decl::var: {
     auto v = d->as<VarDecl>();
     // if (!declare(sema, v->name, v))
     //     return false;
     if (v->assign_expr) {
-      if (!typecheckExpr(sema, v->assign_expr))
+      if (!check_expr(sema, v->assign_expr))
         return false;
       v->type = v->assign_expr->type;
     } else if (v->type_expr) {
-      if (!typecheckExpr(sema, v->type_expr))
+      if (!check_expr(sema, v->type_expr))
         return false;
       v->type = v->type_expr->type;
     }
 
     // For struct-typed VarDecls, instantiate all of its fields.
-    if (v->type->isStruct()) {
+    if (v->type->is_struct()) {
       auto struct_decl = v->type->origin_decl->as<StructDecl>();
       for (auto field : struct_decl->fields) {
         instantiateMemberDecl(sema, v, field->name, field->type);
-        // FIXME: should we typecheckDecl() children here?
+        // FIXME: should we check_decl() children here?
       }
     } else if (v->type == sema.context.string_type) {
       // String types have hidden children decls of { buf: *uint8, len: int64 }.
@@ -747,21 +747,21 @@ bool typecheckDecl(Sema &sema, Decl *d) {
     break;
   }
   case Decl::func:
-    return typecheckFuncDecl(sema, d->as<FuncDecl>());
+    return check_func_decl(sema, d->as<FuncDecl>());
   case Decl::field: {
     auto f = d->as<FieldDecl>();
     // field redeclaration check
     // if (!declare(sema, f->name, f))
     //     return false;
 
-    if (!typecheckExpr(sema, f->type_expr))
+    if (!check_expr(sema, f->type_expr))
       return false;
     f->type = f->type_expr->type;
     break;
   }
   case Decl::struct_: {
     auto s = d->as<StructDecl>();
-    s->type = makeValueType(sema, s->name, s);
+    s->type = make_value_type(sema, s->name, s);
 
     // if (!declare(sema, f->name, f))
     //     return false;
@@ -769,7 +769,7 @@ bool typecheckDecl(Sema &sema, Decl *d) {
     sema.decl_table.scope_open();
     bool success = true;
     for (auto field : s->fields) {
-      if (!typecheckDecl(sema, field)) {
+      if (!check_decl(sema, field)) {
         success = false;
       }
     }
@@ -783,25 +783,25 @@ bool typecheckDecl(Sema &sema, Decl *d) {
   return true;
 }
 
-bool typecheck(Sema &sema, AstNode *n) {
+bool check(Sema &sema, AstNode *n) {
     bool success;
 
     switch (n->kind) {
     case AstNode::file:
         success = true;
         for (auto toplevel : n->as<File>()->toplevels) {
-            if (!typecheck(sema, toplevel)) {
+            if (!check(sema, toplevel)) {
                 success = false;
             }
         }
         return success;
     case AstNode::stmt:
-        return typecheckStmt(sema, n->as<Stmt>());
+        return check_stmt(sema, n->as<Stmt>());
     case AstNode::decl:
         // For function and struct decls, even if one of its body statements or
         // members fail typechecking, we probably still want to declare them to
         // prevent too many chained errors for the code that use them.
-        success = typecheckDecl(sema, n->as<Decl>());
+        success = check_decl(sema, n->as<Decl>());
         if (!declare(sema, n->as<Decl>()))
             return false;
         return success;

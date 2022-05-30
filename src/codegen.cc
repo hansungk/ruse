@@ -7,7 +7,7 @@ std::string qbe_abity_string(const Type *type) {
   if (type->builtin) {
     // TODO: "l", "s", "d", ...
     s = "w";
-  } else if (type->isPointer()) {
+  } else if (type->is_pointer()) {
     s = "l";
   } else {
     s = fmt::format(":{}", type->name->text);

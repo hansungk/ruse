@@ -27,7 +27,7 @@ struct FuncDecl;
 // There may be multiple occurrences of a string in the source text, but only
 // one instance of the matching Name can reside in the name table.
 struct Name {
-    const char *text;
+  const char *text;
 };
 
 // 'NameTable' is a hash table of Names queried by their string value.  It
@@ -35,40 +35,38 @@ struct Name {
 // up the symbol table using Name instead of raw char * throughout the semantic
 // analysis.
 struct NameTable {
-    Name *push(const char *s) {
-        return pushlen(s, strlen(s));
-    }
-    Name *pushlen(const char *s, size_t len) {
-        Name *found = get(std::string{s, len});
-        if (found)
-            return found;
+  Name *push(const char *s) { return pushlen(s, strlen(s)); }
+  Name *pushlen(const char *s, size_t len) {
+    Name *found = get(std::string{s, len});
+    if (found)
+      return found;
 
-        Name n{strndup(s, len)};
-        auto pair = map.insert({std::string{s, len}, n});
-        return &pair.first->second;
+    Name n{strndup(s, len)};
+    auto pair = map.insert({std::string{s, len}, n});
+    return &pair.first->second;
+  }
+  Name *get(const std::string &s) {
+    auto found = map.find(s);
+    if (found == map.end()) {
+      return nullptr;
+    } else {
+      return &found->second;
     }
-    Name *get(const std::string &s) {
-        auto found = map.find(s);
-        if (found == map.end()) {
-            return nullptr;
-        } else {
-            return &found->second;
-        }
+  }
+  ~NameTable() {
+    for (auto &m : map) {
+      free((void *)m.second.text);
     }
-    ~NameTable() {
-        for (auto &m : map) {
-            free((void *)m.second.text);
-        }
-    }
-    std::unordered_map<std::string, Name> map;
+  }
+  std::unordered_map<std::string, Name> map;
 };
 
 enum class TypeKind {
-    value, // built-in, struct
-    ptr,
-    ref,
-    var_ref,
-    array,
+  value, // built-in, struct
+  ptr,
+  ref,
+  var_ref,
+  array,
 };
 
 // 'Type' represents a type, whether it be a built-in type, a user-defined
@@ -83,39 +81,39 @@ enum class TypeKind {
 // outlive the lexical scope of a single AST node. TODO: say about whether
 // storing them in memory pools or the scoped table.
 struct Type {
-    TypeKind kind = TypeKind::value;
-    // Name of the type. TODO: include * or [] in the name?
-    Name *name = nullptr;
-    // Whether this is a builtin type or not.
-    bool builtin = false;
-    // True if this type is copyable, e.g. can be used in the RHS of a regular
-    // assignment statement (=). Precise value will be determined in the type
-    // checking phase.
-    bool copyable = true;
-    union {
-        // For value types: back-reference to the decl that this type
-        // originates from.
-        Decl *origin_decl = nullptr;
-        // For derived types e.g. pointers: the target type that this type
-        // refers to.
-        Type *referee_type;
-    };
-    // Memory size of this type in bytes.
-    long size = 0;
+  TypeKind kind = TypeKind::value;
+  // Name of the type. TODO: include * or [] in the name?
+  Name *name = nullptr;
+  // Whether this is a builtin type or not.
+  bool builtin = false;
+  // True if this type is copyable, e.g. can be used in the RHS of a regular
+  // assignment statement (=). Precise value will be determined in the type
+  // checking phase.
+  bool copyable = true;
+  union {
+    // For value types: back-reference to the decl that this type
+    // originates from.
+    Decl *origin_decl = nullptr;
+    // For derived types e.g. pointers: the target type that this type
+    // refers to.
+    Type *referee_type;
+  };
+  // Memory size of this type in bytes.
+  long size = 0;
 
-    // Built-in value types.
-    Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
-    // Struct types.
-    Type(TypeKind k, Name *n, Decl *td) : kind(k), name(n), origin_decl(td) {}
-    // Reference types.
-    // TODO: copyable?
-    Type(Name *n, TypeKind k, Type *rt) : kind(k), name(n), referee_type(rt) {
-        copyable = k == TypeKind::ref;
-    }
+  // Built-in value types.
+  Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
+  // Struct types.
+  Type(TypeKind k, Name *n, Decl *td) : kind(k), name(n), origin_decl(td) {}
+  // Reference types.
+  // TODO: copyable?
+  Type(Name *n, TypeKind k, Type *rt) : kind(k), name(n), referee_type(rt) {
+    copyable = k == TypeKind::ref;
+  }
 
-    bool isStruct() const;
-    bool isPointer() const;
-    bool isBuiltin(Sema &sema) const;
+  bool is_struct() const;
+  bool is_pointer() const;
+  bool is_builtin(Sema &sema) const;
 };
 
 } // namespace cmp
