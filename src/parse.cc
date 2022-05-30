@@ -562,88 +562,94 @@ Expr *Parser::parse_cast_expr() {
 // name.  This function is used in the typechecking phase to query
 // already-declared reference types from the type table. TODO: looks kinda like
 // an unnecessary step.
-Name *name_of_derived_type(NameTable &names, TypeKind kind,
+Name *make_name_of_derived_type(NameTable &names, TypeKind kind,
                            Name *referee_name) {
-    std::string prefix;
+    std::string s;
     switch (kind) {
     case TypeKind::var_ref:
-        prefix = "var *";
+        s = "var *";
         break;
     case TypeKind::ref:
-        prefix = "*";
+        s = "*";
         break;
     case TypeKind::ptr:
-        prefix = "*";
+        s = "*";
+        break;
+    case TypeKind::array:
+        s = "[]";
         break;
     default:
-        assert(false && "unreachable");
+        assert(!"unknown type kind");
     }
-    prefix += referee_name->text;
-    return names.push(prefix.c_str());
+    s += referee_name->text;
+    return names.push(s.c_str());
 }
 
-// Parse a type expression.
-// A type expression is simply every stream of tokens in the source that can
-// represent a type.
+// Parse a type expression.  A type expression is simply every stream of tokens
+// in the source that can represent a type.
 //
 // type-expression:
-//     ('var'? '&')? ident
+//     ('*' | '&')? '[]'? ident
 Expr *Parser::parse_type_expr() {
-    auto pos = tok.pos;
+  auto pos = tok.pos;
 
-    bool mut = false;
-    if (tok.kind == Token::kw_var) {
-        next();
-        mut = true;
+  bool mut = false;
+  if (tok.kind == Token::kw_var) {
+    next();
+    mut = true;
+  }
+
+  TypeKind type_kind = TypeKind::value;
+  Name *lt_name = nullptr;
+  Expr *subexpr = nullptr;
+  // String to push to the name table.  Push full names of the derived types
+  // (e.g. *int, []int) as we come across them here on the spot.
+  std::string text;
+  if (tok.kind == Token::star) {
+    next();
+    type_kind = mut ? TypeKind::var_ref : TypeKind::ref;
+    // Lifetime annotation.
+    if (tok.kind == Token::dot) {
+      next();
+      lt_name = push_token_to_name_table(sema, tok);
+      next();
     }
+    // Base type name.
+    subexpr = parse_type_expr();
+    text = make_name_of_derived_type(sema.name_table,
+                                     mut ? TypeKind::var_ref : TypeKind::ref,
+                                     subexpr->as<TypeExpr>()->name)
+               ->text;
+  } else if (tok.kind == Token::star) {
+    next();
+    type_kind = TypeKind::ptr;
+    subexpr = parse_type_expr();
+    text = make_name_of_derived_type(sema.name_table, TypeKind::ptr,
+                                     subexpr->as<TypeExpr>()->name)
+               ->text;
+  } else if (tok.kind == Token::lbracket) {
+    expect(Token::lbracket);
+    expect(Token::rbracket);
+    subexpr = parse_type_expr();
+    text = make_name_of_derived_type(sema.name_table, TypeKind::array,
+                                     subexpr->as<TypeExpr>()->name)
+               ->text;
+  } else if (is_ident_or_keyword(tok)) {
+    type_kind = TypeKind::value;
 
-    TypeKind type_kind = TypeKind::value;
-    Name *lt_name = nullptr;
-    Expr *subexpr = nullptr;
-    std::string text;
-    if (tok.kind == Token::star) {
-        next();
-        type_kind = mut ? TypeKind::var_ref : TypeKind::ref;
-        // Lifetime annotation.
-        if (tok.kind == Token::dot) {
-            next();
-            lt_name = push_token_to_name_table(sema, tok);
-            next();
-        }
-        // Base type name.
-        subexpr = parse_type_expr();
-        // FIXME: unnatural
-        if (subexpr->kind == Expr::type_) {
-            text = name_of_derived_type(sema.name_table,
-                                        mut ? TypeKind::var_ref : TypeKind::ref,
-                                        subexpr->as<TypeExpr>()->name)
-                       ->text;
-        }
-    } else if (tok.kind == Token::star) {
-        next();
-        type_kind = TypeKind::ptr;
-        subexpr = parse_type_expr();
-        if (subexpr->kind == Expr::type_) {
-            text = name_of_derived_type(sema.name_table, TypeKind::ptr,
-                                        subexpr->as<TypeExpr>()->name)
-                       ->text;
-        }
-    } else if (is_ident_or_keyword(tok)) {
-        type_kind = TypeKind::value;
+    text = std::string{tok.start, static_cast<size_t>(tok.end - tok.start)};
+    next();
 
-        text = std::string{tok.start, static_cast<size_t>(tok.end - tok.start)};
-        next();
+    subexpr = nullptr;
+  } else {
+    error_expected("type name");
+    return sema.make_node_pos<BadExpr>(pos);
+  }
 
-        subexpr = nullptr;
-    } else {
-        error_expected("type name");
-        return sema.make_node_pos<BadExpr>(pos);
-    }
+  Name *name = sema.name_table.push(text.c_str());
 
-    Name *name = sema.name_table.push(text.c_str());
-
-    return sema.make_node_pos<TypeExpr>(pos, type_kind, name, mut, lt_name,
-                                        subexpr);
+  return sema.make_node_pos<TypeExpr>(pos, type_kind, name, mut, lt_name,
+                                      subexpr);
 }
 
 Expr *Parser::parse_unary_expr() {

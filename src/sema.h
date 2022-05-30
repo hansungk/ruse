@@ -271,7 +271,7 @@ struct QbeGen {
   void codegen_expr_address(Expr *e);
   void codegen_expr_explicit(Expr *e, bool value);
   void codegen_stmt(Stmt *s);
-  void codegenDataSection();
+  void codegen_data_section();
 };
 
 } // namespace cmp

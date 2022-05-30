@@ -29,8 +29,6 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     break;
   case Expr::string_literal:
     valstack.push_global("string");
-    // TODO: generate address of the string literal, possibly stored in .text
-    // area
     break;
   case Expr::decl_ref: {
     auto dre = e->as<DeclRefExpr>();
@@ -550,14 +548,14 @@ long QbeGen::emit_stack_alloc(const Type *type, size_t line,
   return id;
 }
 
-void QbeGen::codegenDataSection() {
+void QbeGen::codegen_data_section() {
   emitln("data $string = {{ b \"hello\", b 0 }}");
 }
 
 void QbeGen::codegen(AstNode *n) {
   switch (n->kind) {
   case AstNode::file: {
-    codegenDataSection();
+    codegen_data_section();
     for (auto toplevel : n->as<File>()->toplevels) {
       codegen(toplevel);
     }

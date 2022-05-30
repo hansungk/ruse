@@ -68,6 +68,7 @@ enum class TypeKind {
     ptr,
     ref,
     var_ref,
+    array,
 };
 
 // 'Type' represents a type, whether it be a built-in type, a user-defined
