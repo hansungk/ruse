@@ -173,50 +173,50 @@ struct Value {
 // or arithmetic instructions with it.  This ID could otherwise be kept in the
 // nodes themselves, but that will make the access expensive.
 struct Valstack {
-    std::vector<Value> buf;
-    int next_id = 0;
+  std::vector<Value> buf;
+  int next_id = 0;
 
-    // Push a value as a temporary variable in QBE.  This will be designated as
-    // "%_0" in the IL.
-    // This does not take any argument because the actual value is emitted to
-    // the code.
-    void pushTemp() {
-        buf.push_back(Value{.kind = Value::temp, .id = next_id});
-        next_id++;
-    }
+  // Push a value as a temporary variable in QBE.  This will be designated as
+  // "%_0" in the IL.
+  // This does not take any argument because the actual value is emitted to
+  // the code.
+  void push_temp() {
+    buf.push_back(Value{.kind = Value::temp, .id = next_id});
+    next_id++;
+  }
 
-    // Push a value in the form of its memory address.  Larger sized types such
-    // as structs cannot be emitted as a QBE temporary, and this is the only
-    // way to emit its value.  This will be designated as "%a0" in the IL.
-    // This does not take any argument because the actual address is emitted to
-    // the code.
-    void pushAddress() {
-        buf.push_back(Value{.kind = Value::address, .id = next_id});
-        next_id++;
-    }
+  // Push a value in the form of its memory address.  Larger sized types such
+  // as structs cannot be emitted as a QBE temporary, and this is the only
+  // way to emit its value.  This will be designated as "%a0" in the IL.
+  // This does not take any argument because the actual address is emitted to
+  // the code.
+  void push_address() {
+    buf.push_back(Value{.kind = Value::address, .id = next_id});
+    next_id++;
+  }
 
-    // Push a global value that is defined in the data {} section.
-    void pushGlobal(const std::string &name) {
-      buf.push_back(Value{.kind = Value::global, .id = next_id, .name = name});
-      next_id++;
-    }
+  // Push a global value that is defined in the data {} section.
+  void push_global(const std::string &name) {
+    buf.push_back(Value{.kind = Value::global, .id = next_id, .name = name});
+    next_id++;
+  }
 
-    // Explicitly give the id of the value which will be reused.
-    void pushAddressExplicit(int id) {
-        buf.push_back(Value{.kind = Value::address, .id = id});
-    }
+  // Explicitly give the id of the value which will be reused.
+  void push_address_explicit(int id) {
+    buf.push_back(Value{.kind = Value::address, .id = id});
+  }
 
-    Value peek() const { return buf.back(); }
+  Value peek() const { return buf.back(); }
 
-    Value pop() {
-        assert(!buf.empty());
-        auto v = peek();
-        buf.pop_back();
-        return v;
-    }
+  Value pop() {
+    assert(!buf.empty());
+    auto v = peek();
+    buf.pop_back();
+    return v;
+  }
 };
 
-struct QbeGenerator {
+struct QbeGen {
   Sema &sema;
   Valstack valstack;
   int label_id = 0;
@@ -240,10 +240,10 @@ struct QbeGenerator {
     }
   };
 
-  QbeGenerator(Sema &s, const char *filename) : sema{s} {
+  QbeGen(Sema &s, const char *filename) : sema{s} {
     file = fopen(filename, "w");
   }
-  ~QbeGenerator() { fclose(file); }
+  ~QbeGen() { fclose(file); }
   template <typename... Args> void emitln(Args &&...args) {
     fmt::print(file, "\n{:{}}", "", indent);
     fmt::print(file, std::forward<Args>(args)...);
@@ -257,21 +257,21 @@ struct QbeGenerator {
     fmt::print(file, std::forward<Args>(args)...);
   }
   struct IndentBlock {
-    QbeGenerator &c;
-    IndentBlock(QbeGenerator &c) : c{c} { c.indent += 4; }
+    QbeGen &c;
+    IndentBlock(QbeGen &c) : c{c} { c.indent += 4; }
     ~IndentBlock() { c.indent -= 4; }
   };
 
-  void emitAssignment(const Decl *lhs, Expr *rhs);
-  long emitStackAlloc(const Type *type, size_t line, std::string_view text);
+  void emit_assignment(const Decl *lhs, Expr *rhs);
+  long emit_stack_alloc(const Type *type, size_t line, std::string_view text);
 
   void codegen(AstNode *n);
+  void codegen_decl(Decl *d);
+  void codegen_expr(Expr *e);
+  void codegen_expr_address(Expr *e);
+  void codegen_expr_explicit(Expr *e, bool value);
+  void codegen_stmt(Stmt *s);
   void codegenDataSection();
-  void codegenDecl(Decl *d);
-  void codegenExpr(Expr *e);
-  void codegenExprAddress(Expr *e);
-  void codegenExprExplicit(Expr *e, bool value);
-  void codegenStmt(Stmt *s);
 };
 
 } // namespace cmp

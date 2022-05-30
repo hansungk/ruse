@@ -13,7 +13,7 @@ $ make check
 
 Look into `test/*.ruse` files for some code examples.
 
-## check
+## test
 
 ```
 $ ./check.py

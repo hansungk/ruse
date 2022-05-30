@@ -25,7 +25,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     #   -unwindlib=libunwind -Wl,-rpath=$ENV{HOME}/build/llvm/lib)
 
     # Selectively use LLD on Linux
-    list(APPEND MY_LINK_FLAGS -fuse-ld=lld)
+    # list(APPEND MY_LINK_FLAGS -fuse-ld=lld)
   endif()
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   list(APPEND MY_COMPILE_FLAGS -fdiagnostics-color=always $<$<CONFIG:DEBUG>:-ggdb>)
