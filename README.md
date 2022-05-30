@@ -21,7 +21,6 @@ $ ./check.py
 
 ## todo
 
-* s.a()
 * strings
 * interop with C
 * methods

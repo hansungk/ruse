@@ -144,7 +144,7 @@ bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl);
 bool declare(Sema &sema, Decl *decl);
 bool typecheck(Sema &sema, AstNode *n);
 
-struct Value {
+struct QbeValue {
   enum Kind {
     temp,
     address,
@@ -173,7 +173,7 @@ struct Value {
 // or arithmetic instructions with it.  This ID could otherwise be kept in the
 // nodes themselves, but that will make the access expensive.
 struct Valstack {
-  std::vector<Value> buf;
+  std::vector<QbeValue> buf;
   int next_id = 0;
 
   // Push a value as a temporary variable in QBE.  This will be designated as
@@ -181,7 +181,7 @@ struct Valstack {
   // This does not take any argument because the actual value is emitted to
   // the code.
   void push_temp() {
-    buf.push_back(Value{.kind = Value::temp, .id = next_id});
+    buf.push_back(QbeValue{.kind = QbeValue::temp, .id = next_id});
     next_id++;
   }
 
@@ -191,24 +191,24 @@ struct Valstack {
   // This does not take any argument because the actual address is emitted to
   // the code.
   void push_address() {
-    buf.push_back(Value{.kind = Value::address, .id = next_id});
+    buf.push_back(QbeValue{.kind = QbeValue::address, .id = next_id});
     next_id++;
   }
 
   // Push a global value that is defined in the data {} section.
   void push_global(const std::string &name) {
-    buf.push_back(Value{.kind = Value::global, .id = next_id, .name = name});
+    buf.push_back(QbeValue{.kind = QbeValue::global, .id = next_id, .name = name});
     next_id++;
   }
 
   // Explicitly give the id of the value which will be reused.
   void push_address_explicit(int id) {
-    buf.push_back(Value{.kind = Value::address, .id = id});
+    buf.push_back(QbeValue{.kind = QbeValue::address, .id = id});
   }
 
-  Value peek() const { return buf.back(); }
+  QbeValue peek() const { return buf.back(); }
 
-  Value pop() {
+  QbeValue pop() {
     assert(!buf.empty());
     auto v = peek();
     buf.pop_back();

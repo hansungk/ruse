@@ -91,7 +91,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     auto func_decl = c->callee_decl->as<FuncDecl>();
 
     // codegen arguments first
-    std::vector<Value> generated_args;
+    std::vector<QbeValue> generated_args;
     for (auto arg : c->args) {
       codegen_expr_explicit(arg, true);
       generated_args.push_back(valstack.pop());
@@ -191,7 +191,8 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     if (ue->kind == UnaryExpr::ref) {
       codegen_expr_explicit(ue->operand, false);
     } else if (ue->kind == UnaryExpr::deref) {
-      // Output its value first, which is an address.
+      // Output address of the "*p", which is the value of "p".  This is an
+      // address but will be marked as a value in QbeValue.
       codegen_expr_explicit(ue->operand, true);
       if (value) {
         // If `value` is true, emit another load to get the
@@ -442,7 +443,9 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
   // structs allocated on the stack.
   auto rhs_value = valstack.pop();
   auto lhs_address = valstack.pop();
-  assert(lhs_address.kind == Value::address);
+  // This doens't really work, for example for *p = 42 where the address of the
+  // LHS is a value of "p".
+  // assert(lhs_address.kind == QbeValue::address);
 
   // For structs, copy every field one by one.
   // XXX: This assumes that any LHS type that is larger than an eightbyte is
@@ -504,7 +507,9 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
   } else {
     assert(!"unknown type size");
   }
-  annotate("{}: store to {}", rhs->loc.line, lhs->name->text);
+  // TODO: annotate proper name for temp decls, e.g. "*p"
+  // annotate("{}: store to {}", rhs->loc.line, lhs->name->text);
+  annotate("{}: store to LHS", rhs->loc.line);
 }
 
 // Emit a value by allocating it on the stack memory.  That value will be
