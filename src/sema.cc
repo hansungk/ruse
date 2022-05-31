@@ -18,23 +18,26 @@ template <typename... Args> static bool error(SourceLoc loc, Args &&...args) {
   // exit(EXIT_FAILURE);
 }
 
-static Type *make_value_type(Sema &sema, Name *n, Decl *decl) {
-  Type *t = new Type(TypeKind::value, n, decl);
+Type *make_struct_type(Sema &sema, Name *n, Decl *decl) {
+  Type *t = new Type(TypeKind::value, n);
+  t->origin_decl = decl;
   sema.type_pool.push_back(t);
   return t;
 }
 
-static Type *make_pointer_type(Sema &sema, Name *name, TypeKind ptr_kind,
+Type *make_pointer_type(Sema &sema, Name *name, TypeKind ptr_kind,
                              Type *referee_type) {
-  Type *t = new Type(name, ptr_kind, referee_type);
+  Type *t = new Type(ptr_kind, name);
+  t->referee_type = referee_type;
   // assumes pointers are always 8 bytes
   t->size = 8;
   sema.type_pool.push_back(t);
   return t;
 }
 
-static Type *make_builtin_type(Sema &sema, Name *n) {
-  Type *t = new Type(n);
+Type *make_builtin_type(Sema &sema, Name *n) {
+  Type *t = new Type(TypeKind::value, n);
+  t->builtin = true;
   sema.type_pool.push_back(t);
   return t;
 }
@@ -94,7 +97,7 @@ bool Type::is_struct() const {
 }
 
 bool Type::is_pointer() const {
-    return kind == TypeKind::ref || kind == TypeKind::var_ref;
+  return kind == TypeKind::pointer;
 }
 
 bool Type::is_builtin(Sema &sema) const {
@@ -168,6 +171,8 @@ Type *get_derived_type(Sema &sema, TypeKind kind, Type *type) {
   Name *name = make_name_of_derived_type(sema.name_table, kind, type->name);
   if (auto found = sema.type_table.find(name)) {
     return found->value;
+  } else if (kind == TypeKind::array) {
+    assert(!"TODO");
   } else {
     Type *derived = make_pointer_type(sema, name, kind, type);
     return *sema.type_table.insert(name, derived);
@@ -181,7 +186,7 @@ bool check_assignable(const Type *to, const Type *from) {
     // 2. Exact same match.
 
     // Allow promotion from mutable to immutable pointer.
-    if (to->kind == TypeKind::ref && from->is_pointer()) {
+    if (to->kind == TypeKind::pointer && from->is_pointer()) {
         // NOTE: this may be related to 'unification'. Ref:
         // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
         return check_assignable(to->referee_type, from->referee_type);
@@ -209,16 +214,7 @@ bool check_unary_expr(Sema &sema, UnaryExpr *u) {
                    u->operand->type->name->text);
     }
     u->type = u->operand->type->referee_type;
-
-    // Bind a temporary VarDecl to this deref expression that respects the
-    // mutability of the reference type.  For example,
-    //
-    //     let v: var &int = ...
-    //     *v = 3
-    //
-    // The '*v' here has to have a valid VarDecl with 'mut' as true.
-    bool mut = (u->operand->type->kind == TypeKind::var_ref);
-    u->decl = sema.make_node<VarDecl>(nullptr, u->type, mut);
+    u->decl = sema.make_node<VarDecl>(nullptr, u->type, true);
 
     // We still need to do typecheck on this temporary decl to e.g. bind
     // new decls for all struct children.
@@ -242,8 +238,7 @@ bool check_unary_expr(Sema &sema, UnaryExpr *u) {
 
     // TODO: Prohibit mutable reference of an immutable variable.
 
-    auto type_kind =
-        (u->kind == UnaryExpr::var_ref) ? TypeKind::var_ref : TypeKind::ref;
+    auto type_kind = TypeKind::pointer;
     u->type = get_derived_type(sema, type_kind, u->operand->type);
     break;
   }
@@ -513,8 +508,7 @@ bool check_expr(Sema &sema, Expr *e) {
       // Builtin types, or user types that have showed up before.
       t->type = t->decl->type;
       assert(t->type && "type not resolved after visiting corresponding *Decl");
-    } else if (t->kind == TypeKind::ref || t->kind == TypeKind::var_ref ||
-               t->kind == TypeKind::ptr || t->kind == TypeKind::array) {
+    } else if (t->kind == TypeKind::pointer || t->kind == TypeKind::array) {
       t->type = get_derived_type(sema, t->kind, t->subexpr->type);
     } else {
       assert(!"unknown type kind");
@@ -761,7 +755,7 @@ bool check_decl(Sema &sema, Decl *d) {
   }
   case Decl::struct_: {
     auto s = d->as<StructDecl>();
-    s->type = make_value_type(sema, s->name, s);
+    s->type = make_struct_type(sema, s->name, s);
 
     // if (!declare(sema, f->name, f))
     //     return false;

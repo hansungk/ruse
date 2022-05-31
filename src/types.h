@@ -63,9 +63,7 @@ struct NameTable {
 
 enum class TypeKind {
   value, // built-in, struct
-  ptr,
-  ref,
-  var_ref,
+  pointer,
   array,
 };
 
@@ -86,10 +84,6 @@ struct Type {
   Name *name = nullptr;
   // Whether this is a builtin type or not.
   bool builtin = false;
-  // True if this type is copyable, e.g. can be used in the RHS of a regular
-  // assignment statement (=). Precise value will be determined in the type
-  // checking phase.
-  bool copyable = true;
   union {
     // For value types: back-reference to the decl that this type
     // originates from.
@@ -101,20 +95,17 @@ struct Type {
   // Memory size of this type in bytes.
   long size = 0;
 
-  // Built-in value types.
-  Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
-  // Struct types.
-  Type(TypeKind k, Name *n, Decl *td) : kind(k), name(n), origin_decl(td) {}
-  // Reference types.
-  // TODO: copyable?
-  Type(Name *n, TypeKind k, Type *rt) : kind(k), name(n), referee_type(rt) {
-    copyable = k == TypeKind::ref;
-  }
+  Type(TypeKind k, Name *n) : kind(k), name(n) {}
 
   bool is_struct() const;
   bool is_pointer() const;
   bool is_builtin(Sema &sema) const;
 };
+
+Type *make_struct_type(Sema &sema, Name *n, Decl *decl);
+Type *make_pointer_type(Sema &sema, Name *name, TypeKind ptr_kind,
+                        Type *referee_type);
+Type *make_builtin_type(Sema &sema, Name *n);
 
 } // namespace cmp
 

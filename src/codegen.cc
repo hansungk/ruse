@@ -525,11 +525,13 @@ long QbeGen::emit_stack_alloc(const Type *type, size_t line,
 
   emitln("%a{} =l ", id);
   // FIXME: unify 'ptr' and 'ref'
-  if (type->kind == TypeKind::ptr || type->kind == TypeKind::ref) {
+  if (type->kind == TypeKind::pointer) {
     // assumes pointers are always 8 bytes
     emit("alloc8");
+  } else if (type->kind == TypeKind::array) {
+    assert(!"TODO: stack allocate for array types");
   } else if (type->builtin) {
-    assert(type->kind != TypeKind::ptr &&
+    assert(type->kind != TypeKind::pointer &&
            "ptr & builtin for Types is possible?");
     emit("alloc4");
   } else {

@@ -566,13 +566,7 @@ Name *make_name_of_derived_type(NameTable &names, TypeKind kind,
                            Name *referee_name) {
     std::string s;
     switch (kind) {
-    case TypeKind::var_ref:
-        s = "var *";
-        break;
-    case TypeKind::ref:
-        s = "*";
-        break;
-    case TypeKind::ptr:
+    case TypeKind::pointer:
         s = "*";
         break;
     case TypeKind::array:
@@ -593,10 +587,8 @@ Name *make_name_of_derived_type(NameTable &names, TypeKind kind,
 Expr *Parser::parse_type_expr() {
   auto pos = tok.pos;
 
-  bool mut = false;
   if (tok.kind == Token::kw_var) {
     next();
-    mut = true;
   }
 
   TypeKind type_kind = TypeKind::value;
@@ -607,24 +599,10 @@ Expr *Parser::parse_type_expr() {
   std::string text;
   if (tok.kind == Token::star) {
     next();
-    type_kind = mut ? TypeKind::var_ref : TypeKind::ref;
-    // Lifetime annotation.
-    if (tok.kind == Token::dot) {
-      next();
-      lt_name = push_token_to_name_table(sema, tok);
-      next();
-    }
-    // Base type name.
+    type_kind = TypeKind::pointer;
+    // Base type name
     subexpr = parse_type_expr();
-    text = make_name_of_derived_type(sema.name_table,
-                                     mut ? TypeKind::var_ref : TypeKind::ref,
-                                     subexpr->as<TypeExpr>()->name)
-               ->text;
-  } else if (tok.kind == Token::star) {
-    next();
-    type_kind = TypeKind::ptr;
-    subexpr = parse_type_expr();
-    text = make_name_of_derived_type(sema.name_table, TypeKind::ptr,
+    text = make_name_of_derived_type(sema.name_table, TypeKind::pointer,
                                      subexpr->as<TypeExpr>()->name)
                ->text;
   } else if (tok.kind == Token::lbracket) {
@@ -649,7 +627,7 @@ Expr *Parser::parse_type_expr() {
 
   Name *name = sema.name_table.push(text.c_str());
 
-  return sema.make_node_pos<TypeExpr>(pos, type_kind, name, mut, lt_name,
+  return sema.make_node_pos<TypeExpr>(pos, type_kind, name, true, lt_name,
                                       subexpr);
 }
 
