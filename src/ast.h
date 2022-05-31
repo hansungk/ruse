@@ -20,9 +20,6 @@ struct StructDecl;
 struct EnumVariantDecl;
 struct EnumDecl;
 struct BadDecl;
-class Lifetime;
-
-std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
 struct AstNode {
   const enum AstKind {
@@ -315,16 +312,13 @@ struct TypeExpr : public Expr {
 
     // Is this type mutable?
     bool mut = false;
-    // Name of the explicit lifetime annotation.
-    Name *lifetime_annot = nullptr;
     // E.g., 'T' part of '*T'.  It is Expr rather than TypeExpr mainly so that
     // it can store BadExpr.  XXX dirty.
     Expr *subexpr = nullptr;
 
     // TODO: incomplete.
     TypeExpr(TypeKind k, Name *n, bool m, Name *lt, Expr *se)
-        : Expr(Expr::type_), kind(k), name(n), mut(m), lifetime_annot(lt),
-          subexpr(se) {}
+        : Expr(Expr::type_), kind(k), name(n), mut(m), subexpr(se) {}
 };
 
 struct BadExpr : public Expr {
@@ -442,9 +436,6 @@ struct FuncDecl : public Decl {
   std::vector<VarDecl *> params;      // list of parameters
   CompoundStmt *body = nullptr;       // body statements
   Expr *ret_type_expr = nullptr;      // return type expression
-  Name *ret_lifetime_annot = nullptr; // lifetime annotation of the return value
-  // "Bogus" lifetime that represents the scope of the function body.
-  Lifetime *scope_lifetime = nullptr;
 
   FuncDecl(Name *n) : Decl(Decl::func, n) {}
   size_t args_count() const { return params.size(); }

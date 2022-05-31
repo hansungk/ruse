@@ -177,23 +177,23 @@ bool declare(Sema &sema, Decl *decl) {
 // code.  Trying to push them every time we see one is sufficient to keep this
 // invariant.
 Type *get_derived_type(Sema &sema, TypeKind kind, Type *base_type) {
-  Type *type = nullptr;
+  Type *derived_type = nullptr;
   Name *name =
       make_name_of_derived_type(sema.name_table, kind, base_type->name);
 
   if (auto found = sema.type_table.find(name)) {
-    type = found->value;
+    derived_type = found->value;
   } else if (kind == TypeKind::pointer) {
-    type = make_pointer_type(sema, name, base_type);
-    sema.type_table.insert(name, type);
+    derived_type = make_pointer_type(sema, name, base_type);
+    sema.type_table.insert(name, derived_type);
   } else if (kind == TypeKind::array) {
-    type = make_array_type(sema, name, base_type);
-    sema.type_table.insert(name, type);
+    derived_type = make_array_type(sema, name, base_type);
+    sema.type_table.insert(name, derived_type);
   } else {
     assert(!"unknown type kind");
   }
 
-  return type;
+  return derived_type;
 }
 
 bool check_assignable(const Type *to, const Type *from) {

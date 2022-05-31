@@ -2,6 +2,7 @@
 #define CMP_SCOPED_TABLE_H
 
 #include <vector>
+#include <cstdio>
 
 namespace cmp {
 
