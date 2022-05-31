@@ -90,7 +90,7 @@ struct Type {
     Decl *origin_decl = nullptr;
     // For derived types e.g. pointers: the target type that this type
     // refers to.
-    Type *referee_type;
+    Type *base_type;
   };
   // Memory size of this type in bytes.
   long size = 0;

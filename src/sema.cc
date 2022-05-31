@@ -25,10 +25,18 @@ Type *make_struct_type(Sema &sema, Name *n, Decl *decl) {
   return t;
 }
 
-Type *make_pointer_type(Sema &sema, Name *name, TypeKind ptr_kind,
-                             Type *referee_type) {
-  Type *t = new Type(ptr_kind, name);
-  t->referee_type = referee_type;
+Type *make_pointer_type(Sema &sema, Name *name, Type *base_type) {
+  Type *t = new Type(TypeKind::pointer, name);
+  t->base_type = base_type;
+  // assumes pointers are always 8 bytes
+  t->size = 8;
+  sema.type_pool.push_back(t);
+  return t;
+}
+
+Type *make_array_type(Sema &sema, Name *name, Type *base_type) {
+  Type *t = new Type(TypeKind::array, name);
+  t->base_type = base_type;
   // assumes pointers are always 8 bytes
   t->size = 8;
   sema.type_pool.push_back(t);
@@ -162,36 +170,45 @@ bool declare(Sema &sema, Decl *decl) {
     return true;
 }
 
-// Get or construct a derived type with kind `kind`, from a given type.
+// Get or construct a derived type with kind `kind`, from a given type
+// `base_type`.
 //
 // Derived types are only present in the type table if they occur in the source
 // code.  Trying to push them every time we see one is sufficient to keep this
 // invariant.
-Type *get_derived_type(Sema &sema, TypeKind kind, Type *type) {
-  Name *name = make_name_of_derived_type(sema.name_table, kind, type->name);
+Type *get_derived_type(Sema &sema, TypeKind kind, Type *base_type) {
+  Type *type = nullptr;
+  Name *name =
+      make_name_of_derived_type(sema.name_table, kind, base_type->name);
+
   if (auto found = sema.type_table.find(name)) {
-    return found->value;
+    type = found->value;
+  } else if (kind == TypeKind::pointer) {
+    type = make_pointer_type(sema, name, base_type);
+    sema.type_table.insert(name, type);
   } else if (kind == TypeKind::array) {
-    assert(!"TODO");
+    type = make_array_type(sema, name, base_type);
+    sema.type_table.insert(name, type);
   } else {
-    Type *derived = make_pointer_type(sema, name, kind, type);
-    return *sema.type_table.insert(name, derived);
+    assert(!"unknown type kind");
   }
+
+  return type;
 }
 
 bool check_assignable(const Type *to, const Type *from) {
-    // TODO: Typecheck assignment rules so far:
-    //
-    // 1. Pointer <- mutable pointer.
-    // 2. Exact same match.
+  // TODO: Typecheck assignment rules so far:
+  //
+  // 1. Pointer <- mutable pointer.
+  // 2. Exact same match.
 
-    // Allow promotion from mutable to immutable pointer.
-    if (to->kind == TypeKind::pointer && from->is_pointer()) {
-        // NOTE: this may be related to 'unification'. Ref:
-        // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
-        return check_assignable(to->referee_type, from->referee_type);
-    }
-    return to == from;
+  // Allow promotion from mutable to immutable pointer.
+  if (to->kind == TypeKind::pointer && from->is_pointer()) {
+    // NOTE: this may be related to 'unification'. Ref:
+    // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
+    return check_assignable(to->base_type, from->base_type);
+  }
+  return to == from;
 }
 
 bool check_expr(Sema &sema, Expr *e);
@@ -213,7 +230,7 @@ bool check_unary_expr(Sema &sema, UnaryExpr *u) {
       return error(u->loc, "dereferenced a non-pointer type '{}'",
                    u->operand->type->name->text);
     }
-    u->type = u->operand->type->referee_type;
+    u->type = u->operand->type->base_type;
     u->decl = sema.make_node<VarDecl>(nullptr, u->type, true);
 
     // We still need to do typecheck on this temporary decl to e.g. bind
@@ -399,9 +416,9 @@ bool check_expr(Sema &sema, Expr *e) {
     Decl *parent_type_decl = nullptr;
     Name *reported_name = nullptr;
     if (parent_type->is_pointer()) {
-      reported_name = parent_type->referee_type->name;
-      if (parent_type->referee_type->is_struct()) {
-        parent_type_decl = parent_type->referee_type->origin_decl;
+      reported_name = parent_type->base_type->name;
+      if (parent_type->base_type->is_struct()) {
+        parent_type_decl = parent_type->base_type->origin_decl;
 
         // How do we get the VarDecl of the target of the pointer?
         // Best way to do this would be to rewrite the AST to (*p).mem.
@@ -636,13 +653,13 @@ static bool check_func_decl(Sema &sema, FuncDecl *f) {
 
     // By-pointer methods
     if (struct_param_type->is_pointer()) {
-      if (!struct_param_type->referee_type->is_struct()) {
+      if (!struct_param_type->base_type->is_struct()) {
         return error(struct_param_type_expr->subexpr->loc,
                      "cannot declare a method for '{}' which is not a struct",
-                     struct_param_type->referee_type->name->text);
+                     struct_param_type->base_type->name->text);
       }
       f->target_struct =
-          struct_param_type->referee_type->origin_decl->as<StructDecl>();
+          struct_param_type->base_type->origin_decl->as<StructDecl>();
     }
     // By-value methods
     else if (!struct_param_type->is_struct()) {
