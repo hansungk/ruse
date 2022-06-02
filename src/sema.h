@@ -218,7 +218,7 @@ struct Valstack {
 
 struct QbeGen {
   Sema &sema;
-  Valstack valstack;
+  Valstack stack;
   int label_id = 0;
   int ifelse_label_id = 0;
   int indent = 0;

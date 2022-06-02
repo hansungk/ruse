@@ -635,7 +635,7 @@ bool check_stmt(Sema &sema, Stmt *s) {
     return true;
 }
 
-VarDecl *instantiateMemberDecl(Sema &sema, VarDecl *parent, Name *name,
+VarDecl *instantiate_member_decl(Sema &sema, VarDecl *parent, Name *name,
                            Type *type) {
     auto field = sema.make_node<VarDecl>(name, type, parent->mut);
     parent->children.push_back(field);
@@ -742,7 +742,7 @@ bool check_decl(Sema &sema, Decl *d) {
     if (v->type->is_struct()) {
       auto struct_decl = v->type->origin_decl->as<StructDecl>();
       for (auto field : struct_decl->fields) {
-        instantiateMemberDecl(sema, v, field->name, field->type);
+        instantiate_member_decl(sema, v, field->name, field->type);
         // FIXME: should we check_decl() children here?
       }
     } else if (v->type == sema.context.string_type) {
@@ -750,8 +750,8 @@ bool check_decl(Sema &sema, Decl *d) {
       // Instantiate these decls here.
       Name *name_buf = sema.name_table.get("buf");
       Name *name_len = sema.name_table.get("len");
-      instantiateMemberDecl(sema, v, name_buf, sema.context.int_type);
-      instantiateMemberDecl(sema, v, name_len, sema.context.int_type /*FIXME*/);
+      instantiate_member_decl(sema, v, name_buf, sema.context.int_type);
+      instantiate_member_decl(sema, v, name_len, sema.context.int_type /*FIXME*/);
       assert(v->findMemberDecl(name_buf));
     }
 
@@ -795,32 +795,32 @@ bool check_decl(Sema &sema, Decl *d) {
 }
 
 bool check(Sema &sema, AstNode *n) {
-    bool success;
+  bool success;
 
-    switch (n->kind) {
-    case AstNode::file:
-        success = true;
-        for (auto toplevel : n->as<File>()->toplevels) {
-            if (!check(sema, toplevel)) {
-                success = false;
-            }
-        }
-        return success;
-    case AstNode::stmt:
-        return check_stmt(sema, n->as<Stmt>());
-    case AstNode::decl:
-        // For function and struct decls, even if one of its body statements or
-        // members fail typechecking, we probably still want to declare them to
-        // prevent too many chained errors for the code that use them.
-        success = check_decl(sema, n->as<Decl>());
-        if (!declare(sema, n->as<Decl>()))
-            return false;
-        return success;
-    default:
-        assert(!"unknown ast kind");
+  switch (n->kind) {
+  case AstNode::file:
+    success = true;
+    for (auto toplevel : n->as<File>()->toplevels) {
+      if (!check(sema, toplevel)) {
+        success = false;
+      }
     }
+    return success;
+  case AstNode::stmt:
+    return check_stmt(sema, n->as<Stmt>());
+  case AstNode::decl:
+    // For function and struct decls, even if one of its body statements or
+    // members fail typechecking, we probably still want to declare them to
+    // prevent too many chained errors for the code that use them.
+    success = check_decl(sema, n->as<Decl>());
+    if (!declare(sema, n->as<Decl>()))
+      return false;
+    return success;
+  default:
+    assert(!"unknown ast kind");
+  }
 
-    return true;
+  return true;
 }
 
 } // namespace cmp
