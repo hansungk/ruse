@@ -740,8 +740,8 @@ bool check_decl(Sema &sema, Decl *d) {
 
     // For struct-typed VarDecls, instantiate all of its fields.
     if (v->type->is_struct()) {
-      auto struct_decl = v->type->origin_decl->as<StructDecl>();
-      for (auto field : struct_decl->fields) {
+      auto struct_origin_decl = v->type->origin_decl->as<StructDecl>();
+      for (auto field : struct_origin_decl->fields) {
         instantiate_member_decl(sema, v, field->name, field->type);
         // FIXME: should we check_decl() children here?
       }
@@ -750,6 +750,7 @@ bool check_decl(Sema &sema, Decl *d) {
       // Instantiate these decls here.
       Name *name_buf = sema.name_table.get("buf");
       Name *name_len = sema.name_table.get("len");
+      assert(name_buf && name_len);
       instantiate_member_decl(sema, v, name_buf, sema.context.int_type);
       instantiate_member_decl(sema, v, name_len, sema.context.int_type /*FIXME*/);
       assert(v->findMemberDecl(name_buf));

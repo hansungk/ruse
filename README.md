@@ -21,7 +21,7 @@ $ ./check.py
 
 ## todo
 
-* remove ref/var_ref type
+* arrays
 * strings
   * compiler-internal structs to store ptr/len
 * interop with C

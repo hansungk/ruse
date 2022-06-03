@@ -73,13 +73,12 @@ private:
   Expr *parse_expr();
   Expr *parse_unary_expr();
   Expr *parse_literal_expr();
-  Expr *parse_funccall_or_declref_expr();
+  Expr *parse_postfix_maybe(Expr *expr);
   Expr *parse_cast_expr();
   Expr *parse_type_expr();
   Expr *parse_binary_expr_rhs(Expr *lhs, int precedence);
-  Expr *parseMemberExprMaybe(Expr *expr);
   bool parse_structdef_field(StructDefTerm &result);
-  bool lookahead_structdef();
+  bool lookahead_struct_def();
   Expr *parse_structdef_maybe(Expr *expr);
 
   // Error handling

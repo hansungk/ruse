@@ -505,43 +505,36 @@ Expr *Parser::parse_literal_expr() {
 // whether it is just a variable, a function call, or a struct name ('a' vs.
 // 'a()' vs. 'a.m').  Rather than using lookahead, parse the both kinds in one
 // go in this function.
-Expr *Parser::parse_funccall_or_declref_expr() {
-    auto pos = tok.pos;
+Expr *Parser::parse_postfix_maybe(Expr *expr) {
+  auto pos = tok.pos;
 
-    // First, just parse a single declref.
-    assert(tok.kind == Token::ident);
-    Name *name = push_token_to_name_table(sema, tok);
-    next();
-    Expr *expr = sema.make_node_pos<DeclRefExpr>(pos, name);
-
-    // Then loop to see if there's any trailing . or (), expanding the LHS
-    // because they are left-associative.
-    while (!is_eos()) {
-        if (tok.kind == Token::dot) {
-            expect(Token::dot);
-            assert(tok.kind == Token::ident);
-            Name *member_name = push_token_to_name_table(sema, tok);
-            next();
-            // Collapse the expr parsed so far into the LHS of a new MemberExpr.
-            expr = sema.make_node_pos<MemberExpr>(pos, expr, member_name);
-        } else if (tok.kind == Token::lparen) {
-            expect(Token::lparen);
-            std::vector<Expr *> args;
-            while (tok.kind != Token::rparen) {
-                args.push_back(parse_expr());
-                if (tok.kind == Token::comma)
-                    next();
-            }
-            expect(Token::rparen);
-            expr =
-                sema.make_node_pos<CallExpr>(pos, CallExpr::func, expr, args);
-        } else {
-            // Otherwise, this could be anything between a variable, a struct or
-            // a function, which can only be decided in the type checking stage.
-            break;
-        }
+  // Then loop to see if there's any trailing . or (), expanding the LHS because
+  // they are left-associative.
+  while (!is_eos()) {
+    if (tok.kind == Token::dot) {
+      expect(Token::dot);
+      assert(tok.kind == Token::ident);
+      Name *member_name = push_token_to_name_table(sema, tok);
+      next();
+      // Collapse the expr parsed so far into the LHS of a new MemberExpr.
+      expr = sema.make_node_pos<MemberExpr>(pos, expr, member_name);
+    } else if (tok.kind == Token::lparen) {
+      expect(Token::lparen);
+      std::vector<Expr *> args;
+      while (tok.kind != Token::rparen) {
+        args.push_back(parse_expr());
+        if (tok.kind == Token::comma)
+          next();
+      }
+      expect(Token::rparen);
+      expr = sema.make_node_pos<CallExpr>(pos, CallExpr::func, expr, args);
+    } else {
+      // Otherwise, this could be anything between a variable, a struct or a
+      // function, which can only be decided in the type checking stage.
+      break;
     }
-    return expr;
+  }
+  return expr;
 }
 
 Expr *Parser::parse_cast_expr() {
@@ -632,59 +625,68 @@ Expr *Parser::parse_type_expr() {
 }
 
 Expr *Parser::parse_unary_expr() {
-    auto pos = tok.pos;
+  auto pos = tok.pos;
 
-    switch (tok.kind) {
-    case Token::number:
-    case Token::string: {
-        return parse_literal_expr();
+  Expr *expr = nullptr;
+  switch (tok.kind) {
+  case Token::number:
+  case Token::string: {
+    expr = parse_literal_expr();
+    break;
+  }
+  case Token::ident: {
+    // First, just parse a single declref.
+    Name *name = push_token_to_name_table(sema, tok);
+    next();
+    expr = sema.make_node_pos<DeclRefExpr>(pos, name)->as<Expr>();
+    expr = parse_postfix_maybe(expr);
+    // 'S {}'.  Comes after parsing all postfix operators of the 'S' part.
+    expr = parse_structdef_maybe(expr);
+    break;
+  }
+  case Token::lbracket: {
+    expr = parse_cast_expr();
+    break;
+  }
+  case Token::star: {
+    next();
+    expr = parse_unary_expr();
+    expr = sema.make_node_pos<UnaryExpr>(pos, UnaryExpr::deref, expr);
+    break;
+  }
+  case Token::kw_var:
+  case Token::ampersand: {
+    auto kind = UnaryExpr::ref;
+    if (tok.kind == Token::kw_var) {
+      expect(Token::kw_var);
+      kind = UnaryExpr::var_ref;
     }
-    case Token::ident: {
-        // All UnaryExprKinds with postfix operators should go here.
-        // TODO: Do proper op precedence parsing for right-hand-side unary
-        // operators, e.g. '.', '()' and '{...}'.
-        auto expr = parse_funccall_or_declref_expr();
-        expr = parseMemberExprMaybe(expr);
-        if (lookahead_structdef()) {
-            expr = parse_structdef_maybe(expr);
-        }
-        return expr;
-    }
-    case Token::lbracket: {
-        return parse_cast_expr();
-    }
-    case Token::star: {
-        next();
-        auto expr = parse_unary_expr();
-        return sema.make_node_pos<UnaryExpr>(pos, UnaryExpr::deref, expr);
-    }
-    case Token::kw_var:
-    case Token::ampersand: {
-        auto kind = UnaryExpr::ref;
-        if (tok.kind == Token::kw_var) {
-            expect(Token::kw_var);
-            kind = UnaryExpr::var_ref;
-        }
-        expect(Token::ampersand);
-        auto expr = parse_unary_expr();
-        return sema.make_node_pos<UnaryExpr>(pos, kind, expr);
-    }
-    case Token::lparen: {
-        expect(Token::lparen);
-        auto inside_expr = parse_expr();
-        expect(Token::rparen);
-        return sema.make_node_pos<UnaryExpr>(pos, UnaryExpr::paren,
-                                             inside_expr);
-    }
-    // TODO: prefix (++), postfix, sign (+/-)
-    default: {
-        // Because all expressions start with a unary expression, failing here
-        // means no other expression could be matched either, so just do a
-        // really generic report.
-        error_expected("an expression");
-        return sema.make_node_pos<BadExpr>(pos);
-    }
-    }
+    expect(Token::ampersand);
+    expr = parse_unary_expr();
+    expr = sema.make_node_pos<UnaryExpr>(pos, kind, expr);
+    break;
+  }
+  case Token::lparen: {
+    expect(Token::lparen);
+    auto inside_expr = parse_expr();
+    expect(Token::rparen);
+    expr = sema.make_node_pos<UnaryExpr>(pos, UnaryExpr::paren, inside_expr);
+    break;
+  }
+  // TODO: prefix (++), postfix, sign (+/-)
+  default: {
+    // Because all expressions start with a unary expression, falling here
+    // means this is not an expression.
+    error_expected("an expression");
+    // XXX: remove use of BadExpr
+    return sema.make_node_pos<BadExpr>(pos);
+  }
+  }
+
+  expr = parse_postfix_maybe(expr);
+  assert(expr);
+
+  return expr;
 }
 
 namespace {
@@ -716,63 +718,43 @@ int binary_op_precedence(const Token &op) {
 // entire binary expression, as non-operator tokens have negative precedence
 // values.
 Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
-    Expr *root = lhs;
+  Expr *root = lhs;
 
-    while (!is_eos()) {
-        int this_prec = binary_op_precedence(tok);
+  while (!is_eos()) {
+    int this_prec = binary_op_precedence(tok);
 
-        // If the upcoming op has lower precedence, finish this subexpression.
-        // It will be treated as a single term when this function is re-called
-        // with lower precedence.
-        if (this_prec < precedence)
-            return root;
+    // If the upcoming op has lower precedence, finish this subexpression.
+    // It will be treated as a single term when this function is re-called
+    // with lower precedence.
+    if (this_prec < precedence)
+      return root;
 
-        Token op = tok;
-        next();
-
-        // Parse the second term.
-        Expr *rhs = parse_unary_expr();
-
-        // We do not know if this term should associate to left or right; e.g.
-        // "(a * b) + c" or "a + (b * c)".  We should look ahead for the next
-        // operator that follows this term.
-        int next_prec = binary_op_precedence(tok);
-
-        // If the next operator has higher precedence ("a + b * c"), parse the
-        // RHS as a single subexpression with elevated minimum precedence. Else
-        // ("a * b
-        // + c"), just treat it as a unary expression.
-        if (this_prec < next_prec)
-            rhs = parse_binary_expr_rhs(rhs, precedence + 1);
-
-        // Create a new root with the old root as its LHS, and the recursion
-        // result as RHS.  This implements left associativity.
-        root = sema.make_node_pos<BinaryExpr>(root->pos, root, op, rhs);
-    }
-
-    return root;
-}
-
-// If this expression is a member expression with a dot (.) operator, parse as
-// such. If not, just pass along the original expression.
-// This function should called after the operand (expression before the dot) is
-// fully parsed.
-Expr *Parser::parseMemberExprMaybe(Expr *expr) {
-  Expr *result = expr;
-
-  while (tok.kind == Token::dot) {
-    expect(Token::dot);
-
-    Name *member_name = push_token_to_name_table(sema, tok);
+    Token op = tok;
     next();
 
-    result = sema.make_node_pos<MemberExpr>(result->pos, result, member_name);
+    // Parse the second term.
+    Expr *rhs = parse_unary_expr();
+
+    // We do not know if this term should associate to left or right; e.g.
+    // "(a * b) + c" or "a + (b * c)".  We should look ahead for the next
+    // operator that follows this term.
+    int next_prec = binary_op_precedence(tok);
+
+    // If the next operator has higher precedence ("a + b * c"), parse the RHS
+    // as a single subexpression with elevated minimum precedence. Else ("a * b
+    // + c"), just treat it as a unary expression.
+    if (this_prec < next_prec)
+      rhs = parse_binary_expr_rhs(rhs, precedence + 1);
+
+    // Create a new root with the old root as its LHS, and the recursion result
+    // as RHS.  This implements left associativity.
+    root = sema.make_node_pos<BinaryExpr>(root->pos, root, op, rhs);
   }
 
-  return result;
+  return root;
 }
 
-bool Parser::lookahead_structdef() {
+bool Parser::lookahead_struct_def() {
     auto s = save_state();
 
     if (tok.kind != Token::lbrace) {
@@ -822,32 +804,35 @@ bool Parser::parse_structdef_field(StructDefTerm &result) {
 // is called after the struct name part is fully parsed, i.e. when looking at
 // '{'.
 Expr *Parser::parse_structdef_maybe(Expr *expr) {
-    auto pos = tok.pos;
+  if (!lookahead_struct_def()) {
+    return expr;
+  }
 
-    if (expr->kind != Expr::decl_ref)
-        error("qualified struct names are not yet supported");
+  auto pos = tok.pos;
 
-    auto decl_ref_expr = static_cast<DeclRefExpr *>(expr);
+  if (expr->kind != Expr::decl_ref)
+    error("qualified struct names are not yet supported");
 
-    expect(Token::lbrace);
+  auto decl_ref_expr = static_cast<DeclRefExpr *>(expr);
 
-    std::vector<StructDefTerm> desigs;
-    parse_comma_separated_list<StructDefTerm>(
-        [this](StructDefTerm &result) { return parse_structdef_field(result); },
-        [&](const StructDefTerm &result) { desigs.push_back(result); });
+  expect(Token::lbrace);
 
-    expect(Token::rbrace);
+  std::vector<StructDefTerm> desigs;
+  parse_comma_separated_list<StructDefTerm>(
+      [this](StructDefTerm &result) { return parse_structdef_field(result); },
+      [&](const StructDefTerm &result) { desigs.push_back(result); });
 
-    return sema.make_node_pos<StructDefExpr>(pos, decl_ref_expr, desigs);
+  expect(Token::rbrace);
+
+  return sema.make_node_pos<StructDefExpr>(pos, decl_ref_expr, desigs);
 }
 
 Expr *Parser::parse_expr() {
-    auto unary = parse_unary_expr();
-    if (!unary) {
-        return nullptr;
-    }
-    auto binary = parse_binary_expr_rhs(unary);
-    return parseMemberExprMaybe(binary);
+  auto expr = parse_unary_expr();
+  if (!expr) {
+    return nullptr;
+  }
+  return parse_binary_expr_rhs(expr);
 }
 
 void Parser::skip_until(Token::Kind kind) {
