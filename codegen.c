@@ -74,6 +74,10 @@ static void stack_push_addr(struct context *ctx, int addr_id) {
 	arrput(ctx->valstack.data, v);
 }
 
+static struct qbe_val stack_pop(struct context *ctx) {
+	return arrpop(ctx->valstack.data);
+}
+
 static void codegen_expr_value(struct context *ctx, struct ast_node *n);
 static void codegen_expr_addr(struct context *ctx, struct ast_node *n);
 
@@ -114,12 +118,12 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 			} else if (n->decl->type->size == 8) {
 				val_lhs = stack_make_temp(ctx);
 				emit(ctx, "    %s =l loadl %s\n", val_lhs.text,
-				     arrpop(ctx->valstack.data).text);
+				     stack_pop(ctx).text);
 				stack_push_temp(ctx, val_lhs);
 			} else {
 				val_lhs = stack_make_temp(ctx);
 				emit(ctx, "    %s =w loadw %s\n", val_lhs.text,
-				     arrpop(ctx->valstack.data).text);
+				     stack_pop(ctx).text);
 				stack_push_temp(ctx, val_lhs);
 			}
 		}
@@ -129,8 +133,8 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		codegen_expr_value(ctx, n->bin.rhs);
 		// 'id_rhs' comes first because lhs is pushed to the stack first.
 		assert(arrlen(ctx->valstack.data) >= 2);
-		val_rhs = arrpop(ctx->valstack.data);
-		val_lhs = arrpop(ctx->valstack.data);
+		val_rhs = stack_pop(ctx);
+		val_lhs = stack_pop(ctx);
 		assert(val_rhs.kind != VAL_ADDR);
 		assert(val_lhs.kind != VAL_ADDR);
 		val = stack_make_temp(ctx);
@@ -145,7 +149,7 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		// memory location of where the decl '*c' sits.  If we want to generate
 		// value of '*c' itself, we have to generate another load.
 		if (value) {
-			val_rhs = arrpop(ctx->valstack.data);
+			val_rhs = stack_pop(ctx);
 			val_lhs = stack_make_temp(ctx);
 			if (val_rhs.data_size == 8) {
 				emit(ctx, "    %s =l loadl %s\n", val_lhs.text,
@@ -173,7 +177,7 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		emit(ctx, "    %s =w ", val_lhs.text);
 		emit(ctx, "call $%s(", n->call.func->tok.name);
 		for (long i = 0; i < arrlen(n->call.args); i++) {
-			val_rhs = arrpop(ctx->valstack.data);
+			val_rhs = stack_pop(ctx);
 			emit(ctx, "w %s, ", val_rhs.text);
 		}
 		emit(ctx, ")\n");
@@ -182,13 +186,13 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		break;
 	case NMEMBER: {
 		codegen_expr_addr(ctx, n->member.parent);
-		struct qbe_val parent_addr = arrpop(ctx->valstack.data);
+		struct qbe_val parent_addr = stack_pop(ctx);
 		struct qbe_val member_addr = stack_make_temp(ctx);
 		emit(ctx, "    %s =l add %s, %d\n", member_addr.text,
 		     parent_addr.text, n->member.offset);
 		stack_push_temp(ctx, member_addr);
 		if (value) {
-			member_addr = arrpop(ctx->valstack.data);
+			member_addr = stack_pop(ctx);
 			val = stack_make_temp(ctx);
 			emit(ctx, "    %s =w loadw %s\n", val.text,
 			     member_addr.text);
@@ -226,7 +230,7 @@ static void codegen_decl(struct context *ctx, struct ast_node *n) {
 		}
 		codegen(ctx, n->var_decl.init_expr);
 		assert(arrlen(ctx->valstack.data) > 0);
-		val = arrpop(ctx->valstack.data);
+		val = stack_pop(ctx);
 		// TODO: proper datasize handling
 		// TODO: unify this with assignment
 		if (val.data_size == 8) {
@@ -259,8 +263,8 @@ static void codegen_stmt(struct context *ctx, struct ast_node *n) {
 	case NASSIGN:
 		codegen_expr_value(ctx, n->assign_expr.init_expr);
 		codegen_expr_addr(ctx, n->assign_expr.lhs);
-		val_lhs = arrpop(ctx->valstack.data);
-		val_rhs = arrpop(ctx->valstack.data);
+		val_lhs = stack_pop(ctx);
+		val_rhs = stack_pop(ctx);
 		if (val_rhs.data_size == 8) {
 			emit(ctx, "    storel");
 		} else {
@@ -270,7 +274,7 @@ static void codegen_stmt(struct context *ctx, struct ast_node *n) {
 		break;
 	case NRETURN:
 		codegen(ctx, n->return_expr.expr);
-		emit(ctx, "    ret %s\n", arrpop(ctx->valstack.data).text);
+		emit(ctx, "    ret %s\n", stack_pop(ctx).text);
 		break;
 	default:
 		assert(!"unknown stmt kind");
