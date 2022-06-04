@@ -36,6 +36,14 @@ struct type *maketype(enum type_kind kind, struct token tok) {
 }
 
 // FIXME: remove 'tok'
+struct type *makearraytype(struct type *target, struct token tok) {
+	struct type *t = maketype(TYPE_ARRAY, tok);
+	t->target = target;
+	t->size = 8; // FIXME
+	return t;
+}
+
+// FIXME: remove 'tok'
 struct type *makepointertype(struct type *target, struct token tok) {
 	struct type *t = maketype(TYPE_POINTER, tok);
 	t->target = target;
@@ -72,7 +80,7 @@ static char *typename(const struct type *type, char *buf, size_t buflen) {
 }
 
 // XXX: @copypaste from typename()
-static char *typeexprname(const struct ast_type_expr *type_expr, char *buf,
+static char *type_expr_name(const struct ast_type_expr *type_expr, char *buf,
                           size_t buflen) {
 	int wlen = 0;
 	char *cur = NULL;
@@ -84,11 +92,17 @@ static char *typeexprname(const struct ast_type_expr *type_expr, char *buf,
 		strncpy(buf, type_expr->tok.name, buflen - 1);
 		buf[buflen - 1] = '\0';
 		break;
+	case TYPE_ARRAY:
+		wlen = snprintf(buf, buflen, "[]");
+		curlen = buflen - wlen;
+		cur = buf + wlen;
+		type_expr_name(type_expr->base_type, cur, curlen);
+		break;
 	case TYPE_POINTER:
 		wlen = snprintf(buf, buflen, "*");
 		curlen = buflen - wlen;
 		cur = buf + wlen;
-		typeexprname(type_expr->base_type, cur, curlen);
+		type_expr_name(type_expr->base_type, cur, curlen);
 		break;
 	case TYPE_FUNC:
 		assert(!"unimplemented");
@@ -266,23 +280,34 @@ static struct type *lookup_type(struct context *ctx, const char *name) {
 	return NULL;
 }
 
+// Get the matching type object specified by the `type_expr`.
 // This handles error report on its own.
 static struct type *resolve_type_expr(struct context *ctx,
                                       struct ast_type_expr *type_expr) {
 	char buf[TOKLEN];
 	struct type *type = NULL;
 
-	// type expressions are recursive themselves; make sure to recurse down
-	// to instantiate all underlying types
-	if (type_expr->base_type) {
-		assert(type_expr->typekind == TYPE_POINTER);
-		struct type *pointee_type = resolve_type_expr(ctx, type_expr->base_type);
-		if (!pointee_type) {
+	// Type expressions are recursive themselves; make sure to recurse down
+	// to reesolve all underlying types.
+	//
+	// Note that all derived types, e.g. arrays and pointers, are newly
+	// constructed even if they are seen before in the source.
+	if (type_expr->typekind == TYPE_ARRAY) {
+		assert(type_expr->base_type);
+		struct type *base_type = resolve_type_expr(ctx, type_expr->base_type);
+		if (!base_type) {
 			return NULL;
 		}
-		return makepointertype(pointee_type, type_expr->base_type->tok);
+		return makearraytype(base_type, type_expr->base_type->tok);
+    } else if (type_expr->typekind == TYPE_POINTER) {
+		assert(type_expr->base_type);
+		struct type *base_type = resolve_type_expr(ctx, type_expr->base_type);
+		if (!base_type) {
+			return NULL;
+		}
+		return makepointertype(base_type, type_expr->base_type->tok);
 	}
-	typeexprname(type_expr, buf, sizeof(buf));
+	type_expr_name(type_expr, buf, sizeof(buf));
 	type = lookup_type(ctx, buf);
 	if (!type) {
 		assert(type_expr->typekind == TYPE_VAL);
