@@ -44,7 +44,7 @@ static char *qbe_val_name(struct qbe_val *val) {
 	return val->text;
 }
 
-static void valstack_push_param(struct context *ctx, const char *name) {
+static void stack_push_param(struct context *ctx, const char *name) {
 	struct qbe_val v = {VAL_PARAM, .param_name = name,
 	                    .data_size = 4 /* FIXME */};
 	qbe_val_name(&v);
@@ -55,7 +55,7 @@ static void valstack_push_param(struct context *ctx, const char *name) {
 // This is useful when a statement is generating a new value, but we don't want
 // to push it as we want to access the old stack values that are used as
 // operands that produce the new value.
-static struct qbe_val valstack_make_temp(struct context *ctx) {
+static struct qbe_val stack_make_temp(struct context *ctx) {
 	struct qbe_val v = {VAL_TEMP, .temp_id = ctx->valstack.next_temp_id,
 	                    .data_size = 4 /* FIXME */};
 	qbe_val_name(&v);
@@ -63,12 +63,12 @@ static struct qbe_val valstack_make_temp(struct context *ctx) {
 	return v;
 }
 
-static void valstack_push_temp(struct context *ctx, const struct qbe_val val) {
+static void stack_push_temp(struct context *ctx, const struct qbe_val val) {
 	arrput(ctx->valstack.data, val);
 	ctx->valstack.next_temp_id++;
 }
 
-static void valstack_push_addr(struct context *ctx, int addr_id) {
+static void stack_push_addr(struct context *ctx, int addr_id) {
 	struct qbe_val v = {VAL_ADDR, .addr_id = addr_id, .data_size = 8};
 	qbe_val_name(&v);
 	arrput(ctx->valstack.data, v);
@@ -91,53 +91,52 @@ static int is_param(const struct ast_node *func, const struct ast_node *var) {
 // expression and put it on the valstack.  If its value is 0, only the address
 // of the expression (which has to be lvalue) will be put on the valstack.
 static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
-	char buf[TOKLEN]; // FIXME: stack usage
+	char buf[TOKLEN];
 	struct qbe_val val, val_lhs, val_rhs;
 
 	assert(n);
 	switch (n->kind) {
 	case NLITERAL:
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
-		val = valstack_make_temp(ctx);
+		val = stack_make_temp(ctx);
 		emit(ctx, "    %s =w add 0, %s\n", val.text, buf);
-		valstack_push_temp(ctx, val);
+		stack_push_temp(ctx, val);
 		break;
 	case NIDEXPR:
 		assert(ctx->scope);
+		stack_push_addr(ctx, n->decl->local_id);
 		if (value) {
 			if (ctx->scope->decl->kind == NFUNC &&
 			    is_param(ctx->scope->decl, n)) {
 				// Do nothing, as parameters are already pushed to the valstack
 				// when handling NFUNC.
+				// FIXME: but don't we have to pop from stack?
 			} else if (n->decl->type->size == 8) {
-				val_lhs = valstack_make_temp(ctx);
-				emit(ctx, "    %s =l loadl %%A%d\n", val_lhs.text,
-				     n->decl->local_id);
-				valstack_push_temp(ctx, val_lhs);
+				val_lhs = stack_make_temp(ctx);
+				emit(ctx, "    %s =l loadl %s\n", val_lhs.text,
+				     arrpop(ctx->valstack.data).text);
+				stack_push_temp(ctx, val_lhs);
 			} else {
-				val_lhs = valstack_make_temp(ctx);
-				emit(ctx, "    %s =w loadw %%A%d\n", val_lhs.text,
-				     n->decl->local_id);
-				valstack_push_temp(ctx, val_lhs);
+				val_lhs = stack_make_temp(ctx);
+				emit(ctx, "    %s =w loadw %s\n", val_lhs.text,
+				     arrpop(ctx->valstack.data).text);
+				stack_push_temp(ctx, val_lhs);
 			}
-		} else {
-			valstack_push_addr(ctx, n->decl->local_id);
 		}
 		break;
 	case NBINEXPR:
 		codegen_expr_value(ctx, n->bin.lhs);
 		codegen_expr_value(ctx, n->bin.rhs);
-		// 'id_rhs' comes first because lhs is pushed to the stack first
-		// during the post-order traversal.
+		// 'id_rhs' comes first because lhs is pushed to the stack first.
 		assert(arrlen(ctx->valstack.data) >= 2);
 		val_rhs = arrpop(ctx->valstack.data);
 		val_lhs = arrpop(ctx->valstack.data);
 		assert(val_rhs.kind != VAL_ADDR);
 		assert(val_lhs.kind != VAL_ADDR);
-		val = valstack_make_temp(ctx);
+		val = stack_make_temp(ctx);
 		emit(ctx, "    %s =w add %s, %s\n", val.text, val_lhs.text,
 		     val_rhs.text);
-		valstack_push_temp(ctx, val);
+		stack_push_temp(ctx, val);
 		break;
 	case NDEREFEXPR:
 		codegen_expr_value(ctx, n->deref.target);
@@ -147,7 +146,7 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		// value of '*c' itself, we have to generate another load.
 		if (value) {
 			val_rhs = arrpop(ctx->valstack.data);
-			val_lhs = valstack_make_temp(ctx);
+			val_lhs = stack_make_temp(ctx);
 			if (val_rhs.data_size == 8) {
 				emit(ctx, "    %s =l loadl %s\n", val_lhs.text,
 				     val_rhs.text);
@@ -155,7 +154,7 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 				emit(ctx, "    %s =w loadw %s\n", val_lhs.text,
 				     val_rhs.text);
 			}
-			valstack_push_temp(ctx, val_lhs);
+			stack_push_temp(ctx, val_lhs);
 		}
 		break;
 	case NREFEXPR:
@@ -170,7 +169,7 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		for (long i = arrlen(n->call.args) - 1; i >= 0; i--) {
 			codegen_expr_value(ctx, n->call.args[i]);
 		}
-		val_lhs = valstack_make_temp(ctx);
+		val_lhs = stack_make_temp(ctx);
 		emit(ctx, "    %s =w ", val_lhs.text);
 		emit(ctx, "call $%s(", n->call.func->tok.name);
 		for (long i = 0; i < arrlen(n->call.args); i++) {
@@ -184,16 +183,16 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 	case NMEMBER: {
 		codegen_expr_addr(ctx, n->member.parent);
 		struct qbe_val parent_addr = arrpop(ctx->valstack.data);
-		struct qbe_val member_addr = valstack_make_temp(ctx);
+		struct qbe_val member_addr = stack_make_temp(ctx);
 		emit(ctx, "    %s =l add %s, %d\n", member_addr.text,
 		     parent_addr.text, n->member.offset);
-		valstack_push_temp(ctx, member_addr);
+		stack_push_temp(ctx, member_addr);
 		if (value) {
 			member_addr = arrpop(ctx->valstack.data);
-			val = valstack_make_temp(ctx);
+			val = stack_make_temp(ctx);
 			emit(ctx, "    %s =w loadw %s\n", val.text,
 			     member_addr.text);
-			valstack_push_temp(ctx, val);
+			stack_push_temp(ctx, val);
 		}
 		break;
 	}
@@ -304,7 +303,7 @@ void codegen(struct context *ctx, struct ast_node *n) {
 		// generate stores of args to stack
 		for (int i = 0; i < arrlen(n->func.params); i++) {
 			const struct ast_node *arg = n->func.params[i];
-			valstack_push_param(ctx, arg->tok.name);
+			stack_push_param(ctx, arg->tok.name);
 		}
 		// body
 		for (int i = 0; i < arrlen(n->func.stmts); i++) {
