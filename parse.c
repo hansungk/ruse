@@ -485,19 +485,27 @@ static struct ast_node *parse_stmt(struct parser *p) {
 
 static struct ast_type_expr *parse_type_expr(struct parser *p) {
 	struct token tok = p->tok;
+	struct ast_type_expr *texpr;
 
-	if (p->tok.type == TINT) {
+	switch (p->tok.type) {
+	case TINT:
 		expect(p, TINT);
 		return maketypeexpr(TYPE_VAL, tok);
-	} else if (p->tok.type == TIDENT) {
+	case TIDENT:
 		expect(p, TIDENT);
 		return maketypeexpr(TYPE_VAL, tok);
-	} else if (p->tok.type == TSTAR) {
+	case TSTAR:
 		expect(p, TSTAR);
-		struct ast_type_expr *texpr = maketypeexpr(TYPE_POINTER, tok);
-		texpr->pointee = parse_type_expr(p);
+		texpr = maketypeexpr(TYPE_POINTER, tok);
+		texpr->base_type = parse_type_expr(p);
 		return texpr;
-	} else {
+	case TLBRACKET:
+		expect(p, TLBRACKET);
+		expect(p, TRBRACKET);
+		texpr = maketypeexpr(TYPE_ARRAY, tok);
+		texpr->base_type = parse_type_expr(p);
+		return texpr;
+	default:
 		assert(!"unimplemented");
 	}
 }

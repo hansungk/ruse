@@ -88,7 +88,7 @@ static char *typeexprname(const struct ast_type_expr *type_expr, char *buf,
 		wlen = snprintf(buf, buflen, "*");
 		curlen = buflen - wlen;
 		cur = buf + wlen;
-		typeexprname(type_expr->pointee, cur, curlen);
+		typeexprname(type_expr->base_type, cur, curlen);
 		break;
 	case TYPE_FUNC:
 		assert(!"unimplemented");
@@ -274,13 +274,13 @@ static struct type *resolve_type_expr(struct context *ctx,
 
 	// type expressions are recursive themselves; make sure to recurse down
 	// to instantiate all underlying types
-	if (type_expr->pointee) {
+	if (type_expr->base_type) {
 		assert(type_expr->typekind == TYPE_POINTER);
-		struct type *pointee_type = resolve_type_expr(ctx, type_expr->pointee);
+		struct type *pointee_type = resolve_type_expr(ctx, type_expr->base_type);
 		if (!pointee_type) {
 			return NULL;
 		}
-		return makepointertype(pointee_type, type_expr->pointee->tok);
+		return makepointertype(pointee_type, type_expr->base_type->tok);
 	}
 	typeexprname(type_expr, buf, sizeof(buf));
 	type = lookup_type(ctx, buf);

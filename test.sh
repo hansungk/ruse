@@ -17,11 +17,11 @@ _cleanup() {
 }
 
 _pass() {
-    echo "${GREEN}PASS${RS} $1"
+    echo "${GREEN}pass${RS} $1"
 }
 
 _fail() {
-    echo "${RED}FAIL${RS} $1"
+    echo "${RED}fail${RS} $1"
 }
 
 _checkdiag() {
@@ -72,6 +72,7 @@ fi
 
 _test test/simple.ruse
 _test test/decl.ruse
+_test test/array.ruse
 _test test/struct.ruse
 _test test/ref.ruse
 _test test/func.ruse

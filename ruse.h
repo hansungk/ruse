@@ -46,6 +46,8 @@ enum token_type {
 	TAMPERSAND = '&',
 	TSEMICOLON = ';',
 	TQUOTE = '\'',
+	TLBRACKET = '[',
+	TRBRACKET = ']',
 	TLBRACE = '{',
 	TRBRACE = '}',
 	TASCII = 256,
@@ -135,6 +137,7 @@ enum node_kind {
 
 enum type_kind {
 	TYPE_VAL,
+	TYPE_ARRAY,
 	TYPE_POINTER,
 	TYPE_FUNC,
 };
@@ -211,7 +214,8 @@ struct ast_node {
 		struct src_loc loc;
 		enum type_kind typekind;
 		struct token tok;
-		struct ast_type_expr *pointee;
+		// base type of a pointer, array, etc.
+		struct ast_type_expr *base_type;
 	} * type_expr;
 	// Type of this node.  If this is NULL that means the typecheck on this
 	// node have failed.
