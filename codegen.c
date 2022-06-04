@@ -107,15 +107,14 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		stack_push_temp(ctx, val);
 		break;
 	case NIDEXPR:
+		if (ctx->scope->decl->kind == NFUNC && is_param(ctx->scope->decl, n)) {
+			// Do nothing, as function parameters are already handled in NFUNC.
+			break;
+		}
 		assert(ctx->scope);
 		stack_push_addr(ctx, n->decl->local_id);
 		if (value) {
-			if (ctx->scope->decl->kind == NFUNC &&
-			    is_param(ctx->scope->decl, n)) {
-				// Do nothing, as parameters are already pushed to the valstack
-				// when handling NFUNC.
-				// FIXME: but don't we have to pop from stack?
-			} else if (n->decl->type->size == 8) {
+			if (n->decl->type->size == 8) {
 				val_lhs = stack_make_temp(ctx);
 				emit(ctx, "    %s =l loadl %s\n", val_lhs.text,
 				     stack_pop(ctx).text);
