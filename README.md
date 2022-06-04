@@ -11,10 +11,11 @@ $ ./ruse
 
 ## todo
 
-* unify emit_load
+* array type
+* unify emit of loads and stores
+* arena allocator
 * gen if
 * strlcpy
-* cleaner emit of loads and stores
 * strings
 * interop with C
 * metaprogramming using macros, e.g. ensuring cycle counters be incremented
