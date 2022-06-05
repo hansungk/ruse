@@ -369,6 +369,15 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 			return error(ctx, n->loc, "cannot take reference of a non-lvalue");
 		n->type = makepointertype(n->ref.target->type, n->tok);
 		break;
+	case NSUBSCRIPT:
+		check_expr(ctx, n->subscript.array);
+		if (!n->subscript.array->type)
+			return;
+		check_expr(ctx, n->subscript.index);
+		if (!n->subscript.index->type)
+			return;
+		n->type = makearraytype(n->ref.target->type, n->tok);
+		break;
 	case NCALL:
 		// callee name is a node (n->call.func), not a token!
 		check_expr(ctx, n->call.func);

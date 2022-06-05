@@ -119,6 +119,7 @@ enum node_kind {
 	NBINEXPR,
 	NDEREFEXPR, // *expr
 	NREFEXPR,   // &expr
+	NSUBSCRIPT, // expr[expr]
 	NCALL,
 	NMEMBER,
 
@@ -189,6 +190,10 @@ struct ast_node {
 		struct ast_deref_expr {
 			struct ast_node *target;
 		} deref;
+		struct ast_subscript_expr {
+			struct ast_node *array;
+			struct ast_node *index;
+		} subscript;
 		struct ast_assign_expr {
 			struct ast_node *lhs;
 			struct ast_node *init_expr;

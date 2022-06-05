@@ -8,7 +8,7 @@
 
 static struct ast_node *parse_expr(struct parser *p);
 static struct ast_node *parse_stmt(struct parser *p);
-static struct ast_type_expr *parse_type_expr(struct parser *p);
+static struct ast_type_expr *parse_typeexpr(struct parser *p);
 
 static struct ast_node *makenode(struct parser *p, enum node_kind k,
                                  struct src_loc loc) {
@@ -63,6 +63,14 @@ static struct ast_node *makerefexpr(struct parser *p, struct ast_node *target,
                                     struct token amp) {
 	struct ast_node *n = makenode(p, NREFEXPR, amp.loc);
 	n->ref.target = target;
+	return n;
+}
+
+static struct ast_node *makesubscript(struct parser *p, struct ast_node *array,
+                                      struct ast_node *index) {
+	struct ast_node *n = makenode(p, NSUBSCRIPT, array->loc);
+	n->subscript.array = array;
+	n->subscript.index = index;
 	return n;
 }
 
@@ -258,7 +266,7 @@ static struct ast_node *parse_vardecl(struct parser *p) {
 
 	struct ast_type_expr *texpr = NULL;
 	if (p->tok.type != TEQUAL) {
-		texpr = parse_type_expr(p);
+		texpr = parse_typeexpr(p);
 	}
 
 	struct ast_node *rhs = NULL;
@@ -346,18 +354,25 @@ static struct ast_node *parse_unaryexpr(struct parser *p) {
 	}
 
 	// now try to parse any trailing . or ()
-	while (p->tok.type == TDOT || p->tok.type == TLPAREN) {
+	for (;;) {
 		if (p->tok.type == TDOT) {
-			next(p);
+			expect(p, TDOT);
 			// swap parent with child
 			e = makemember(p, p->tok, e);
 			expect(p, TIDENT);
-		} else {
+		} else if (p->tok.type == TLBRACKET) {
+			expect(p, TLBRACKET);
+			struct ast_node *index = parse_expr(p);
+			expect(p, TRBRACKET);
+			e = makesubscript(p, e, index);
+		} else if (p->tok.type == TLPAREN) {
 			expect(p, TLPAREN);
 			// swap parent with child
 			struct ast_node **args = parse_callargs(p);
 			e = makecall(p, e, args);
 			expect(p, TRPAREN);
+		} else {
+			break;
 		}
 	}
 
@@ -429,8 +444,8 @@ static struct ast_node *parse_expr(struct parser *p) {
 
 // Possibly parse the equal and RHS expression of an expression.
 // 'expr' is already consumed.
-static struct ast_node *parse_assign_or_expr_stmt(struct parser *p,
-                                                  struct ast_node *expr) {
+static struct ast_node *parse_assign_or_exprstmt(struct parser *p,
+                                                 struct ast_node *expr) {
 	struct ast_node *stmt = NULL;
 
 	if (p->tok.type == TEQUAL) {
@@ -477,13 +492,12 @@ static struct ast_node *parse_stmt(struct parser *p) {
 	// expect(p, TNEWLINE);
 
 	// all productions from now on start with an expression
-	// TODO: exprstmt?
 	stmt = parse_expr(p);
-	stmt = parse_assign_or_expr_stmt(p, stmt);
+	stmt = parse_assign_or_exprstmt(p, stmt);
 	return stmt;
 }
 
-static struct ast_type_expr *parse_type_expr(struct parser *p) {
+static struct ast_type_expr *parse_typeexpr(struct parser *p) {
 	struct token tok = p->tok;
 	struct ast_type_expr *texpr;
 
@@ -497,13 +511,13 @@ static struct ast_type_expr *parse_type_expr(struct parser *p) {
 	case TSTAR:
 		expect(p, TSTAR);
 		texpr = maketypeexpr(TYPE_POINTER, tok);
-		texpr->base_type = parse_type_expr(p);
+		texpr->base_type = parse_typeexpr(p);
 		return texpr;
 	case TLBRACKET:
 		expect(p, TLBRACKET);
 		expect(p, TRBRACKET);
 		texpr = maketypeexpr(TYPE_ARRAY, tok);
-		texpr->base_type = parse_type_expr(p);
+		texpr->base_type = parse_typeexpr(p);
 		return texpr;
 	default:
 		assert(!"unimplemented");
@@ -522,7 +536,7 @@ static struct ast_node *parse_func(struct parser *p) {
 	while (p->tok.type != TRPAREN) {
 		struct token tok = p->tok;
 		expect(p, TIDENT);
-		struct ast_type_expr *texpr = parse_type_expr(p);
+		struct ast_type_expr *texpr = parse_typeexpr(p);
 		arrput(f->func.params, makevardecl(p, tok, NULL, texpr));
 		if (p->tok.type != TRPAREN) {
 			if (!expect(p, TCOMMA))
@@ -534,7 +548,7 @@ static struct ast_node *parse_func(struct parser *p) {
 
 	// return type
 	if (p->tok.type != TLBRACE) {
-		f->func.ret_type_expr = parse_type_expr(p);
+		f->func.ret_type_expr = parse_typeexpr(p);
 	}
 
 	// body
@@ -564,7 +578,7 @@ static struct ast_node *parse_struct(struct parser *p) {
 	while (p->tok.type != TRBRACE) {
 		struct token tok = p->tok;
 		expect(p, TIDENT);
-		struct ast_type_expr *texpr = parse_type_expr(p);
+		struct ast_type_expr *texpr = parse_typeexpr(p);
 		struct ast_node *field = makefielddecl(p, tok, texpr);
 		arrput(s->struct_.fields, field);
 		skip_newlines(p);
