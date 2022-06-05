@@ -7,6 +7,7 @@
 #include <string.h>
 
 static struct type *ty_int;
+static struct type *ty_int64;
 static struct type *ty_string;
 static struct type *push_type(struct context *ctx, struct type *ty);
 
@@ -30,7 +31,7 @@ struct type *maketype(enum type_kind kind, struct token tok) {
 	}
 	t->kind = kind;
 	t->tok = tok;
-	t->size = 4;
+	t->size = 4; // FIXME
 	// arrput(p->nodeptrbuf, node); // FIXME
 	return t;
 }
@@ -38,7 +39,7 @@ struct type *maketype(enum type_kind kind, struct token tok) {
 // FIXME: remove 'tok'
 struct type *makearraytype(struct type *target, struct token tok) {
 	struct type *t = maketype(TYPE_ARRAY, tok);
-	t->target = target;
+	t->base_type = target;
 	t->size = 8; // FIXME
 	return t;
 }
@@ -46,7 +47,7 @@ struct type *makearraytype(struct type *target, struct token tok) {
 // FIXME: remove 'tok'
 struct type *makepointertype(struct type *target, struct token tok) {
 	struct type *t = maketype(TYPE_POINTER, tok);
-	t->target = target;
+	t->base_type = target;
 	t->size = 8;
 	return t;
 }
@@ -65,7 +66,7 @@ static char *typename(const struct type *type, char *buf, size_t buflen) {
 		wlen = snprintf(buf, buflen, "*");
 		curlen = buflen - wlen;
 		cur = buf + wlen;
-		typename(type->target, cur, curlen);
+		typename(type->base_type, cur, curlen);
 		break;
 	case TYPE_FUNC:
 		assert(!"unimplemented");
@@ -158,10 +159,17 @@ static void setup_builtin_types(struct context *ctx) {
 	ty_int = calloc(1, sizeof(struct type));
 	ty_int->kind = TYPE_VAL;
 	ty_int->tok = (struct token){.type = TINT, .name = "int"};
+	ty_int->size = 4;
 	push_type(ctx, ty_int);
+	ty_int64 = calloc(1, sizeof(struct type));
+	ty_int64->kind = TYPE_VAL;
+	ty_int64->tok = (struct token){.type = TINT, .name = "int64"};
+	ty_int64->size = 8;
+	push_type(ctx, ty_int64);
 	ty_string = calloc(1, sizeof(struct type));
 	ty_string->kind = TYPE_VAL;
 	ty_string->tok = (struct token){.type = TSTRING_, .name = "string"};
+	ty_string->size = 8; // FIXME
 	push_type(ctx, ty_string);
 }
 
@@ -328,6 +336,7 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 	switch (n->kind) {
 	case NLITERAL:
 		// TODO: non-int literals
+		// TODO: treat as ty_long for indices in subscript exprs
 		n->type = ty_int;
 		break;
 	case NIDEXPR:
@@ -358,7 +367,7 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		n->decl = n;
 		if (n->deref.target->type->kind != TYPE_POINTER)
 			return error(ctx, n->loc, "cannot dereference a non-pointer");
-		n->type = n->deref.target->type->target;
+		n->type = n->deref.target->type->base_type;
 		break;
 	case NREFEXPR:
 		check_expr(ctx, n->ref.target);
@@ -376,7 +385,12 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		check_expr(ctx, n->subscript.index);
 		if (!n->subscript.index->type)
 			return;
-		n->type = makearraytype(n->ref.target->type, n->tok);
+		if (n->subscript.index->type == ty_int) {
+			// Promote to int64 so that it can be used for address calculation
+			// without a hassle.
+			n->subscript.index->type = ty_int64;
+		}
+		n->type = n->subscript.array->type->base_type;
 		break;
 	case NCALL:
 		// callee name is a node (n->call.func), not a token!
@@ -411,7 +425,7 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 				             expect_buf, got_buf);
 			}
 		}
-		n->type = n->call.func->type->rettype;
+		n->type = n->call.func->type->return_type;
 		break;
 	case NMEMBER:
 		check_expr(ctx, n->member.parent);
@@ -445,7 +459,7 @@ static int check_assignment(struct context *ctx, struct ast_node *asignee,
 	// TODO: proper type compatibility check
 	assert(asignee->type && expr->type);
 	if (asignee->type != expr->type) {
-		error(ctx, asignee->tok.loc, "cannot assign to an incompatible type");
+		error(ctx, asignee->loc, "cannot assign to an incompatible type");
 		return 0;
 	}
 	return 1;
@@ -490,8 +504,8 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 		n->type = maketype(TYPE_FUNC, n->tok);
 		// !n->rettypeexpr is possible for void return type
 		if (n->func.ret_type_expr) {
-			n->type->rettype = resolve_type_expr(ctx, n->func.ret_type_expr);
-			if (!n->type->rettype)
+			n->type->return_type = resolve_type_expr(ctx, n->func.ret_type_expr);
+			if (!n->type->return_type)
 				return error(ctx, n->func.ret_type_expr->loc,
 				             "unknown type '%s'",
 				             n->func.ret_type_expr->tok.name);

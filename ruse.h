@@ -149,8 +149,8 @@ struct type {
 	                  // TODO: swap this out with a char *n
 	struct ast_node **params;
 	struct ast_node **members;
-	struct type *target; // referred type
-	struct type *rettype;
+	struct type *base_type; // referred type
+	struct type *return_type;
 	size_t size; // memory size in bytes
 };
 

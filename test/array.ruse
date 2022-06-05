@@ -1,4 +1,7 @@
+// run 42
+
 fn main() int {
     var arr []int
-    return arr[0]
+    arr[8] = 42
+    return arr[8]
 }

@@ -100,12 +100,14 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 
 	assert(n);
 	switch (n->kind) {
-	case NLITERAL:
+	case NLITERAL: {
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
 		val = stack_make_temp(ctx);
-		emit(ctx, "    %s =w add 0, %s\n", val.text, buf);
+		char w_or_l = (n->type->size == 8) ? 'l' : 'w';
+		emit(ctx, "    %s =%c add 0, %s\n", val.text, w_or_l, buf);
 		stack_push_temp(ctx, val);
 		break;
+	}
 	case NIDEXPR:
 		if (ctx->scope->decl->kind == NFUNC && is_param(ctx->scope->decl, n)) {
 			// Do nothing, as function parameters are already handled in NFUNC.
@@ -163,8 +165,29 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 	case NREFEXPR:
 		codegen_expr_addr(ctx, n->ref.target);
 		break;
+	case NSUBSCRIPT: {
+		codegen_expr_addr(ctx, n->subscript.array);
+		// FIXME: can probably merge this with NMEMBER?
+		struct qbe_val array_base_addr = stack_pop(ctx);
+		codegen_expr_value(ctx, n->subscript.index);
+		assert(n->subscript.index->type->size == 8 /* XXX */);
+		struct qbe_val index_value = stack_pop(ctx);
+		struct qbe_val element_addr = stack_make_temp(ctx);
+		emit(ctx, "    %s =l mul %d, %s\n", element_addr.text,
+		     n->subscript.array->type->size, index_value.text);
+		emit(ctx, "    %s =l add %s, %s\n", element_addr.text,
+		     element_addr.text, array_base_addr.text);
+		stack_push_temp(ctx, element_addr);
+		if (value) {
+			element_addr = stack_pop(ctx);
+			val = stack_make_temp(ctx);
+			emit(ctx, "    %s =w loadw %s\n", val.text, element_addr.text);
+			stack_push_temp(ctx, val);
+		}
+		break;
+	}
 	case NCALL:
-		if (!n->call.func->type->rettype) {
+		if (!n->call.func->type->return_type) {
 			assert(!"func without return value not implemented");
 		}
 		// Push parameters in reverse order so that they are in correct order
@@ -193,8 +216,7 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		if (value) {
 			member_addr = stack_pop(ctx);
 			val = stack_make_temp(ctx);
-			emit(ctx, "    %s =w loadw %s\n", val.text,
-			     member_addr.text);
+			emit(ctx, "    %s =w loadw %s\n", val.text, member_addr.text);
 			stack_push_temp(ctx, val);
 		}
 		break;

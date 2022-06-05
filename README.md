@@ -12,6 +12,7 @@ $ ./ruse
 ## todo
 
 * array type
+  * gen =w or =l automatically using type infos from the check stage
 * unify emit of loads and stores
 * arena allocator
 * gen if
