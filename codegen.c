@@ -78,8 +78,8 @@ static struct qbe_val stack_pop(struct context *ctx) {
 	return arrpop(ctx->valstack.data);
 }
 
-static void codegen_expr_value(struct context *ctx, struct ast_node *n);
-static void codegen_expr_addr(struct context *ctx, struct ast_node *n);
+static void gen_expr_value(struct context *ctx, struct ast_node *n);
+static void gen_expr_addr(struct context *ctx, struct ast_node *n);
 
 static int is_param(const struct ast_node *func, const struct ast_node *var) {
 	for (long i = 0; i < arrlen(func->func.params); i++) {
@@ -91,10 +91,10 @@ static int is_param(const struct ast_node *func, const struct ast_node *var) {
 	return 0;
 }
 
-// 'value' is whether codegen_expr() has to generate the actual value of the
+// 'value' is whether gen_expr() has to generate the actual value of the
 // expression and put it on the valstack.  If its value is 0, only the address
 // of the expression (which has to be lvalue) will be put on the valstack.
-static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
+static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 	char buf[TOKLEN];
 	struct qbe_val val, val_lhs, val_rhs;
 
@@ -103,8 +103,10 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 	case NLITERAL: {
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
 		val = stack_make_temp(ctx);
-		char w_or_l = (n->type->size == 8) ? 'l' : 'w';
-		emit(ctx, "    %s =%c add 0, %s\n", val.text, w_or_l, buf);
+		char wl = (n->type->size == 8) ? 'l' : 'w';
+		// There seems to be no direct way to assign a number literal to a
+		// temporary in QBE, so use a bogus add 0.
+		emit(ctx, "    %s =%c add 0, %s\n", val.text, wl, buf);
 		stack_push_temp(ctx, val);
 		break;
 	}
@@ -129,9 +131,9 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 			}
 		}
 		break;
-	case NBINEXPR:
-		codegen_expr_value(ctx, n->bin.lhs);
-		codegen_expr_value(ctx, n->bin.rhs);
+	case NBINEXPR: {
+		gen_expr_value(ctx, n->bin.lhs);
+		gen_expr_value(ctx, n->bin.rhs);
 		// 'id_rhs' comes first because lhs is pushed to the stack first.
 		assert(arrlen(ctx->valstack.data) >= 2);
 		val_rhs = stack_pop(ctx);
@@ -139,12 +141,15 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		assert(val_rhs.kind != VAL_ADDR);
 		assert(val_lhs.kind != VAL_ADDR);
 		val = stack_make_temp(ctx);
-		emit(ctx, "    %s =w add %s, %s\n", val.text, val_lhs.text,
+		// @copypaste from NLITERAL
+		char wl = (n->type->size == 8) ? 'l' : 'w';
+		emit(ctx, "    %s =%c add %s, %s\n", val.text, wl, val_lhs.text,
 		     val_rhs.text);
 		stack_push_temp(ctx, val);
 		break;
+	}
 	case NDEREFEXPR:
-		codegen_expr_value(ctx, n->deref.target);
+		gen_expr_value(ctx, n->deref.target);
 		// Right now, the target of this derefexpr's value is generated and
 		// pushed onto the stack: i.e. value of 'c' in '*c'.  This is the
 		// memory location of where the decl '*c' sits.  If we want to generate
@@ -163,13 +168,13 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		}
 		break;
 	case NREFEXPR:
-		codegen_expr_addr(ctx, n->ref.target);
+		gen_expr_addr(ctx, n->ref.target);
 		break;
 	case NSUBSCRIPT: {
-		codegen_expr_addr(ctx, n->subscript.array);
+		gen_expr_addr(ctx, n->subscript.array);
 		// FIXME: can probably merge this with NMEMBER?
 		struct qbe_val array_base_addr = stack_pop(ctx);
-		codegen_expr_value(ctx, n->subscript.index);
+		gen_expr_value(ctx, n->subscript.index);
 		assert(n->subscript.index->type->size == 8 /* XXX */);
 		struct qbe_val index_value = stack_pop(ctx);
 		struct qbe_val element_addr = stack_make_temp(ctx);
@@ -193,7 +198,7 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		// Push parameters in reverse order so that they are in correct order
 		// when popped.
 		for (long i = arrlen(n->call.args) - 1; i >= 0; i--) {
-			codegen_expr_value(ctx, n->call.args[i]);
+			gen_expr_value(ctx, n->call.args[i]);
 		}
 		val_lhs = stack_make_temp(ctx);
 		emit(ctx, "    %s =w ", val_lhs.text);
@@ -207,7 +212,7 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 		ctx->valstack.next_temp_id++;
 		break;
 	case NMEMBER: {
-		codegen_expr_addr(ctx, n->member.parent);
+		gen_expr_addr(ctx, n->member.parent);
 		struct qbe_val parent_addr = stack_pop(ctx);
 		struct qbe_val member_addr = stack_make_temp(ctx);
 		emit(ctx, "    %s =l add %s, %d\n", member_addr.text,
@@ -226,15 +231,15 @@ static void codegen_expr(struct context *ctx, struct ast_node *n, int value) {
 	}
 }
 
-static void codegen_expr_value(struct context *ctx, struct ast_node *n) {
-	codegen_expr(ctx, n, 1);
+static void gen_expr_value(struct context *ctx, struct ast_node *n) {
+	gen_expr(ctx, n, 1);
 }
 
-static void codegen_expr_addr(struct context *ctx, struct ast_node *n) {
-	codegen_expr(ctx, n, 0);
+static void gen_expr_addr(struct context *ctx, struct ast_node *n) {
+	gen_expr(ctx, n, 0);
 }
 
-static void codegen_decl(struct context *ctx, struct ast_node *n) {
+static void gen_decl(struct context *ctx, struct ast_node *n) {
 	char buf[TOKLEN];
 	struct qbe_val val;
 
@@ -263,7 +268,7 @@ static void codegen_decl(struct context *ctx, struct ast_node *n) {
 		break;
 	case NSTRUCT:
 		for (long i = 0; i < arrlen(n->struct_.fields); i++) {
-			codegen_decl(ctx, n->struct_.fields[i]);
+			gen_decl(ctx, n->struct_.fields[i]);
 		}
 		break;
 	case NFIELD:
@@ -274,16 +279,16 @@ static void codegen_decl(struct context *ctx, struct ast_node *n) {
 	}
 }
 
-static void codegen_stmt(struct context *ctx, struct ast_node *n) {
+static void gen_stmt(struct context *ctx, struct ast_node *n) {
 	struct qbe_val val_lhs, val_rhs;
 
 	switch (n->kind) {
 	case NEXPRSTMT:
-		codegen_expr_value(ctx, n->expr_stmt.expr);
+		gen_expr_value(ctx, n->expr_stmt.expr);
 		break;
 	case NASSIGN:
-		codegen_expr_value(ctx, n->assign_expr.init_expr);
-		codegen_expr_addr(ctx, n->assign_expr.lhs);
+		gen_expr_value(ctx, n->assign_expr.init_expr);
+		gen_expr_addr(ctx, n->assign_expr.lhs);
 		val_lhs = stack_pop(ctx);
 		val_rhs = stack_pop(ctx);
 		if (val_rhs.data_size == 8) {
@@ -342,11 +347,11 @@ void codegen(struct context *ctx, struct ast_node *n) {
 		break;
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {
-			codegen_expr_value(ctx, n);
+			gen_expr_value(ctx, n);
 		} else if (NDECL <= n->kind && n->kind < NSTMT) {
-			codegen_decl(ctx, n);
+			gen_decl(ctx, n);
 		} else if (NSTMT <= n->kind) {
-			codegen_stmt(ctx, n);
+			gen_stmt(ctx, n);
 		} else {
 			assert(!"unknown node kind");
 		}

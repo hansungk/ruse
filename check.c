@@ -338,6 +338,9 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		// TODO: non-int literals
 		// TODO: treat as ty_long for indices in subscript exprs
 		n->type = ty_int;
+		if (ctx->prefer_long) {
+			n->type = ty_int64;
+		}
 		break;
 	case NIDEXPR:
 		if (!(decl = lookup(ctx, n))) {
@@ -382,7 +385,9 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		check_expr(ctx, n->subscript.array);
 		if (!n->subscript.array->type)
 			return;
+		ctx->prefer_long = 1;
 		check_expr(ctx, n->subscript.index);
+		ctx->prefer_long = 0;
 		if (!n->subscript.index->type)
 			return;
 		if (n->subscript.index->type == ty_int) {
