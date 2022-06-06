@@ -275,6 +275,79 @@ VarDecl *VarDecl::findMemberDecl(const Name *member_name) const {
   return nullptr;
 }
 
+static bool check_member_expr(Sema &sema, MemberExpr *mem) {
+  if (!check_expr(sema, mem->parent_expr)) {
+    return false;
+  }
+
+  auto parent_type = mem->parent_expr->type;
+  Decl *parent_type_decl = nullptr;
+  Name *reported_name = nullptr;
+  if (parent_type->is_pointer()) {
+    reported_name = parent_type->base_type->name;
+    if (parent_type->base_type->is_struct()) {
+      parent_type_decl = parent_type->base_type->origin_decl;
+
+      // How do we get the VarDecl of the target of the pointer?
+      // Best way to do this would be to rewrite the AST to (*p).mem.
+      // Then, a second sema pass would bind a temporary VarDecl to
+      // (*p) without any further modification.
+      auto new_parent = sema.make_node_pos<UnaryExpr>(
+          mem->parent_expr->pos, UnaryExpr::deref, mem->parent_expr);
+      mem->parent_expr = new_parent;
+      // Second pass on the rewritten node.
+      return check_expr(sema, mem);
+    }
+  }
+
+  reported_name = parent_type->name;
+  if (parent_type->is_struct()) {
+    parent_type_decl = parent_type->origin_decl;
+  }
+
+  if (!parent_type_decl) {
+    assert(reported_name);
+    return error(mem->parent_expr->loc, "type '{}' is not a struct",
+                 reported_name->text);
+  }
+
+  // At this point, parent_expr is either a struct or a pointer to
+  // struct.  Now we have to check the member side.
+
+  auto parent_type_struct_decl = parent_type_decl->as<StructDecl>();
+  auto sym = parent_type_struct_decl->decl_table.find(mem->member_name);
+  if (!sym) {
+    return error(mem->loc, "'{}' is not a member of struct '{}'",
+                 mem->member_name->text, reported_name->text);
+  }
+
+  // Figure out if this is a field or a method.
+  if (sym->value->kind == Decl::field) {
+    mem->field_decl = sym->value->as<FieldDecl>();
+
+    // If parent is an lvalue, its child is also an lvalue.  So find
+    // the right children VarDecl of the paren tand bind it to this
+    // MemberExpr as well.
+    if (mem->parent_expr->decl) {
+      assert(mem->parent_expr->decl->kind == Decl::var);
+      auto parent_var_decl = mem->parent_expr->decl->as<VarDecl>();
+      mem->decl = parent_var_decl->findMemberDecl(mem->member_name);
+      assert(mem->decl && "struct member failed to namebind");
+    }
+
+    mem->type = mem->field_decl->type;
+    assert(mem->type);
+  } else {
+    assert(sym->value->kind == Decl::func);
+
+    // For methods, we need to keep track of the original declaration
+    // of the method.
+    mem->decl = sym->value->as<FuncDecl>();
+  }
+
+  return true;
+}
+
 bool check_expr(Sema &sema, Expr *e) {
   switch (e->kind) {
   case Expr::integer_literal: {
@@ -402,76 +475,7 @@ bool check_expr(Sema &sema, Expr *e) {
     break;
   }
   case Expr::member: {
-    auto mem = e->as<MemberExpr>();
-    if (!check_expr(sema, mem->parent_expr))
-      return false;
-
-    auto parent_type = mem->parent_expr->type;
-    Decl *parent_type_decl = nullptr;
-    Name *reported_name = nullptr;
-    if (parent_type->is_pointer()) {
-      reported_name = parent_type->base_type->name;
-      if (parent_type->base_type->is_struct()) {
-        parent_type_decl = parent_type->base_type->origin_decl;
-
-        // How do we get the VarDecl of the target of the pointer?
-        // Best way to do this would be to rewrite the AST to (*p).mem.
-        // Then, a second sema pass would bind a temporary VarDecl to
-        // (*p) without any further modification.
-        auto new_parent = sema.make_node_pos<UnaryExpr>(
-            mem->parent_expr->pos, UnaryExpr::deref, mem->parent_expr);
-        mem->parent_expr = new_parent;
-
-        // Redo with the rewritten node.
-        return check_expr(sema, mem);
-      }
-    }
-
-    reported_name = parent_type->name;
-    if (parent_type->is_struct()) {
-      parent_type_decl = parent_type->origin_decl;
-    }
-
-    if (!parent_type_decl) {
-      assert(reported_name);
-      return error(mem->parent_expr->loc, "type '{}' is not a struct",
-                   reported_name->text);
-    }
-
-    // At this point, parent_expr is either a struct or a pointer to
-    // struct.  Now we have to check the member side.
-
-    auto parent_type_struct_decl = parent_type_decl->as<StructDecl>();
-    auto sym = parent_type_struct_decl->decl_table.find(mem->member_name);
-    if (!sym) {
-      return error(mem->loc, "'{}' is not a member of struct '{}'",
-                   mem->member_name->text, reported_name->text);
-    }
-
-    // Figure out if this is a field or a method.
-    if (sym->value->kind == Decl::field) {
-      mem->field_decl = sym->value->as<FieldDecl>();
-
-      // If parent is an lvalue, its child is also an lvalue.  So find
-      // the right children VarDecl of the paren tand bind it to this
-      // MemberExpr as well.
-      if (mem->parent_expr->decl) {
-        assert(mem->parent_expr->decl->kind == Decl::var);
-        auto parent_var_decl = mem->parent_expr->decl->as<VarDecl>();
-        mem->decl = parent_var_decl->findMemberDecl(mem->member_name);
-        assert(mem->decl && "struct member failed to namebind");
-      }
-
-      mem->type = mem->field_decl->type;
-      assert(mem->type);
-    } else {
-      assert(sym->value->kind == Decl::func);
-
-      // For methods, we need to keep track of the original declaration
-      // of the method.
-      mem->decl = sym->value->as<FuncDecl>();
-    }
-    break;
+    return check_member_expr(sema, e->as<MemberExpr>());
   }
   case Expr::subscript: {
     auto se = e->as<SubscriptExpr>();
@@ -540,10 +544,12 @@ bool check_expr(Sema &sema, Expr *e) {
     assert(!"unknown expr kind");
   }
 
+  // No more work should be done here to ease factoring out some of the kinds
+  // to a separate function.
+
   // TODO: doc why this is allowed non-null.
   // assert(e->type);
 
-  // No more work is supposed to be done here.
   return true;
 }
 
