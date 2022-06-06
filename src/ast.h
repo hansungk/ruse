@@ -172,6 +172,7 @@ struct Expr : public AstNode {
     struct_def,
     cast,
     member,
+    subscript,
     unary,
     binary,
     type_,
@@ -252,29 +253,38 @@ struct StructDefExpr : public Expr {
 
 // 'struct.mem'
 struct MemberExpr : public Expr {
-    // 'struct' part; this is a general Expr because things like func().mem
-    // should be possible.
-    Expr *parent_expr = nullptr;
-    Name *member_name = nullptr; // 'mem' part
+  // 'struct' part; this is a general Expr because things like func().mem
+  // should be possible.
+  Expr *parent_expr = nullptr;
+  Name *member_name = nullptr; // 'mem' part
 
-    // Back-reference to the FieldDecl, used for querying the byte offset of
-    // the field.  Only valid for struct fields.
-    FieldDecl *field_decl = nullptr;
+  // Back-reference to the FieldDecl, used for querying the byte offset of
+  // the field.  Only valid for struct fields.
+  FieldDecl *field_decl = nullptr;
 
-    // MemberExprs may or may not have an associated VarDecl, depending on
-    // 'struct_expr' being l-value or r-value.
+  // MemberExprs may or may not have an associated VarDecl, depending on
+  // 'struct_expr' being l-value or r-value.
 
-    MemberExpr(Expr *parent, Name *member)
-        : Expr(Expr::member), parent_expr(parent), member_name(member) {}
+  MemberExpr(Expr *parent, Name *member)
+      : Expr(Expr::member), parent_expr(parent), member_name(member) {}
+};
+
+// 'array[index]'
+struct SubscriptExpr : public Expr {
+  Expr *array_expr = nullptr;
+  Expr *index_expr = nullptr;
+
+  SubscriptExpr(Expr *array, Expr *index)
+      : Expr(Expr::subscript), array_expr(array), index_expr(index) {}
 };
 
 // '[type](expr)'
 struct CastExpr : public Expr {
-    Expr *type_expr = nullptr;
-    Expr *target_expr = nullptr;
+  Expr *type_expr = nullptr;
+  Expr *target_expr = nullptr;
 
-    CastExpr(Expr *type, Expr *target)
-        : Expr(Expr::cast), type_expr(type), target_expr(target) {}
+  CastExpr(Expr *type, Expr *target)
+      : Expr(Expr::cast), type_expr(type), target_expr(target) {}
 };
 
 struct UnaryExpr : public Expr {
@@ -336,6 +346,7 @@ template <> inline bool Expr::is<CallExpr>() { return kind == call; }
 template <> inline bool Expr::is<StructDefExpr>() { return kind == struct_def; }
 template <> inline bool Expr::is<CastExpr>() { return kind == cast; }
 template <> inline bool Expr::is<MemberExpr>() { return kind == member; }
+template <> inline bool Expr::is<SubscriptExpr>() { return kind == subscript; }
 template <> inline bool Expr::is<UnaryExpr>() { return kind == unary; }
 template <> inline bool Expr::is<BinaryExpr>() { return kind == binary; }
 template <> inline bool Expr::is<TypeExpr>() { return kind == type_; }

@@ -480,8 +480,12 @@ bool check_expr(Sema &sema, Expr *e) {
 
     break;
   }
-  case Expr::unary:
+  case Expr::subscript: {
+    assert(!"TODO: subscript");
+  }
+  case Expr::unary: {
     return check_unary_expr(sema, e->as<UnaryExpr>());
+  }
   case Expr::binary: {
     auto b = e->as<BinaryExpr>();
     if (!check_expr(sema, b->lhs))

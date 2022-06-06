@@ -528,6 +528,11 @@ Expr *Parser::parse_postfix_maybe(Expr *expr) {
       }
       expect(Token::rparen);
       expr = sema.make_node_pos<CallExpr>(pos, CallExpr::func, expr, args);
+    } else if (tok.kind == Token::lbracket) {
+      expect(Token::lbracket);
+      auto index_expr = parse_expr();
+      expect(Token::rbracket);
+      expr = sema.make_node_pos<SubscriptExpr>(pos, expr, index_expr);
     } else {
       // Otherwise, this could be anything between a variable, a struct or a
       // function, which can only be decided in the type checking stage.
