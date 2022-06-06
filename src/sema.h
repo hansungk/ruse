@@ -83,8 +83,6 @@ struct Sema {
     // for batch freeing.
     std::vector<std::unique_ptr<AstNode>> node_pool;
     std::vector<Type *> type_pool;
-    std::vector<Lifetime *> lifetime_pool;
-    std::vector<BasicBlock *> basic_block_pool;
 
     // Declarations visible at the current scope, keyed by their Names.
     ScopedTable<Name *, Decl *> decl_table;

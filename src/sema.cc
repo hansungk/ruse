@@ -77,12 +77,6 @@ Sema::~Sema() {
     for (auto t : type_pool) {
         delete t;
     }
-    for (auto lt : lifetime_pool) {
-        delete lt;
-    }
-    for (auto b : basic_block_pool) {
-        delete b;
-    }
 }
 
 void Sema::scope_open() {
