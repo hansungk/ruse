@@ -477,11 +477,18 @@ bool check_expr(Sema &sema, Expr *e) {
       // of the method.
       mem->decl = sym->value->as<FuncDecl>();
     }
-
     break;
   }
   case Expr::subscript: {
-    assert(!"TODO: subscript");
+    auto se = e->as<SubscriptExpr>();
+    if (!check_expr(sema, se->array_expr)) {
+      return false;
+    }
+    if (!check_expr(sema, se->index_expr)) {
+      return false;
+    }
+    se->type = se->array_expr->type->base_type;
+    break;
   }
   case Expr::unary: {
     return check_unary_expr(sema, e->as<UnaryExpr>());
@@ -502,7 +509,6 @@ bool check_expr(Sema &sema, Expr *e) {
     }
 
     b->type = lhs_type;
-
     break;
   }
   case Expr::type_: {
