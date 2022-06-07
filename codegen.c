@@ -201,6 +201,7 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 			gen_expr_value(ctx, n->call.args[i]);
 		}
 		val_lhs = stack_make_temp(ctx);
+		// FIXME: hardcoded type size
 		emit(ctx, "    %s =w ", val_lhs.text);
 		emit(ctx, "call $%s(", n->call.func->tok.name);
 		for (long i = 0; i < arrlen(n->call.args); i++) {
@@ -221,6 +222,7 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		if (value) {
 			member_addr = stack_pop(ctx);
 			val = stack_make_temp(ctx);
+			// FIXME: hardcoded type size
 			emit(ctx, "    %s =w loadw %s\n", val.text, member_addr.text);
 			stack_push_temp(ctx, val);
 		}

@@ -467,6 +467,10 @@ static int check_assignment(struct context *ctx, struct ast_node *asignee,
 		error(ctx, asignee->loc, "cannot assign to an incompatible type");
 		return 0;
 	}
+	if (!asignee->decl) {
+		error(ctx, asignee->loc, "cannot assign to a non-lvalue");
+		return 0;
+	}
 	return 1;
 }
 
@@ -488,18 +492,17 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 				return;
 			}
 		}
-		if (n->type_expr && n->var_decl.init_expr) {
-			// if both type and init expr is specified, check assignability
-			if (!check_assignment(ctx, n, n->var_decl.init_expr)) {
-				return;
-			}
-		}
-		// only declare after the whole thing succeeds typecheck
 		// FIXME: This is a little awkward because original declarations would
 		// have 'n == n->decl'.  Or is this a good thing?  Maybe make a
 		// separate Decl struct?
 		if (!(n->decl = declare(ctx, n))) {
 			return;
+		}
+		if (n->type_expr && n->var_decl.init_expr) {
+			// if both type and init expr is specified, check assignability
+			if (!check_assignment(ctx, n, n->var_decl.init_expr)) {
+				return;
+			}
 		}
 		assert(n->type);
 		break;
