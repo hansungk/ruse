@@ -156,11 +156,14 @@ struct type {
 
 struct ast_node {
 	enum node_kind kind;
-	struct src_loc loc;      // location in source
-	struct token tok;        // name of var or func. etc.
-	int local_id;            // scope-unique decl id for codegen
-	struct scope *scope;     // scope of this function
-	struct ast_node *decl;   // original declaration of this node
+	struct src_loc loc;    // location in source
+	struct token tok;      // name of var or func. etc.
+	int local_id;          // scope-unique decl id for codegen
+	struct scope *scope;   // scope of this function
+	struct ast_node *decl; // original declaration of this node
+	// Derived declarations from this decl, e.g. members of a struct ('s.a',
+	// 's.b' from 's') or an array subscript expression ('a[1]' from 'a').
+	struct ast_node **derived_decls;
 	union {
 		struct ast_call_expr {
 			struct ast_node *func;
@@ -190,9 +193,9 @@ struct ast_node {
 		struct ast_deref_expr {
 			struct ast_node *target;
 		} deref;
-		struct ast_subscript_expr {
-			struct ast_node *array;
-			struct ast_node *index;
+		struct ast_subscript_expr { // 'arr[index]'
+			struct ast_node *array; // 'arr'
+			struct ast_node *index; // 'index'
 		} subscript;
 		struct ast_assign_expr {
 			struct ast_node *lhs;
@@ -201,7 +204,7 @@ struct ast_node {
 		struct ast_return_expr {
 			struct ast_node *expr;
 		} return_expr;
-		struct ast_member_expr {
+		struct ast_member_expr { // 'struct.mem'
 			struct ast_node *parent;
 			int offset;
 		} member;
@@ -276,6 +279,7 @@ struct scope {
 
 struct context {
 	struct source *src;
+	struct parser *parser;
 	FILE *outfile;
 	struct scope *scope;
 	struct scope *typescope;
@@ -312,6 +316,7 @@ struct context {
 void scope_open(struct context *ctx);
 void scope_open_with(struct context *ctx, struct scope *scope);
 void scope_close(struct context *ctx);
+struct ast_node *maketempdecl(struct parser *p);
 struct type *maketype(enum type_kind kind, struct token tok);
 void context_init(struct context *ctx, struct parser *p);
 void context_free(struct context *ctx);

@@ -116,6 +116,11 @@ static struct ast_node *makevardecl(struct parser *p, struct token name,
 	return n;
 }
 
+struct ast_node *maketempdecl(struct parser *p) {
+	struct ast_node *n = makenode(p, NVARDECL, p->tok.loc /* Unused */);
+	return n;
+}
+
 static struct ast_node *makefielddecl(struct parser *p, struct token name,
                                       struct ast_type_expr *type_expr) {
 	// TODO proper arena allocation
@@ -480,16 +485,6 @@ static struct ast_node *parse_stmt(struct parser *p) {
 	default:
 		break;
 	}
-
-	// if (is_decl_start(p)) {
-	// 	node *decl = parse_decl(p);
-	// 	stmt = makeDecl_stmt(p, decl);
-	// 	expectEndOfLine(p);
-	// 	return stmt;
-	// }
-
-	// skip_to_end_of_line(p);
-	// expect(p, TNEWLINE);
 
 	// all productions from now on start with an expression
 	stmt = parse_expr(p);

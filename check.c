@@ -178,6 +178,7 @@ static void setup_builtin_types(struct context *ctx) {
 void context_init(struct context *ctx, struct parser *p) {
 	memset(ctx, 0, sizeof(struct context));
 	ctx->src = &p->l.src;
+	ctx->parser = p;
 	ctx->outfile = fopen("out.qbe", "w");
 	if (!ctx->outfile) {
 		fatal("fopen() failed");
@@ -395,6 +396,8 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 			// without a hassle.
 			n->subscript.index->type = ty_int64;
 		}
+		assert(n->subscript.array->decl);
+		n->decl = maketempdecl(ctx->parser);
 		n->type = n->subscript.array->type->base_type;
 		break;
 	case NCALL:
@@ -450,6 +453,8 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 			return error(ctx, n->loc, "'%s' is not a member of type '%s'",
 			             n->tok.name, n->member.parent->type->tok.name);
 		}
+		assert(n->member.parent->decl);
+		n->decl = maketempdecl(ctx->parser);
 		n->type = field_match->type;
 		n->member.offset = field_match->field.offset;
 		break;
@@ -467,6 +472,10 @@ static int check_assignment(struct context *ctx, struct ast_node *asignee,
 		error(ctx, asignee->loc, "cannot assign to an incompatible type");
 		return 0;
 	}
+	// TODO: maketempdecl() currently simply creates an empty decl with no name
+	// or location info.  This is no different than using a simple boolean flag
+	// to mark the expression as lvalue.  It would be nice to keep more metadata
+	// in the temporary decl for better diagnostics.
 	if (!asignee->decl) {
 		error(ctx, asignee->loc, "cannot assign to a non-lvalue");
 		return 0;
