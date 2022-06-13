@@ -1,5 +1,5 @@
 CFLAGS += -g -std=c11 -Wall -Wextra -Wno-unused-function \
-	  -Werror=incompatible-pointer-types -D_POSIX_C_SOURCE=2
+	  -Werror=incompatible-pointer-types -D_POSIX_C_SOURCE=200809L
 CFLAGS += -fsanitize=address,leak,undefined
 PROG := ruse
 SRCS := main.c codegen.c check.c parse.c lex.c map.c
