@@ -192,7 +192,7 @@ static void setup_builtin_funcs(struct context *ctx) {
 	}
 	n->type = maketype(TYPE_FUNC, n->tok);
 	n->type->return_type = ty_int64;
-	// n->type->params
+	arrput(n->type->params, ty_any);
 }
 
 // NOTE: This *has* to be called after parse(), as it copies over the error
@@ -350,6 +350,14 @@ static struct type *resolve_type_expr(struct context *ctx,
 	return type;
 }
 
+// Check if type `from` can be assigned to type `to`.
+static int type_compatible(struct type *to, struct type *from) {
+	if (to == ty_any) {
+		return 1;
+	}
+	return to == from;
+}
+
 static void check_expr(struct context *ctx, struct ast_node *n) {
 	char buf[TOKLEN];
 	struct ast_node *decl = NULL;
@@ -378,10 +386,10 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		check_expr(ctx, n->bin.rhs);
 		if (!n->bin.lhs->type || !n->bin.rhs->type)
 			return;
-		// TODO: proper type compatibility check
-		if (n->bin.lhs->type != n->bin.rhs->type)
+		if (!type_compatible(n->bin.lhs->type, n->bin.rhs->type)) {
 			return error(ctx, n->tok.loc,
 			             "incompatible types for binary operation");
+		}
 		n->type = n->bin.lhs->type;
 		break;
 	case NDEREFEXPR:
@@ -444,8 +452,8 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 			if (!n->call.args[i]->type)
 				break;
 			assert(n->call.func->type->params[i]);
-			// TODO: proper type compatibility check
-			if (n->call.args[i]->type != n->call.func->type->params[i]) {
+			if (!type_compatible(n->call.func->type->params[i],
+			                     n->call.args[i]->type)) {
 				char expect_buf[TOKLEN];
 				char got_buf[TOKLEN];
 				typename(n->call.func->type->params[i], expect_buf,
@@ -489,20 +497,19 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 	assert(n->type);
 }
 
-static int check_assignment(struct context *ctx, struct ast_node *asignee,
-                            struct ast_node *expr) {
-	// TODO: proper type compatibility check
-	assert(asignee->type && expr->type);
-	if (asignee->type != expr->type) {
-		error(ctx, asignee->loc, "cannot assign to an incompatible type");
+static int check_assignment(struct context *ctx, struct ast_node *to,
+                            struct ast_node *from) {
+	assert(to->type && from->type);
+	if (!type_compatible(to->type, from->type)) {
+		error(ctx, to->loc, "cannot assign to an incompatible type");
 		return 0;
 	}
 	// TODO: maketempdecl() currently simply creates an empty decl with no name
 	// or location info.  This is no different than using a simple boolean flag
 	// to mark the expression as lvalue.  It would be nice to keep more metadata
 	// in the temporary decl for better diagnostics.
-	if (!asignee->decl) {
-		error(ctx, asignee->loc, "cannot assign to a non-lvalue");
+	if (!to->decl) {
+		error(ctx, to->loc, "cannot assign to a non-lvalue");
 		return 0;
 	}
 	return 1;
