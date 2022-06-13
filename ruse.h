@@ -65,6 +65,7 @@ enum token_type {
 	TSTRUCT,
 	TRETURN,
 	TINT,
+	TANY,
 	TSTRING_,
 
 	TERR,
@@ -147,7 +148,7 @@ struct type {
 	enum type_kind kind;
 	struct token tok; // name of the type (for value types)
 	                  // TODO: swap this out with a char *n
-	struct ast_node **params;
+	struct type **params;
 	struct ast_node **members;
 	struct type *base_type; // referred type
 	struct type *return_type;
@@ -245,6 +246,8 @@ struct parser {
 	struct ast_node **nodeptrbuf; // pointers to the allocated nodes
 };
 
+struct ast_node *makefunc(struct parser *p, struct token name);
+struct ast_node *maketempdecl(struct parser *p);
 void parser_from_file(struct parser *p, const char *filename);
 void parser_from_buf(struct parser *p, const char *buf, size_t len);
 void parser_cleanup(struct parser *p);
@@ -316,7 +319,6 @@ struct context {
 void scope_open(struct context *ctx);
 void scope_open_with(struct context *ctx, struct scope *scope);
 void scope_close(struct context *ctx);
-struct ast_node *maketempdecl(struct parser *p);
 struct type *maketype(enum type_kind kind, struct token tok);
 void context_init(struct context *ctx, struct parser *p);
 void context_free(struct context *ctx);

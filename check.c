@@ -6,9 +6,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+static struct type *ty_any;
 static struct type *ty_int;
 static struct type *ty_int64;
 static struct type *ty_string;
+static struct ast_node *declare(struct context *ctx, struct ast_node *n);
 static struct type *push_type(struct context *ctx, struct type *ty);
 
 void fatal(const char *fmt, ...) {
@@ -156,6 +158,12 @@ static void freescope(struct scope *s) {
 
 static void setup_builtin_types(struct context *ctx) {
 	// FIXME: free(ty_int), calloc() check
+	ty_any = calloc(1, sizeof(struct type));
+	ty_any->kind = TYPE_VAL;
+	// FIXME: ty_any shouldn't really have a name
+	ty_any->tok = (struct token){.type = TINT, .name = "any"};
+	ty_any->size = 4;
+	push_type(ctx, ty_any);
 	ty_int = calloc(1, sizeof(struct type));
 	ty_int->kind = TYPE_VAL;
 	ty_int->tok = (struct token){.type = TINT, .name = "int"};
@@ -171,6 +179,20 @@ static void setup_builtin_types(struct context *ctx) {
 	ty_string->tok = (struct token){.type = TSTRING_, .name = "string"};
 	ty_string->size = 8; // FIXME
 	push_type(ctx, ty_string);
+}
+
+static void setup_builtin_funcs(struct context *ctx) {
+	// FIXME: because tok.name is free()ed in parser_cleanup, we need to
+	// explicitly allocate a string, which is a little arbitrary
+	char *str = strdup("len");
+	struct token len_tok = {.type = TIDENT, .name = str};
+	struct ast_node *n = makefunc(ctx->parser, len_tok);
+	if (!declare(ctx, n)) {
+		return;
+	}
+	n->type = maketype(TYPE_FUNC, n->tok);
+	n->type->return_type = ty_int64;
+	// n->type->params
 }
 
 // NOTE: This *has* to be called after parse(), as it copies over the error
@@ -190,6 +212,7 @@ void context_init(struct context *ctx, struct parser *p) {
 		arrput(ctx->errors, p->errors[i]);
 	}
 	setup_builtin_types(ctx);
+	setup_builtin_funcs(ctx);
 }
 
 void context_free(struct context *ctx) {
@@ -420,12 +443,12 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 			check_expr(ctx, n->call.args[i]);
 			if (!n->call.args[i]->type)
 				break;
-			assert(n->call.func->type->params[i]->type);
+			assert(n->call.func->type->params[i]);
 			// TODO: proper type compatibility check
-			if (n->call.args[i]->type != n->call.func->type->params[i]->type) {
+			if (n->call.args[i]->type != n->call.func->type->params[i]) {
 				char expect_buf[TOKLEN];
 				char got_buf[TOKLEN];
-				typename(n->call.func->type->params[i]->type, expect_buf,
+				typename(n->call.func->type->params[i], expect_buf,
 				         sizeof(expect_buf));
 				typename(n->call.args[i]->type, got_buf, sizeof(got_buf));
 				return error(ctx, n->call.args[i]->loc,
@@ -441,6 +464,7 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 			return;
 		if (!arrlen(n->member.parent->type->members))
 			return error(ctx, n->loc, "member access to a non-struct");
+
 		const struct ast_node *field_match = NULL;
 		for (long i = 0; i < arrlen(n->member.parent->type->members); i++) {
 			const struct ast_node *f = n->member.parent->type->members[i];
@@ -453,6 +477,7 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 			return error(ctx, n->loc, "'%s' is not a member of type '%s'",
 			             n->tok.name, n->member.parent->type->tok.name);
 		}
+
 		assert(n->member.parent->decl);
 		n->decl = maketempdecl(ctx->parser);
 		n->type = field_match->type;
@@ -516,8 +541,9 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 		assert(n->type);
 		break;
 	case NFUNC:
-		if (!declare(ctx, n))
+		if (!declare(ctx, n)) {
 			return;
+		}
 		n->type = maketype(TYPE_FUNC, n->tok);
 		// !n->rettypeexpr is possible for void return type
 		if (n->func.ret_type_expr) {
@@ -536,7 +562,7 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 			assert(n->func.params[i]->kind == NVARDECL);
 			check(ctx, n->func.params[i]);
 			if (n->func.params[i]->type) {
-				arrput(n->type->params, n->func.params[i]);
+				arrput(n->type->params, n->func.params[i]->type);
 			} else {
 				assert(!"FIXME: what now?");
 			}

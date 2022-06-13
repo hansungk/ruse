@@ -31,7 +31,7 @@ static struct ast_node *makefile(struct parser *p, struct ast_node **toplevel) {
 	return n;
 }
 
-static struct ast_node *makefunc(struct parser *p, struct token name) {
+struct ast_node *makefunc(struct parser *p, struct token name) {
 	struct ast_node *n = makenode(p, NFUNC, name.loc);
 	n->tok = name;
 	return n;

@@ -13,9 +13,9 @@ char *token_names[NUM_TOKENTYPES] = {
 };
 
 struct token_map keywords[] = {
-	{"var", TVAR},        {"const", TCONST},   {"fn", TFUNC},
-	{"struct", TSTRUCT},  {"return", TRETURN}, {"int", TINT},
-	{"string", TSTRING_}, {NULL, 0},
+    {"var", TVAR},       {"const", TCONST},    {"fn", TFUNC},
+    {"struct", TSTRUCT}, {"return", TRETURN},  {"int", TINT},
+    {"any", TANY},       {"string", TSTRING_}, {NULL, 0},
 };
 
 static char *readfile(const char *filename, long *filesize) {
@@ -244,8 +244,9 @@ int lex(struct lexer *l) {
 	return 0;
 }
 
+// Search linearly for line and column number that corresponds to the byte
+// position `pos`.
 struct src_loc locate(struct source *src, size_t pos) {
-    // search linearly for line that contains this position
     // TODO: performance
 
     // single-line
