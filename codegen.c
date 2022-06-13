@@ -195,6 +195,9 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		if (!n->call.func->type->return_type) {
 			assert(!"func without return value not implemented");
 		}
+		if (strcmp(n->call.func->tok.name, "len") == 0) {
+			assert(!"TODO: codegen for len()");
+		}
 		// Push parameters in reverse order so that they are in correct order
 		// when popped.
 		for (long i = arrlen(n->call.args) - 1; i >= 0; i--) {

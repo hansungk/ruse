@@ -158,6 +158,9 @@ static void freescope(struct scope *s) {
 
 static void setup_builtin_types(struct context *ctx) {
 	// FIXME: free(ty_int), calloc() check
+	// `ty_any` is a dummy type created for built-in functions like len() that
+	// can take a class of types, but have no way to represent their type
+	// because the langauge doesn't support generic types currently.
 	ty_any = calloc(1, sizeof(struct type));
 	ty_any->kind = TYPE_VAL;
 	// FIXME: ty_any shouldn't really have a name
@@ -358,6 +361,21 @@ static int type_compatible(struct type *to, struct type *from) {
 	return to == from;
 }
 
+static const struct ast_node *lookup_struct_field(struct type *parent_type,
+                                                  const char *field_name) {
+	const struct ast_node *field_match = NULL;
+
+	for (long i = 0; i < arrlen(parent_type->members); i++) {
+		const struct ast_node *f = parent_type->members[i];
+		if (strcmp(f->tok.name, field_name) == 0) {
+			field_match = f;
+			break;
+		}
+	}
+
+	return field_match;
+}
+
 static void check_expr(struct context *ctx, struct ast_node *n) {
 	char buf[TOKLEN];
 	struct ast_node *decl = NULL;
@@ -468,24 +486,18 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		break;
 	case NMEMBER:
 		check_expr(ctx, n->member.parent);
-		if (!n->member.parent->type)
+		if (!n->member.parent->type) {
 			return;
-		if (!arrlen(n->member.parent->type->members))
+		}
+		if (!arrlen(n->member.parent->type->members)) {
 			return error(ctx, n->loc, "member access to a non-struct");
-
-		const struct ast_node *field_match = NULL;
-		for (long i = 0; i < arrlen(n->member.parent->type->members); i++) {
-			const struct ast_node *f = n->member.parent->type->members[i];
-			if (strcmp(f->tok.name, n->tok.name) == 0) {
-				field_match = f;
-				break;
-			}
 		}
-		if (!field_match) {
-			return error(ctx, n->loc, "'%s' is not a member of type '%s'",
-			             n->tok.name, n->member.parent->type->tok.name);
+		const struct ast_node *field_match;
+		if (!(field_match =
+		          lookup_struct_field(n->member.parent->type, n->tok.name))) {
+			return error(ctx, n->loc, "'%s' is not a member of type '%s'", n->tok.name,
+			      n->member.parent->type->tok.name);
 		}
-
 		assert(n->member.parent->decl);
 		n->decl = maketempdecl(ctx->parser);
 		n->type = field_match->type;

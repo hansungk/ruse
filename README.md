@@ -12,9 +12,8 @@ $ ./ruse
 ## todo
 
 * array type
-  * gen =w or =l automatically using type infos from the check stage
+  * make built-in struct for arrays
   * proper allocation with malloc
-    * make built-in function len()
 * annotate generated qbe code
 * unify emit of loads and stores
 * arena allocator
@@ -23,4 +22,4 @@ $ ./ruse
 * strings
 * interop with C
 * metaprogramming using macros, e.g. ensuring cycle counters be incremented
-  only once in cycle() in simulators
+    only once in cycle() in simulators
