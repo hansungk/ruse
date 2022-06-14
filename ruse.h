@@ -138,7 +138,7 @@ enum node_kind {
 };
 
 enum type_kind {
-	TYPE_VAL,
+	TYPE_ATOM,
 	TYPE_ARRAY,
 	TYPE_POINTER,
 	TYPE_FUNC,

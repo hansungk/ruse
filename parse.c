@@ -499,10 +499,10 @@ static struct ast_type_expr *parse_typeexpr(struct parser *p) {
 	switch (p->tok.type) {
 	case TINT:
 		expect(p, TINT);
-		return maketypeexpr(TYPE_VAL, tok);
+		return maketypeexpr(TYPE_ATOM, tok);
 	case TIDENT:
 		expect(p, TIDENT);
-		return maketypeexpr(TYPE_VAL, tok);
+		return maketypeexpr(TYPE_ATOM, tok);
 	case TSTAR:
 		expect(p, TSTAR);
 		texpr = maketypeexpr(TYPE_POINTER, tok);

@@ -60,7 +60,7 @@ static char *typename(const struct type *type, char *buf, size_t buflen) {
 	size_t curlen = 0;
 
 	switch (type->kind) {
-	case TYPE_VAL:
+	case TYPE_ATOM:
 		strncpy(buf, type->tok.name, buflen - 1);
 		buf[buflen - 1] = '\0';
 		break;
@@ -91,7 +91,7 @@ static char *type_expr_name(const struct ast_type_expr *type_expr, char *buf,
 
 	assert(type_expr);
 	switch (type_expr->typekind) {
-	case TYPE_VAL:
+	case TYPE_ATOM:
 		strncpy(buf, type_expr->tok.name, buflen - 1);
 		buf[buflen - 1] = '\0';
 		break;
@@ -162,23 +162,23 @@ static void setup_builtin_types(struct context *ctx) {
 	// can take a class of types, but have no way to represent their type
 	// because the langauge doesn't support generic types currently.
 	ty_any = calloc(1, sizeof(struct type));
-	ty_any->kind = TYPE_VAL;
+	ty_any->kind = TYPE_ATOM;
 	// FIXME: ty_any shouldn't really have a name
 	ty_any->tok = (struct token){.type = TINT, .name = "any"};
 	ty_any->size = 4;
 	push_type(ctx, ty_any);
 	ty_int = calloc(1, sizeof(struct type));
-	ty_int->kind = TYPE_VAL;
+	ty_int->kind = TYPE_ATOM;
 	ty_int->tok = (struct token){.type = TINT, .name = "int"};
 	ty_int->size = 4;
 	push_type(ctx, ty_int);
 	ty_int64 = calloc(1, sizeof(struct type));
-	ty_int64->kind = TYPE_VAL;
+	ty_int64->kind = TYPE_ATOM;
 	ty_int64->tok = (struct token){.type = TINT, .name = "int64"};
 	ty_int64->size = 8;
 	push_type(ctx, ty_int64);
 	ty_string = calloc(1, sizeof(struct type));
-	ty_string->kind = TYPE_VAL;
+	ty_string->kind = TYPE_ATOM;
 	ty_string->tok = (struct token){.type = TSTRING_, .name = "string"};
 	ty_string->size = 8; // FIXME
 	push_type(ctx, ty_string);
@@ -345,7 +345,7 @@ static struct type *resolve_type_expr(struct context *ctx,
 	type_expr_name(type_expr, buf, sizeof(buf));
 	type = lookup_type(ctx, buf);
 	if (!type) {
-		assert(type_expr->typekind == TYPE_VAL);
+		assert(type_expr->typekind == TYPE_ATOM);
 		error(ctx, type_expr->loc, "unknown type '%s'", buf);
 		return NULL;
 	}
@@ -596,7 +596,7 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 		// TODO: check return stmts
 		break;
 	case NSTRUCT:
-		n->type = maketype(TYPE_VAL, n->tok);
+		n->type = maketype(TYPE_ATOM, n->tok);
 		push_type(ctx, n->type);
 		// fields
 		// Clear the field offset accumulation at struct entry.  This shouldn't
