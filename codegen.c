@@ -255,14 +255,15 @@ static void gen_decl(struct context *ctx, struct ast_node *n) {
 	case NVARDECL:
 		// FIXME: is it better to assign decl_id here or in check?
 		n->local_id = ctx->curr_decl_id++;
-		emit(ctx, "    %%A%d =l alloc4 4\n", n->local_id);
+		// TODO: proper datasize handling
+		// TODO: proper alignment
+		emit(ctx, "    %%A%d =l alloc4 %ld\n", n->local_id, n->type->size);
 		if (!n->var_decl.init_expr) {
 			break;
 		}
 		codegen(ctx, n->var_decl.init_expr);
 		assert(arrlen(ctx->valstack.data) > 0);
 		val = stack_pop(ctx);
-		// TODO: proper datasize handling
 		// TODO: unify this with assignment
 		if (val.data_size == 8) {
 			emit(ctx, "    storel");

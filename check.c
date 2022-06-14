@@ -495,8 +495,8 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		const struct ast_node *field_match;
 		if (!(field_match =
 		          lookup_struct_field(n->member.parent->type, n->tok.name))) {
-			return error(ctx, n->loc, "'%s' is not a member of type '%s'", n->tok.name,
-			      n->member.parent->type->tok.name);
+			return error(ctx, n->loc, "'%s' is not a member of type '%s'",
+			             n->tok.name, n->member.parent->type->tok.name);
 		}
 		assert(n->member.parent->decl);
 		n->decl = maketempdecl(ctx->parser);
@@ -567,10 +567,11 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 		// !n->rettypeexpr is possible for void return type
 		if (n->func.ret_type_expr) {
 			n->type->return_type = resolve_type_expr(ctx, n->func.ret_type_expr);
-			if (!n->type->return_type)
+			if (!n->type->return_type) {
 				return error(ctx, n->func.ret_type_expr->loc,
 				             "unknown type '%s'",
 				             n->func.ret_type_expr->tok.name);
+			}
 		}
 
 		scope_open(ctx);
@@ -602,11 +603,14 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 		// be done for inner structs (TODO).
 		ctx->accum_field_offset = 0;
 		scope_open(ctx);
+		n->type->size = 0;
 		for (long i = 0; i < arrlen(n->struct_.fields); i++) {
 			struct ast_node *child = n->struct_.fields[i];
 			check_decl(ctx, child);
 			assert(child->decl);
 			arrput(n->type->members, child);
+			// FIXME: respect alignment when calculating byte size
+			n->type->size += child->decl->type->size;
 		}
 		scope_close(ctx);
 		if (!(n->decl = declare(ctx, n))) {

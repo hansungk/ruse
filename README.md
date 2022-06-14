@@ -11,6 +11,8 @@ $ ./ruse
 
 ## todo
 
+* struct codegen
+  * size with proper alignment
 * array type
   * make built-in struct for arrays
   * proper allocation with malloc
