@@ -485,6 +485,14 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 				             expect_buf, got_buf);
 			}
 		}
+		// TODO: turn this into check_builtin_func()
+		if (strcmp(n->call.func->tok.name, "len") == 0) {
+			assert(arrlen(n->call.args) == 1);
+			if (n->call.args[0]->type->kind != TYPE_ARRAY) {
+				return error(ctx, n->call.args[0]->loc,
+				             "len() called with non-array");
+			}
+		}
 		n->type = n->call.func->type->return_type;
 		break;
 	case NMEMBER:

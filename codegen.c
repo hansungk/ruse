@@ -172,6 +172,8 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		break;
 	case NSUBSCRIPT: {
 		gen_expr_addr(ctx, n->subscript.array);
+		// This relies on the fact that the 'buf' pointer of an array struct is
+		// at offset 0.
 		// FIXME: can probably merge this with NMEMBER?
 		struct qbe_val array_base_addr = stack_pop(ctx);
 		gen_expr_value(ctx, n->subscript.index);

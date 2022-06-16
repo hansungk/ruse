@@ -11,12 +11,12 @@ $ ./ruse
 
 ## todo
 
+* annotate generated qbe code
 * struct codegen
   * size with proper alignment
 * array type
   * make built-in struct for arrays
   * proper allocation with malloc
-* annotate generated qbe code
 * unify emit of loads and stores
 * arena allocator
 * gen if

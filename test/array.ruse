@@ -1,8 +1,9 @@
-// run 42
+// fail
 
 fn main() int {
     var arr []int
-    // arr[0] = 42
-    // arr[0 + 20] = 42
-    return len(arr)
+    arr[0] = 42
+    arr[0 + 20] = 42
+    len(arr[0]) // error
+    return arr[0 + 20]
 }
