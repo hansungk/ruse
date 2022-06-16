@@ -42,9 +42,9 @@ struct type *maketype(enum type_kind kind, struct token tok) {
 }
 
 // FIXME: remove 'tok'
-struct type *makearraytype(struct type *target, struct token tok) {
+struct type *makearraytype(struct type *elem_type, struct token tok) {
 	struct type *t = maketype(TYPE_ARRAY, tok);
-	t->base_type = target;
+	t->base_type = elem_type;
 	t->size = array_size;
 	return t;
 }
@@ -188,17 +188,29 @@ static void setup_builtin_types(struct context *ctx) {
 }
 
 static void setup_builtin_funcs(struct context *ctx) {
+	struct ast_node *n;
+
 	// FIXME: because tok.name is free()ed in parser_cleanup, we need to
 	// explicitly allocate a string, which is a little arbitrary
 	char *str = strdup("len");
 	struct token len_tok = {.type = TIDENT, .name = str};
-	struct ast_node *n = makefunc(ctx->parser, len_tok);
+	n = makefunc(ctx->parser, len_tok);
 	if (!declare(ctx, n)) {
 		return;
 	}
 	n->type = maketype(TYPE_FUNC, n->tok);
 	n->type->return_type = ty_int64;
 	arrput(n->type->params, ty_any);
+
+	str = strdup("alloc");
+	struct token alloc_tok = {.type = TIDENT, .name = str};
+	n = makefunc(ctx->parser, alloc_tok);
+	if (!declare(ctx, n)) {
+		return;
+	}
+	n->type = maketype(TYPE_FUNC, n->tok);
+	n->type->return_type = makearraytype(ty_any, n->tok);
+	arrput(n->type->params, ty_int64);
 }
 
 // NOTE: This *has* to be called after parse(), as it copies over the error
@@ -361,6 +373,9 @@ static int type_compatible(struct type *to, struct type *from) {
 	if (to == ty_any) {
 		return 1;
 	}
+	if (to == ty_int64 && from == ty_int) {
+		return 1;
+	}
 	return to == from;
 }
 
@@ -495,7 +510,7 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		}
 		n->type = n->call.func->type->return_type;
 		break;
-	case NMEMBER:
+	case NMEMBER: {
 		check_expr(ctx, n->member.parent);
 		if (!n->member.parent->type) {
 			return;
@@ -514,6 +529,7 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		n->type = field_match->type;
 		n->member.offset = field_match->field.offset;
 		break;
+	}
 	default:
 		assert(!"unknown expr kind");
 	}
@@ -523,6 +539,15 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 static int check_assignment(struct context *ctx, struct ast_node *to,
                             struct ast_node *from) {
 	assert(to->type && from->type);
+	if (from->kind == NCALL &&
+	    strcmp(from->call.func->tok.name, "alloc") == 0) {
+		if (to->type->kind != TYPE_ARRAY) {
+			error(ctx, to->loc, "cannot assign to a non-array");
+			return 0;
+		}
+		from->type->base_type = to->type->base_type;
+		return 1;
+	}
 	if (!type_compatible(to->type, from->type)) {
 		error(ctx, to->loc, "cannot assign to an incompatible type");
 		return 0;

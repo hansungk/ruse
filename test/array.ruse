@@ -6,4 +6,8 @@ fn main() int {
     arr[0 + 20] = 42
     len(arr[0]) // error
     return arr[0 + 20]
+
+    var arr2 []int
+    arr2[0] = alloc(3) // error
+    arr2 = alloc(3)
 }
