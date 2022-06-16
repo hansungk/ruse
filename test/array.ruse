@@ -2,8 +2,7 @@
 
 fn main() int {
     var arr []int
-    arr[0] = 42
-    arr[0 + 20] = 42
-    len(arr)
-    return arr[0 + 20]
+    // arr[0] = 42
+    // arr[0 + 20] = 42
+    return len(arr)
 }

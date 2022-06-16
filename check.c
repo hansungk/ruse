@@ -13,6 +13,9 @@ static struct type *ty_string;
 static struct ast_node *declare(struct context *ctx, struct ast_node *n);
 static struct type *push_type(struct context *ctx, struct type *ty);
 
+// buf pointer 8 + size 8
+static const int array_size = 16;
+
 void fatal(const char *fmt, ...) {
 	va_list args;
 
@@ -42,7 +45,7 @@ struct type *maketype(enum type_kind kind, struct token tok) {
 struct type *makearraytype(struct type *target, struct token tok) {
 	struct type *t = maketype(TYPE_ARRAY, tok);
 	t->base_type = target;
-	t->size = 8; // FIXME
+	t->size = array_size;
 	return t;
 }
 

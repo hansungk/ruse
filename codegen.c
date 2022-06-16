@@ -58,6 +58,7 @@ static void stack_push_param(struct context *ctx, const char *name) {
 static struct qbe_val stack_make_temp(struct context *ctx) {
 	struct qbe_val v = {VAL_TEMP, .temp_id = ctx->valstack.next_temp_id,
 	                    .data_size = 4 /* FIXME */};
+	ctx->valstack.next_temp_id++;
 	qbe_val_name(&v);
 	// We don't increment next_temp_id here, we only do that at the push time.
 	return v;
@@ -65,7 +66,6 @@ static struct qbe_val stack_make_temp(struct context *ctx) {
 
 static void stack_push_temp(struct context *ctx, const struct qbe_val val) {
 	arrput(ctx->valstack.data, val);
-	ctx->valstack.next_temp_id++;
 }
 
 static void stack_push_addr(struct context *ctx, int addr_id) {
@@ -196,7 +196,23 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 			assert(!"func without return value not implemented");
 		}
 		if (strcmp(n->call.func->tok.name, "len") == 0) {
-			assert(!"TODO: codegen for len()");
+			assert(value && "taking address of len()?");
+
+			gen_expr_addr(ctx, n->call.args[0]);
+			struct qbe_val base_addr = stack_pop(ctx);
+			struct qbe_val element_addr = stack_make_temp(ctx);
+			emit(ctx, "    %s =l add %s, %d\n", element_addr.text,
+			     base_addr.text, 8);
+
+			struct qbe_val val = stack_make_temp(ctx);
+			// TODO: @copypaste from NDEREFEXPR
+			if (val_rhs.data_size == 8) {
+				emit(ctx, "    %s =l loadl %s\n", val.text, element_addr.text);
+			} else {
+				emit(ctx, "    %s =w loadw %s\n", val.text, element_addr.text);
+			}
+			stack_push_temp(ctx, val);
+			break;
 		}
 		// Push parameters in reverse order so that they are in correct order
 		// when popped.
