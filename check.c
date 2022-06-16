@@ -370,6 +370,12 @@ static struct type *resolve_type_expr(struct context *ctx,
 
 // Check if type `from` can be assigned to type `to`.
 static int type_compatible(struct type *to, struct type *from) {
+	if (to->kind == TYPE_ARRAY) {
+		if (from->kind != TYPE_ARRAY) {
+			return 0;
+		}
+		return type_compatible(to->base_type, from->base_type);
+	}
 	if (to == ty_any) {
 		return 1;
 	}
@@ -539,6 +545,7 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 static int check_assignment(struct context *ctx, struct ast_node *to,
                             struct ast_node *from) {
 	assert(to->type && from->type);
+
 	if (from->kind == NCALL &&
 	    strcmp(from->call.func->tok.name, "alloc") == 0) {
 		if (to->type->kind != TYPE_ARRAY) {
