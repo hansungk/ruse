@@ -64,6 +64,8 @@ void setup_builtin_types(Sema &s) {
   s.context.ty_void = make_builtin_type_from_name(s, "void");
   s.context.ty_int = make_builtin_type_from_name(s, "int");
   s.context.ty_int->size = 4;
+  s.context.ty_int64 = make_builtin_type_from_name(s, "int64");
+  s.context.ty_int64->size = 8;
   s.context.ty_char = make_builtin_type_from_name(s, "char");
   s.context.ty_char->size = 1;
   s.context.ty_string = make_builtin_type_from_name(s, "string");
@@ -472,8 +474,12 @@ bool check_expr(Sema &sema, Expr *e) {
     if (!check_expr(sema, se->index_expr)) {
       return false;
     }
-    se->type = se->array_expr->type->base_type;
+    // Promote to int64 for proper codegen (TODO: narrow)
+    if (se->index_expr->type == sema.context.ty_int) {
+      se->index_expr->type = sema.context.ty_int64;
+    }
 
+    se->type = se->array_expr->type->base_type;
     se->decl = make_temporary_decl(sema, se->type);
     // assert(!"TODO: make a temporary decl to make subscript expr an lvalue");
     break;

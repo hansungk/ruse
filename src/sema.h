@@ -21,6 +21,7 @@ struct Context {
     // have their type field left as nullptr.
     Type *ty_void = nullptr;
     Type *ty_int = nullptr;
+    Type *ty_int64 = nullptr;
     Type *ty_char = nullptr;
     Type *ty_string = nullptr;
 };
@@ -265,7 +266,7 @@ struct QbeGen {
 
   void codegen(AstNode *n);
   void codegen_decl(Decl *d);
-  void codegen_expr(Expr *e);
+  void codegen_expr_value(Expr *e);
   void codegen_expr_address(Expr *e);
   void codegen_expr_explicit(Expr *e, bool value);
   void codegen_stmt(Stmt *s);
