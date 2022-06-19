@@ -107,23 +107,6 @@ bool Type::is_builtin(Sema &sema) const {
            this == sema.context.ty_void || this == sema.context.ty_string;
 }
 
-static bool is_lvalue(const Expr *e) {
-    // Determine lvalue-ness by the expression kind.
-    switch (e->kind) {
-    case Expr::decl_ref:
-    case Expr::member:
-    case Expr::unary:
-        if (e->decl && e->decl->kind == Decl::var) {
-            return true;
-        }
-        break;
-    default:
-        break;
-    }
-
-    return false;
-}
-
 bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl) {
     assert(struct_decl);
 
@@ -205,6 +188,10 @@ bool check_assignable(const Type *to, const Type *from) {
   return to == from;
 }
 
+static Decl *make_temporary_decl(Sema &sema, Type *type) {
+  return sema.make_node<VarDecl>(nullptr, type, /*mut*/ true);
+}
+
 bool check_expr(Sema &sema, Expr *e);
 bool check_stmt(Sema &sema, Stmt *s);
 bool check_decl(Sema &sema, Decl *d);
@@ -230,7 +217,7 @@ bool check_unary_expr(Sema &sema, UnaryExpr *u) {
     // as lvalue.  These are not pushed to the scoped decl table, because they
     // are not meant to be accessible from other source locations. Therefore
     // they don't need to have a name.
-    u->decl = sema.make_node<VarDecl>(nullptr, u->type, /*mut*/ true);
+    u->decl = make_temporary_decl(sema, u->type);
     // We still need to do typecheck on this temporary decl to e.g.
     // bind new decls for all struct children.
     check_decl(sema, u->decl);
@@ -243,7 +230,7 @@ bool check_unary_expr(Sema &sema, UnaryExpr *u) {
       return false;
 
     // Prohibit taking address of an rvalue.
-    if (!is_lvalue(u->operand)) {
+    if (!u->operand->is_lvalue()) {
       return error(u->loc, "cannot take address of an rvalue");
     }
 
@@ -487,8 +474,8 @@ bool check_expr(Sema &sema, Expr *e) {
     }
     se->type = se->array_expr->type->base_type;
 
-    se->decl = sema.make_node<VarDecl>(nullptr, se->type, /*mut*/ true);
-    assert(!"TODO: make a temporary decl to make subscript expr an lvalue");
+    se->decl = make_temporary_decl(sema, se->type);
+    // assert(!"TODO: make a temporary decl to make subscript expr an lvalue");
     break;
   }
   case Expr::unary: {
@@ -578,7 +565,7 @@ bool check_stmt(Sema &sema, Stmt *s) {
     auto lhs_type = as->lhs->type;
     auto rhs_type = as->rhs->type;
 
-    if (!is_lvalue(as->lhs)) {
+    if (!as->lhs->is_lvalue()) {
       return error(as->loc, "cannot assign to an rvalue");
     }
 
@@ -648,10 +635,10 @@ bool check_stmt(Sema &sema, Stmt *s) {
 }
 
 VarDecl *instantiate_member_decl(Sema &sema, VarDecl *parent, Name *name,
-                           Type *type) {
-    auto field = sema.make_node<VarDecl>(name, type, parent->mut);
-    parent->children.push_back(field);
-    return field;
+                                 Type *type) {
+  auto field = sema.make_node<VarDecl>(name, type, parent->mut);
+  parent->children.push_back(field);
+  return field;
 }
 
 static bool check_func_decl(Sema &sema, FuncDecl *f) {

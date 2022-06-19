@@ -179,18 +179,19 @@ struct Expr : public AstNode {
     bad,
   } kind;
 
-  // Type of the expression.
+  // type of the expression.
   //
   // For expressions that have a Decl, e.g. DeclRefExpr and MemberExpr, their
   // types are stored in decl->type.  For these cases, the value of this
   // pointer should be maintained the same as decl->type, so that expr->type
   // becomes the unified way to retrieve the type of an expression.
   Type *type = nullptr;
-
+  // TODO: document
   Decl *decl = nullptr;
 
   Expr(Kind e) : AstNode(AstNode::expr), kind(e), type(nullptr) {}
   template <typename T> bool is();
+  bool is_lvalue() const { return decl != nullptr; }
 };
 
 struct IntegerLiteral : public Expr {
