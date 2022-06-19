@@ -365,71 +365,71 @@ template <typename T> inline bool Expr::is() { assert(!"unimplemented is()"); }
 // of this pointer serves as a unique integer ID used as the key the symbol
 // table.
 struct Decl : public AstNode {
-    const enum Kind {
-        var,
-        func,
-        field,
-        struct_,
-        enum_variant,
-        enum_,
-        bad,
-    } kind;
-    Name *name = nullptr;
-    // Might be null for symbols that do not have an associated Type like
-    // functions.
-    Type *type = nullptr;
+  const enum Kind {
+    var,
+    func,
+    field,
+    struct_,
+    enum_variant,
+    enum_,
+    bad,
+  } kind;
+  Name *name = nullptr;
+  // Might be null for symbols that do not have an associated Type like
+  // functions.
+  Type *type = nullptr;
 
-    Decl(Kind d) : Decl(d, nullptr, nullptr) {}
-    Decl(Kind d, Name *n) : Decl(d, n, nullptr) {}
-    Decl(Kind d, Name *n, Type *t)
-        : AstNode(AstNode::decl), kind(d), name(n), type(t) {}
-    template <typename T> bool is();
+  Decl(Kind d) : Decl(d, nullptr, nullptr) {}
+  Decl(Kind d, Name *n) : Decl(d, n, nullptr) {}
+  Decl(Kind d, Name *n, Type *t)
+      : AstNode(AstNode::decl), kind(d), name(n), type(t) {}
+  template <typename T> bool is();
 };
 
 // Variable declaration.
 struct VarDecl : public Decl {
-    // Whether this VarDecl has been declared as a local variable, as a field
-    // inside a struct, or as a parameter for a function.
-    // TODO: necessary?
-    const enum Kind {
-        local_,
-        struct_,
-        param,
-    } kind = local_;
+  // Whether this VarDecl has been declared as a local variable, as a field
+  // inside a struct, or as a parameter for a function.
+  // TODO: necessary?
+  const enum Kind {
+    local_,
+    struct_,
+    param,
+  } kind = local_;
 
-    // TypeExpr of the variable.  Declared as Expr to accommodate for BadExpr.
-    // TODO: Ugly.
-    Expr *type_expr = nullptr;
+  // TypeExpr of the variable.  Declared as Expr to accommodate for BadExpr.
+  // TODO: Ugly.
+  Expr *type_expr = nullptr;
 
-    // Assignment expression specified at the point of declaration, if any.
-    Expr *assign_expr = nullptr;
+  // Assignment expression specified at the point of declaration, if any.
+  Expr *assign_expr = nullptr;
 
-    // Mutability of the variable.
-    bool mut = false;
+  // Mutability of the variable.
+  bool mut = false;
 
-    // Whether this variable is a function-local variable.
-    bool local = false;
+  // Whether this variable is a function-local variable.
+  bool local = false;
 
-    // ID of the VarDecl that is local inside the current stack frame (~current
-    // function).  Used for codegen to easily designate the address to which we
-    // have to store the temporary value of an expression.
-    long frame_local_id = 0;
+  // ID of the VarDecl that is local inside the current stack frame (~current
+  // function).  Used for codegen to easily designate the address to which we
+  // have to store the temporary value of an expression.
+  long frame_local_id = 0;
 
-    // Decls for each of the values that are associated to this value.
-    // For example, if this value is a struct type, these would be VarDecls for
-    // each of its field.
-    //
-    // Note that these are different from the 'fields' field of StructDecl:
-    // while they are simply the definitions of the struct fields, these
-    // represent the instantiated entities that consumes actual space in the
-    // memory.
-    std::vector<VarDecl *> children;
+  // Decls for each of the values that are associated to this value.
+  // For example, if this value is a struct type, these would be VarDecls for
+  // each of its field.
+  //
+  // Note that these are different from the 'fields' field of StructDecl:
+  // while they are simply the definitions of the struct fields, these
+  // represent the instantiated entities that consumes actual space in the
+  // memory.
+  std::vector<VarDecl *> children;
 
-    VarDecl(Name *n, Kind k, Expr *t, Expr *expr)
-        : Decl(Decl::var, n), kind(k), type_expr(t), assign_expr(expr) {}
-    VarDecl(Name *n, Type *t, bool m) : Decl(Decl::var, n, t), mut(m) {}
+  VarDecl(Name *n, Kind k, Expr *texpr, Expr *assign)
+      : Decl(Decl::var, n), kind(k), type_expr(texpr), assign_expr(assign) {}
+  VarDecl(Name *n, Type *t, bool mut) : Decl(Decl::var, n, t), mut(mut) {}
 
-    VarDecl *findMemberDecl(const Name *member_name) const;
+  VarDecl *findMemberDecl(const Name *member_name) const;
 };
 
 // Function declaration.  There is no separate function definition: functions

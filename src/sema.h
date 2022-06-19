@@ -16,12 +16,13 @@ struct Context {
     std::vector<FuncDecl *> func_stack;
     std::vector<EnumDecl *> enum_decl_stack;
     // Builtin types.
-    // voidType exists to differentiate the type of FuncCallExprs whose
-    // function no return values, from expressions that failed to typecheck.
-    Type *void_type = nullptr;
-    Type *int_type = nullptr;
-    Type *char_type = nullptr;
-    Type *string_type = nullptr;
+    // The void type exists to differentiate the type of FuncCallExprs whose
+    // function no return values, from expressions that failed to typecheck and
+    // have their type field left as nullptr.
+    Type *ty_void = nullptr;
+    Type *ty_int = nullptr;
+    Type *ty_char = nullptr;
+    Type *ty_string = nullptr;
 };
 
 // Maps a VarDecl to its borrow count in the current scope.
@@ -174,10 +175,9 @@ struct Valstack {
   std::vector<QbeValue> buf;
   int next_id = 0;
 
-  // Push a value as a temporary variable in QBE.  This will be designated as
-  // "%_0" in the IL.
-  // This does not take any argument because the actual value is emitted to
-  // the code.
+  // Push a value as a temporary variable in QBE.  This will show up as "%_0"
+  // in the IL. This function does not take any argument because the actual
+  // value is emitted to the code.
   void push_temp() {
     buf.push_back(QbeValue{.kind = QbeValue::temp, .id = next_id});
     next_id++;
@@ -185,9 +185,8 @@ struct Valstack {
 
   // Push a value in the form of its memory address.  Larger sized types such
   // as structs cannot be emitted as a QBE temporary, and this is the only
-  // way to emit its value.  This will be designated as "%a0" in the IL.
-  // This does not take any argument because the actual address is emitted to
-  // the code.
+  // way to emit its value.  This will show up as "%a0" in the IL. This does
+  // not take any argument because the actual address is emitted to the code.
   void push_address() {
     buf.push_back(QbeValue{.kind = QbeValue::address, .id = next_id});
     next_id++;
@@ -199,7 +198,8 @@ struct Valstack {
     next_id++;
   }
 
-  // Explicitly give the id of the value which will be reused.
+  // Push a value in the form of its memory address.  Explicitly give the tag
+  // id of the address.
   void push_address_explicit(int id) {
     buf.push_back(QbeValue{.kind = QbeValue::address, .id = id});
   }

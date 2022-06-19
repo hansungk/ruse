@@ -1,4 +1,4 @@
 fn main() {
    var arr: []int
-   arr[3]
+   arr[3] = 4
 }

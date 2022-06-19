@@ -183,6 +183,15 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
 
     break;
   }
+  case Expr::subscript: {
+    auto se = e->as<SubscriptExpr>();;
+    codegen_expr_explicit(se->array_expr, false);
+    if (value) {
+      emitln("%_{} =w loadw {}", stack.next_id, stack.pop().format());
+      annotate("{}: load array", se->loc.line);
+    }
+    break;
+  }
   case Expr::unary: {
     auto ue = e->as<UnaryExpr>();
 
@@ -513,7 +522,7 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
 // Emit a value by allocating it on the stack memory.  That value will be
 // handled via its address.  `line` and `text` are used for annotations.
 long QbeGen::emit_stack_alloc(const Type *type, size_t line,
-                                    std::string_view text) {
+                              std::string_view text) {
   assert(!sema.context.func_stack.empty());
   // auto current_func = context.func_stack.back();
   // long id = current_func->frame_local_id_counter;
@@ -529,7 +538,8 @@ long QbeGen::emit_stack_alloc(const Type *type, size_t line,
     // assumes pointers are always 8 bytes
     emit("alloc8");
   } else if (type->kind == TypeKind::array) {
-    assert(!"TODO: stack allocate for array types");
+    // FIXME: stack allocate for array types
+    emit("alloc8");
   } else if (type->builtin) {
     assert(type->kind != TypeKind::pointer &&
            "ptr & builtin for Types is possible?");

@@ -61,14 +61,14 @@ static Type *make_builtin_type_from_name(Sema &s, const std::string &str) {
 // Push Decls for the builtin types into the global scope of decl_table, so
 // that they are visible from any point in the AST.
 void setup_builtin_types(Sema &s) {
-  s.context.void_type = make_builtin_type_from_name(s, "void");
-  s.context.int_type = make_builtin_type_from_name(s, "int");
-  s.context.int_type->size = 4;
-  s.context.char_type = make_builtin_type_from_name(s, "char");
-  s.context.char_type->size = 1;
-  s.context.string_type = make_builtin_type_from_name(s, "string");
+  s.context.ty_void = make_builtin_type_from_name(s, "void");
+  s.context.ty_int = make_builtin_type_from_name(s, "int");
+  s.context.ty_int->size = 4;
+  s.context.ty_char = make_builtin_type_from_name(s, "char");
+  s.context.ty_char->size = 1;
+  s.context.ty_string = make_builtin_type_from_name(s, "string");
   // FIXME: size of a string is something like pointer + length
-  s.context.string_type->size = 4;
+  s.context.ty_string->size = 4;
   s.name_table.push("buf");
   s.name_table.push("len");
 }
@@ -103,8 +103,8 @@ bool Type::is_pointer() const {
 }
 
 bool Type::is_builtin(Sema &sema) const {
-    return this == sema.context.int_type || this == sema.context.char_type ||
-           this == sema.context.void_type || this == sema.context.string_type;
+    return this == sema.context.ty_int || this == sema.context.ty_char ||
+           this == sema.context.ty_void || this == sema.context.ty_string;
 }
 
 static bool is_lvalue(const Expr *e) {
@@ -225,15 +225,15 @@ bool check_unary_expr(Sema &sema, UnaryExpr *u) {
                    u->operand->type->name->text);
     }
     u->type = u->operand->type->base_type;
-    u->decl = sema.make_node<VarDecl>(nullptr, u->type, true);
 
-    // We still need to do typecheck on this temporary decl to e.g. bind
-    // new decls for all struct children.
+    // Bind a temporary, unnamed VarDecl so that this expression is designated
+    // as lvalue.  These are not pushed to the scoped decl table, because they
+    // are not meant to be accessible from other source locations. Therefore
+    // they don't need to have a name.
+    u->decl = sema.make_node<VarDecl>(nullptr, u->type, /*mut*/ true);
+    // We still need to do typecheck on this temporary decl to e.g.
+    // bind new decls for all struct children.
     check_decl(sema, u->decl);
-
-    // Temporary VarDecls are not pushed to the scoped decl table, because
-    // they are not meant to be accessible from other source locations.
-    // Therefore they don't need to have a name.
 
     break;
   }
@@ -351,11 +351,11 @@ static bool check_member_expr(Sema &sema, MemberExpr *mem) {
 bool check_expr(Sema &sema, Expr *e) {
   switch (e->kind) {
   case Expr::integer_literal: {
-    e->as<IntegerLiteral>()->type = sema.context.int_type;
+    e->as<IntegerLiteral>()->type = sema.context.ty_int;
     break;
   }
   case Expr::string_literal: {
-    e->as<StringLiteral>()->type = sema.context.string_type;
+    e->as<StringLiteral>()->type = sema.context.ty_string;
     break;
   }
   case Expr::decl_ref: {
@@ -486,6 +486,9 @@ bool check_expr(Sema &sema, Expr *e) {
       return false;
     }
     se->type = se->array_expr->type->base_type;
+
+    se->decl = sema.make_node<VarDecl>(nullptr, se->type, /*mut*/ true);
+    assert(!"TODO: make a temporary decl to make subscript expr an lvalue");
     break;
   }
   case Expr::unary: {
@@ -554,95 +557,94 @@ bool check_expr(Sema &sema, Expr *e) {
 }
 
 bool check_stmt(Sema &sema, Stmt *s) {
-    switch (s->kind) {
-    case Stmt::expr:
-        return check_expr(sema, s->as<ExprStmt>()->expr);
-    case Stmt::decl: {
-        auto decl = s->as<DeclStmt>()->decl;
-        if (!check_decl(sema, decl))
-            return false;
-        if (!declare(sema, decl))
-            return false;
-        break;
-    }
-    case Stmt::assign: {
-        auto as = s->as<AssignStmt>();
-        if (!check_expr(sema, as->rhs))
-            return false;
-        if (!check_expr(sema, as->lhs))
-            return false;
+  switch (s->kind) {
+  case Stmt::expr:
+    return check_expr(sema, s->as<ExprStmt>()->expr);
+  case Stmt::decl: {
+    auto decl = s->as<DeclStmt>()->decl;
+    if (!check_decl(sema, decl))
+      return false;
+    if (!declare(sema, decl))
+      return false;
+    break;
+  }
+  case Stmt::assign: {
+    auto as = s->as<AssignStmt>();
+    if (!check_expr(sema, as->rhs))
+      return false;
+    if (!check_expr(sema, as->lhs))
+      return false;
 
-        auto lhs_type = as->lhs->type;
-        auto rhs_type = as->rhs->type;
+    auto lhs_type = as->lhs->type;
+    auto rhs_type = as->rhs->type;
 
-        if (!is_lvalue(as->lhs)) {
-            return error(as->loc, "cannot assign to an rvalue");
-        }
-
-        if (!check_assignable(lhs_type, rhs_type)) {
-            return error(as->loc, "cannot assign '{}' type to '{}'",
-                         rhs_type->name->text, lhs_type->name->text);
-        }
-
-        break;
-    }
-    case Stmt::if_: {
-        auto if_stmt = s->as<IfStmt>();
-        if (!check_expr(sema, if_stmt->cond))
-            return false;
-
-        if (!check_stmt(sema, if_stmt->if_body))
-            return false;
-        if (if_stmt->else_if_stmt) {
-            if (!check_stmt(sema, if_stmt->else_if_stmt))
-                return false;
-        } else if (if_stmt->else_body) {
-            if (!check_stmt(sema, if_stmt->else_body))
-                return false;
-        }
-        break;
-    }
-    case Stmt::return_: {
-        auto r = s->as<ReturnStmt>();
-        if (!r->expr)
-            break;
-        if (!check_expr(sema, r->expr))
-            return false;
-
-        assert(!sema.context.func_stack.empty());
-        auto current_func = sema.context.func_stack.back();
-        if (r->expr->type != current_func->ret_type) {
-            if (current_func->ret_type == sema.context.void_type) {
-                return error(
-                    r->expr->loc,
-                    "tried to return a value from a void function '{}'",
-                    current_func->name->text);
-            }
-            return error(
-                r->expr->loc,
-                "tried to return '{}' from function '{}', which returns '{}'",
-                r->expr->type->name->text, current_func->name->text,
-                current_func->ret_type->name->text);
-        }
-
-        break;
-    }
-    case Stmt::compound: {
-        bool success = true;
-        sema.scope_open();
-        for (auto line : s->as<CompoundStmt>()->stmts) {
-            if (!check(sema, line)) {
-                success = false;
-            }
-        }
-        sema.scope_close();
-        return success;
-    }
-    default:
-        assert(!"unknown stmt kind");
+    if (!is_lvalue(as->lhs)) {
+      return error(as->loc, "cannot assign to an rvalue");
     }
 
-    return true;
+    if (!check_assignable(lhs_type, rhs_type)) {
+      return error(as->loc, "cannot assign '{}' type to '{}'",
+                   rhs_type->name->text, lhs_type->name->text);
+    }
+
+    break;
+  }
+  case Stmt::if_: {
+    auto if_stmt = s->as<IfStmt>();
+    if (!check_expr(sema, if_stmt->cond))
+      return false;
+
+    if (!check_stmt(sema, if_stmt->if_body))
+      return false;
+    if (if_stmt->else_if_stmt) {
+      if (!check_stmt(sema, if_stmt->else_if_stmt))
+        return false;
+    } else if (if_stmt->else_body) {
+      if (!check_stmt(sema, if_stmt->else_body))
+        return false;
+    }
+    break;
+  }
+  case Stmt::return_: {
+    auto r = s->as<ReturnStmt>();
+    if (!r->expr)
+      break;
+    if (!check_expr(sema, r->expr))
+      return false;
+
+    assert(!sema.context.func_stack.empty());
+    auto current_func = sema.context.func_stack.back();
+    if (r->expr->type != current_func->ret_type) {
+      if (current_func->ret_type == sema.context.ty_void) {
+        return error(r->expr->loc,
+                     "tried to return a value from a void function '{}'",
+                     current_func->name->text);
+      }
+      return error(
+          r->expr->loc,
+          "tried to return '{}' from function '{}', which returns '{}'",
+          r->expr->type->name->text, current_func->name->text,
+          current_func->ret_type->name->text);
+    }
+
+    break;
+  }
+  case Stmt::compound: {
+    bool success = true;
+    sema.scope_open();
+    for (auto line : s->as<CompoundStmt>()->stmts) {
+      if (!check(sema, line)) {
+        success = false;
+      }
+    }
+    sema.scope_close();
+    return success;
+  }
+  default:
+    assert(!"unknown stmt kind");
+  }
+
+  return true;
 }
 
 VarDecl *instantiate_member_decl(Sema &sema, VarDecl *parent, Name *name,
@@ -688,7 +690,7 @@ static bool check_func_decl(Sema &sema, FuncDecl *f) {
       return false;
     f->ret_type = f->ret_type_expr->type;
   } else {
-    f->ret_type = sema.context.void_type;
+    f->ret_type = sema.context.ty_void;
   }
 
   // Work inside a new function-local scope to handle params and body
@@ -755,14 +757,14 @@ bool check_decl(Sema &sema, Decl *d) {
         instantiate_member_decl(sema, v, field->name, field->type);
         // FIXME: should we check_decl() children here?
       }
-    } else if (v->type == sema.context.string_type) {
+    } else if (v->type == sema.context.ty_string) {
       // String types have hidden children decls of { buf: *uint8, len: int64 }.
       // Instantiate these decls here.
       Name *name_buf = sema.name_table.get("buf");
       Name *name_len = sema.name_table.get("len");
       assert(name_buf && name_len);
-      instantiate_member_decl(sema, v, name_buf, sema.context.int_type);
-      instantiate_member_decl(sema, v, name_len, sema.context.int_type /*FIXME*/);
+      instantiate_member_decl(sema, v, name_buf, sema.context.ty_int);
+      instantiate_member_decl(sema, v, name_len, sema.context.ty_int /*FIXME*/);
       assert(v->findMemberDecl(name_buf));
     }
 
