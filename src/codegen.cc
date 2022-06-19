@@ -190,7 +190,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     codegen_expr_address(se->array_expr);
     codegen_expr_value(se->index_expr);
     emitln("%_{} =l mul {}, {}", stack.next_id, stack.pop().format(),
-           4 /*FIXME*/);
+           se->array_expr->type->base_type->size);
     stack.push_temp();
     emitln("%_{} =l add {}, {}", stack.next_id, stack.pop().format(),
            stack.pop().format());
