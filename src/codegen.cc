@@ -21,12 +21,14 @@ std::string qbe_abity_string(const Type *type) {
 // value is pushed to the valstack.
 void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
   switch (e->kind) {
-  case Expr::integer_literal:
-    emitln("%_{} =w add 0, {}", stack.next_id,
+  case Expr::integer_literal: {
+    char cl = (e->type == sema.context.ty_int64) ? 'l' : 'w';
+    emitln("%_{} ={} add 0, {}", stack.next_id, cl,
            e->as<IntegerLiteral>()->value);
     annotate("{}: integer literal", e->loc.line);
     stack.push_temp();
     break;
+  }
   case Expr::string_literal:
     stack.push_global("string");
     break;
@@ -91,7 +93,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     // codegen arguments first
     std::vector<QbeValue> generated_args;
     for (auto arg : c->args) {
-      codegen_expr_explicit(arg, true);
+      codegen_expr_value(arg);
       generated_args.push_back(stack.pop());
     }
 
@@ -167,7 +169,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     // whether they want to emit value or address.
 
     // emit correct address first
-    codegen_expr_explicit(mem->parent_expr, false);
+    codegen_expr_address(mem->parent_expr);
 
     emitln("%a{} =l add {}, {}", stack.next_id, stack.pop().format(),
            mem->field_decl->offset);
@@ -185,16 +187,23 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
   }
   case Expr::subscript: {
     auto se = e->as<SubscriptExpr>();;
-    codegen_expr_explicit(se->array_expr, false);
+    codegen_expr_address(se->array_expr);
+    codegen_expr_value(se->index_expr);
+    emitln("%_{} =l mul {}, {}", stack.next_id, stack.pop().format(),
+           4 /*FIXME*/);
+    stack.push_temp();
+    emitln("%_{} =l add {}, {}", stack.next_id, stack.pop().format(),
+           stack.pop().format());
+    stack.push_temp();
     if (value) {
       emitln("%_{} =w loadw {}", stack.next_id, stack.pop().format());
       annotate("{}: load array", se->loc.line);
+      stack.push_temp();
     }
     break;
   }
   case Expr::unary: {
     auto ue = e->as<UnaryExpr>();
-
     if (ue->kind == UnaryExpr::ref) {
       codegen_expr_explicit(ue->operand, false);
     } else if (ue->kind == UnaryExpr::deref) {
@@ -247,7 +256,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
   }
 }
 
-void QbeGen::codegen_expr(Expr *e) { codegen_expr_explicit(e, true); }
+void QbeGen::codegen_expr_value(Expr *e) { codegen_expr_explicit(e, true); }
 
 void QbeGen::codegen_expr_address(Expr *e) {
   codegen_expr_explicit(e, false);
@@ -256,7 +265,7 @@ void QbeGen::codegen_expr_address(Expr *e) {
 void QbeGen::codegen_stmt(Stmt *s) {
   switch (s->kind) {
   case Stmt::expr:
-    codegen_expr(s->as<ExprStmt>()->expr);
+    codegen_expr_value(s->as<ExprStmt>()->expr);
     break;
   case Stmt::decl:
     codegen_decl(s->as<DeclStmt>()->decl);
@@ -282,7 +291,7 @@ void QbeGen::codegen_stmt(Stmt *s) {
     break;
   }
   case Stmt::return_:
-    codegen_expr(s->as<ReturnStmt>()->expr);
+    codegen_expr_value(s->as<ReturnStmt>()->expr);
 
     // Whether the top of the valstack might contain is a value or an
     // address, either is fine, because returning a struct by value
@@ -299,7 +308,7 @@ void QbeGen::codegen_stmt(Stmt *s) {
     auto if_stmt = s->as<IfStmt>();
     auto id = ifelse_label_id;
     ifelse_label_id++;
-    codegen_expr(if_stmt->cond);
+    codegen_expr_value(if_stmt->cond);
     emitln("jnz {}, @if_{}, @else_{}", stack.pop().format(), id, id);
     emit("\n@if_{}", id);
     codegen_stmt(if_stmt->if_body);
@@ -444,7 +453,7 @@ void QbeGen::codegen_decl(Decl *d) {
 // f(S {.a=...})
 void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
   assert(lhs);
-  codegen_expr(rhs);
+  codegen_expr_value(rhs);
 
   // NOTE: rhs_value might not actually have ValueKind::value, e.g. for
   // structs allocated on the stack.
