@@ -1,4 +1,4 @@
-// exit 0
+// run 0
 
 extern fn malloc(size: int) *void
 extern fn free(a: *void)

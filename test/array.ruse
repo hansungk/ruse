@@ -1,3 +1,5 @@
+// run 4
+
 fn main() int {
    var arr: []int
    arr[3] = 4

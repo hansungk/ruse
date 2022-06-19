@@ -1,4 +1,4 @@
-// exit 4
+// run 4
 
 fn main() int {
     var a = 4

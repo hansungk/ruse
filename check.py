@@ -11,9 +11,9 @@ def test(binname, filename):
     line_number = 1
     for line in open(filename, 'r'):
         if line_number == 1:
-            match = re.search("// exit", line)
+            match = re.search("// run", line)
             if match:
-                exit_beacon_string = match.string[match.start():][len("// exit "):-1]
+                exit_beacon_string = match.string[match.start():][len("// run "):-1]
                 exit_beacon = int(exit_beacon_string)
 
         match = re.search("//~error:", line)
