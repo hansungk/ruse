@@ -2,7 +2,7 @@
 
 struct S {
     a int
-    b int
+    b int64
 }
 
 fn main() int {

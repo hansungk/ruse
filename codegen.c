@@ -122,13 +122,12 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 				val_lhs = stack_make_temp(ctx);
 				emit(ctx, "    %s =l loadl %s\n", val_lhs.text,
 				     stack_pop(ctx).text);
-				stack_push_temp(ctx, val_lhs);
 			} else {
 				val_lhs = stack_make_temp(ctx);
 				emit(ctx, "    %s =w loadw %s\n", val_lhs.text,
 				     stack_pop(ctx).text);
-				stack_push_temp(ctx, val_lhs);
 			}
+			stack_push_temp(ctx, val_lhs);
 		}
 		break;
 	case NBINEXPR: {
@@ -262,6 +261,14 @@ static void gen_expr_addr(struct context *ctx, struct ast_node *n) {
 	gen_expr(ctx, n, 0);
 }
 
+static void gen_store(struct context *ctx, size_t size) {
+	if (size == 8) {
+		emit(ctx, "    storel");
+	} else {
+		emit(ctx, "    storew");
+	}
+}
+
 static void gen_decl(struct context *ctx, struct ast_node *n) {
 	char buf[TOKLEN];
 	struct qbe_val val;
@@ -283,11 +290,7 @@ static void gen_decl(struct context *ctx, struct ast_node *n) {
 		assert(arrlen(ctx->valstack.data) > 0);
 		val = stack_pop(ctx);
 		// TODO: unify this with assignment
-		if (val.data_size == 8) {
-			emit(ctx, "    storel");
-		} else {
-			emit(ctx, "    storew");
-		}
+		gen_store(ctx, val.data_size);
 		emit(ctx, " %s, %%A%d\n", qbe_val_name(&val), n->local_id);
 		break;
 	case NSTRUCT:
@@ -315,11 +318,7 @@ static void gen_stmt(struct context *ctx, struct ast_node *n) {
 		gen_expr_addr(ctx, n->assign_expr.lhs);
 		val_lhs = stack_pop(ctx);
 		val_rhs = stack_pop(ctx);
-		if (val_rhs.data_size == 8) {
-			emit(ctx, "    storel");
-		} else {
-			emit(ctx, "    storew");
-		}
+		gen_store(ctx, val_rhs.data_size);
 		emit(ctx, " %s, %s\n", qbe_val_name(&val_rhs), qbe_val_name(&val_lhs));
 		break;
 	case NRETURN:

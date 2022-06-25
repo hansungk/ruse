@@ -428,7 +428,10 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		check_expr(ctx, n->bin.rhs);
 		if (!n->bin.lhs->type || !n->bin.rhs->type)
 			return;
-		if (!type_compatible(n->bin.lhs->type, n->bin.rhs->type)) {
+		// a + b: if a's type is assignable to b's type, *or* the other way
+		// around, a binary operator typechecks.
+		if (!type_compatible(n->bin.lhs->type, n->bin.rhs->type) &&
+		    !type_compatible(n->bin.rhs->type, n->bin.lhs->type)) {
 			return error(ctx, n->tok.loc,
 			             "incompatible types for binary operation");
 		}
