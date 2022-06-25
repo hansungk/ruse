@@ -123,6 +123,7 @@ enum node_kind {
 	NSUBSCRIPT, // expr[expr]
 	NCALL,
 	NMEMBER,
+	NTYPEEXPR,
 
 	NDECL,
 	NVARDECL = NDECL,
@@ -179,7 +180,7 @@ struct ast_node {
 		struct ast_function {
 			struct ast_node **params;
 			struct ast_node **stmts;
-			struct ast_type_expr *ret_type_expr;
+			struct ast_node *ret_type_expr;
 		} func;
 		struct ast_struct {
 			struct ast_node **fields;
@@ -211,21 +212,23 @@ struct ast_node {
 		} member;
 		struct ast_var_decl {
 			struct ast_node *init_expr;
+			struct ast_node *type_expr;
 		} var_decl;
 		struct ast_field_decl {
 			int offset;
+			struct ast_node *type_expr;
 		} field;
 		struct ast_expr_stmt {
 			struct ast_node *expr;
 		} expr_stmt;
+		struct ast_type_expr {
+			struct src_loc loc;
+			enum type_kind typekind;
+			struct token tok;
+			// base type of a pointer, array, etc.
+			struct ast_node *base_type;
+		} type_expr;
 	};
-	struct ast_type_expr {
-		struct src_loc loc;
-		enum type_kind typekind;
-		struct token tok;
-		// base type of a pointer, array, etc.
-		struct ast_type_expr *base_type;
-	} * type_expr;
 	// Type of this node.  If this is NULL that means the typecheck on this
 	// node have failed.
 	struct type *type;
@@ -238,9 +241,9 @@ struct error {
 
 // struct source text = ['tok' 'lookahead...' ...unlexed...]
 struct parser {
-	struct lexer l;               // lexer driven by this parser
-	struct token tok;             // current token
-	struct token *lookahead;      // lookahead tokens
+	struct lexer l;          // lexer driven by this parser
+	struct token tok;        // current token
+	struct token *lookahead; // lookahead tokens
 	// TODO: merge with context.errors
 	struct error *errors;         // parse errors
 	struct ast_node **nodeptrbuf; // pointers to the allocated nodes

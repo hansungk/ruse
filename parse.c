@@ -8,7 +8,7 @@
 
 static struct ast_node *parse_expr(struct parser *p);
 static struct ast_node *parse_stmt(struct parser *p);
-static struct ast_type_expr *parse_typeexpr(struct parser *p);
+static struct ast_node *parse_typeexpr(struct parser *p);
 
 static struct ast_node *makenode(struct parser *p, enum node_kind k,
                                  struct src_loc loc) {
@@ -92,27 +92,28 @@ static struct ast_node *makemember(struct parser *p, struct token member,
 	return n;
 }
 
-static struct ast_type_expr *maketypeexpr(enum type_kind kind,
-                                          struct token tok) {
+static struct ast_node *maketypeexpr(struct parser *p, enum type_kind kind,
+                                     struct token tok) {
 	// TODO proper arena allocation
-	struct ast_type_expr *texpr = calloc(1, sizeof(struct ast_type_expr));
-	if (!texpr) {
-		fprintf(stderr, "alloc error\n");
-		exit(1);
-	}
-	texpr->loc = tok.loc;
-	texpr->tok = tok;
-	texpr->typekind = kind;
-	return texpr;
+	struct ast_node *n = makenode(p, NTYPEEXPR, tok.loc);
+	// struct ast_type_expr *texpr = calloc(1, sizeof(struct ast_type_expr));
+	// if (!texpr) {
+	// 	fprintf(stderr, "alloc error\n");
+	// 	exit(1);
+	// }
+	n->type_expr.loc = tok.loc;
+	n->type_expr.tok = tok;
+	n->type_expr.typekind = kind;
+	return n;
 }
 
 static struct ast_node *makevardecl(struct parser *p, struct token name,
                                     struct ast_node *init_expr,
-                                    struct ast_type_expr *type_expr) {
+                                    struct ast_node *type_expr) {
 	struct ast_node *n = makenode(p, NVARDECL, name.loc);
 	n->tok = name;
 	n->var_decl.init_expr = init_expr;
-	n->type_expr = type_expr;
+	n->var_decl.type_expr = type_expr;
 	return n;
 }
 
@@ -122,11 +123,11 @@ struct ast_node *maketempdecl(struct parser *p) {
 }
 
 static struct ast_node *makefielddecl(struct parser *p, struct token name,
-                                      struct ast_type_expr *type_expr) {
+                                      struct ast_node *type_expr) {
 	// TODO proper arena allocation
 	struct ast_node *n = makenode(p, NFIELD, name.loc);
 	n->tok = name;
-	n->type_expr = type_expr;
+	n->field.type_expr = type_expr;
 	n->field.offset = 0;
 	return n;
 }
@@ -269,7 +270,7 @@ static struct ast_node *parse_vardecl(struct parser *p) {
 	struct token name = p->tok;
 	next(p);
 
-	struct ast_type_expr *texpr = NULL;
+	struct ast_node *texpr = NULL;
 	if (p->tok.type != TEQUAL) {
 		texpr = parse_typeexpr(p);
 	}
@@ -327,13 +328,13 @@ static struct ast_node *parse_unaryexpr(struct parser *p) {
 		tok = p->tok;
 		next(p);
 		e = makenode(p, NIDEXPR, tok.loc);
-		e->tok = tok; // FIXME: too bare
+		e->tok = tok;
 		break;
 	case TNUM:
 		tok = p->tok;
 		next(p);
 		e = makenode(p, NLITERAL, tok.loc);
-		e->tok = tok; // FIXME: too bare
+		e->tok = tok;
 		break;
 	case TLPAREN:
 		expect(p, TLPAREN);
@@ -368,6 +369,7 @@ static struct ast_node *parse_unaryexpr(struct parser *p) {
 		} else if (p->tok.type == TLBRACKET) {
 			expect(p, TLBRACKET);
 			struct ast_node *index = parse_expr(p);
+			assert(index);
 			expect(p, TRBRACKET);
 			e = makesubscript(p, e, index);
 		} else if (p->tok.type == TLPAREN) {
@@ -492,31 +494,35 @@ static struct ast_node *parse_stmt(struct parser *p) {
 	return stmt;
 }
 
-static struct ast_type_expr *parse_typeexpr(struct parser *p) {
+static struct ast_node *parse_typeexpr(struct parser *p) {
 	struct token tok = p->tok;
-	struct ast_type_expr *texpr;
+	struct ast_node *texpr;
 
 	switch (p->tok.type) {
 	case TINT:
 		expect(p, TINT);
-		return maketypeexpr(TYPE_ATOM, tok);
+		texpr = maketypeexpr(p, TYPE_ATOM, tok);
+		break;
 	case TIDENT:
 		expect(p, TIDENT);
-		return maketypeexpr(TYPE_ATOM, tok);
+		texpr = maketypeexpr(p, TYPE_ATOM, tok);
+		break;
 	case TSTAR:
 		expect(p, TSTAR);
-		texpr = maketypeexpr(TYPE_POINTER, tok);
-		texpr->base_type = parse_typeexpr(p);
-		return texpr;
+		texpr = maketypeexpr(p, TYPE_POINTER, tok);
+		texpr->type_expr.base_type = parse_typeexpr(p);
+		break;
 	case TLBRACKET:
 		expect(p, TLBRACKET);
 		expect(p, TRBRACKET);
-		texpr = maketypeexpr(TYPE_ARRAY, tok);
-		texpr->base_type = parse_typeexpr(p);
-		return texpr;
+		texpr = maketypeexpr(p, TYPE_ARRAY, tok);
+		texpr->type_expr.base_type = parse_typeexpr(p);
+		break;
 	default:
 		assert(!"unimplemented");
 	}
+
+	return texpr;
 }
 
 static struct ast_node *parse_func(struct parser *p) {
@@ -531,7 +537,7 @@ static struct ast_node *parse_func(struct parser *p) {
 	while (p->tok.type != TRPAREN) {
 		struct token tok = p->tok;
 		expect(p, TIDENT);
-		struct ast_type_expr *texpr = parse_typeexpr(p);
+		struct ast_node *texpr = parse_typeexpr(p);
 		arrput(f->func.params, makevardecl(p, tok, NULL, texpr));
 		if (p->tok.type != TRPAREN) {
 			if (!expect(p, TCOMMA))
@@ -573,7 +579,7 @@ static struct ast_node *parse_struct(struct parser *p) {
 	while (p->tok.type != TRBRACE) {
 		struct token tok = p->tok;
 		expect(p, TIDENT);
-		struct ast_type_expr *texpr = parse_typeexpr(p);
+		struct ast_node *texpr = parse_typeexpr(p);
 		struct ast_node *field = makefielddecl(p, tok, texpr);
 		arrput(s->struct_.fields, field);
 		skip_newlines(p);

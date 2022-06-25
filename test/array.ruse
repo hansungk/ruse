@@ -8,7 +8,7 @@ fn main() int {
     return arr[0 + 20]
 
     var arr2 []int
-    arr2[0] = alloc(3) // error
+    arr2[0] = alloc([]int, 3) // error
     arr2 = alloc(3)
 
     arr2 = arr2[0] // error

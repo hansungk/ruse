@@ -87,7 +87,7 @@ static char *typename(const struct type *type, char *buf, size_t buflen) {
 
 // XXX: @copypaste from typename()
 static char *type_expr_name(const struct ast_type_expr *type_expr, char *buf,
-                          size_t buflen) {
+                            size_t buflen) {
 	int wlen = 0;
 	char *cur = NULL;
 	size_t curlen = 0;
@@ -102,13 +102,13 @@ static char *type_expr_name(const struct ast_type_expr *type_expr, char *buf,
 		wlen = snprintf(buf, buflen, "[]");
 		curlen = buflen - wlen;
 		cur = buf + wlen;
-		type_expr_name(type_expr->base_type, cur, curlen);
+		type_expr_name(&type_expr->base_type->type_expr, cur, curlen);
 		break;
 	case TYPE_POINTER:
 		wlen = snprintf(buf, buflen, "*");
 		curlen = buflen - wlen;
 		cur = buf + wlen;
-		type_expr_name(type_expr->base_type, cur, curlen);
+		type_expr_name(&type_expr->base_type->type_expr, cur, curlen);
 		break;
 	case TYPE_FUNC:
 		assert(!"unimplemented");
@@ -344,14 +344,16 @@ static struct type *resolve_type_expr(struct context *ctx,
 	// constructed even if they are seen before in the source.
 	if (type_expr->typekind == TYPE_ARRAY) {
 		assert(type_expr->base_type);
-		struct type *base_type = resolve_type_expr(ctx, type_expr->base_type);
+		struct type *base_type =
+		    resolve_type_expr(ctx, &type_expr->base_type->type_expr);
 		if (!base_type) {
 			return NULL;
 		}
 		return makearraytype(base_type, type_expr->base_type->tok);
-    } else if (type_expr->typekind == TYPE_POINTER) {
+	} else if (type_expr->typekind == TYPE_POINTER) {
 		assert(type_expr->base_type);
-		struct type *base_type = resolve_type_expr(ctx, type_expr->base_type);
+		struct type *base_type =
+		    resolve_type_expr(ctx, &type_expr->base_type->type_expr);
 		if (!base_type) {
 			return NULL;
 		}
@@ -585,8 +587,8 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 			n->type = n->var_decl.init_expr->type;
 		}
 		// var decl has a type specifier, ex. var i: int
-		if (n->type_expr) {
-			n->type = resolve_type_expr(ctx, n->type_expr);
+		if (n->var_decl.type_expr) {
+			n->type = resolve_type_expr(ctx, &n->var_decl.type_expr->type_expr);
 			if (!n->type) {
 				return;
 			}
@@ -597,7 +599,7 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 		if (!(n->decl = declare(ctx, n))) {
 			return;
 		}
-		if (n->type_expr && n->var_decl.init_expr) {
+		if (n->var_decl.type_expr && n->var_decl.init_expr) {
 			// if both type and init expr is specified, check assignability
 			if (!check_assignment(ctx, n, n->var_decl.init_expr)) {
 				return;
@@ -612,7 +614,8 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 		n->type = maketype(TYPE_FUNC, n->tok);
 		// !n->rettypeexpr is possible for void return type
 		if (n->func.ret_type_expr) {
-			n->type->return_type = resolve_type_expr(ctx, n->func.ret_type_expr);
+			n->type->return_type =
+			    resolve_type_expr(ctx, &n->func.ret_type_expr->type_expr);
 			if (!n->type->return_type) {
 				return error(ctx, n->func.ret_type_expr->loc,
 				             "unknown type '%s'",
@@ -665,8 +668,9 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 		assert(n->type);
 		break;
 	case NFIELD:
-		assert(n->type_expr);
-		if (!(n->type = resolve_type_expr(ctx, n->type_expr))) {
+		assert(n->field.type_expr);
+		if (!(n->type =
+		          resolve_type_expr(ctx, &n->field.type_expr->type_expr))) {
 			return;
 		}
 		if (!(n->decl = declare(ctx, n))) {
