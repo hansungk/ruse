@@ -138,7 +138,7 @@ struct Sema {
     }
 };
 
-void setup_builtin_types(Sema &s);
+void setup_builtin(Sema &s);
 
 bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl);
 bool declare(Sema &sema, Decl *decl);

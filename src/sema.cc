@@ -5,6 +5,7 @@
 #include "types.h"
 #include <cassert>
 #include <cstdarg>
+#include <sys/types.h>
 
 namespace cmp {
 
@@ -58,21 +59,28 @@ static Type *make_builtin_type_from_name(Sema &s, const std::string &str) {
   return struct_decl->type;
 }
 
+static VarDecl *make_temporary_decl(Sema &sema, Type *type);
+
 // Push Decls for the builtin types into the global scope of decl_table, so
 // that they are visible from any point in the AST.
-void setup_builtin_types(Sema &s) {
-  s.context.ty_void = make_builtin_type_from_name(s, "void");
-  s.context.ty_int = make_builtin_type_from_name(s, "int");
-  s.context.ty_int->size = 4;
-  s.context.ty_int64 = make_builtin_type_from_name(s, "int64");
-  s.context.ty_int64->size = 8;
-  s.context.ty_char = make_builtin_type_from_name(s, "char");
-  s.context.ty_char->size = 1;
-  s.context.ty_string = make_builtin_type_from_name(s, "string");
+void setup_builtin(Sema &sema) {
+  sema.context.ty_void = make_builtin_type_from_name(sema, "void");
+  sema.context.ty_int = make_builtin_type_from_name(sema, "int");
+  sema.context.ty_int->size = 4;
+  sema.context.ty_int64 = make_builtin_type_from_name(sema, "int64");
+  sema.context.ty_int64->size = 8;
+  sema.context.ty_char = make_builtin_type_from_name(sema, "char");
+  sema.context.ty_char->size = 1;
+  sema.context.ty_string = make_builtin_type_from_name(sema, "string");
   // FIXME: size of a string is something like pointer + length
-  s.context.ty_string->size = 4;
-  s.name_table.push("buf");
-  s.name_table.push("len");
+  sema.context.ty_string->size = 4;
+
+  auto decl_alloc = sema.make_node<FuncDecl>(sema.name_table.push("alloc"));
+  check(sema, decl_alloc);
+  decl_alloc->params.push_back(make_temporary_decl(sema, sema.context.ty_int64));
+  decl_alloc->ret_type = sema.context.ty_int64;
+  sema.name_table.push("buf");
+  sema.name_table.push("len");
 }
 
 Sema::~Sema() {
@@ -175,22 +183,24 @@ Type *get_derived_type(Sema &sema, TypeKind kind, Type *base_type) {
   return derived_type;
 }
 
-bool check_assignable(const Type *to, const Type *from) {
+bool type_assignable(Sema &sema, const Type *to, const Type *from) {
   // TODO: Typecheck assignment rules so far:
   //
   // 1. Pointer <- mutable pointer.
   // 2. Exact same match.
 
   // Allow promotion from mutable to immutable pointer.
-  if (to->kind == TypeKind::pointer && from->is_pointer()) {
+  if (to->is_pointer() && from->is_pointer()) {
     // NOTE: this may be related to 'unification'. Ref:
     // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
-    return check_assignable(to->base_type, from->base_type);
+    return type_assignable(sema, to->base_type, from->base_type);
+  } else if (to == sema.context.ty_int64 && from == sema.context.ty_int) {
+    return true;
   }
   return to == from;
 }
 
-static Decl *make_temporary_decl(Sema &sema, Type *type) {
+static VarDecl *make_temporary_decl(Sema &sema, Type *type) {
   return sema.make_node<VarDecl>(nullptr, type, /*mut*/ true);
 }
 
@@ -405,7 +415,7 @@ bool check_expr(Sema &sema, Expr *e) {
       if (!check_expr(sema, c->args[i]))
         return false;
 
-      if (!check_assignable(func_decl->params[i]->type, c->args[i]->type)) {
+      if (!type_assignable(sema, func_decl->params[i]->type, c->args[i]->type)) {
         auto suffix = (i == 0)   ? "st"
                       : (i == 1) ? "nd"
                       : (i == 2) ? "rd"
@@ -453,7 +463,7 @@ bool check_expr(Sema &sema, Expr *e) {
       if (!check_expr(sema, term.initexpr))
         return false;
 
-      if (!check_assignable(matched_field->type, term.initexpr->type)) {
+      if (!type_assignable(sema, matched_field->type, term.initexpr->type)) {
         return error(term.initexpr->loc, "cannot assign '{}' type to '{}'",
                      term.initexpr->type->name->text,
                      matched_field->type->name->text);
@@ -575,7 +585,7 @@ bool check_stmt(Sema &sema, Stmt *s) {
       return error(as->loc, "cannot assign to an rvalue");
     }
 
-    if (!check_assignable(lhs_type, rhs_type)) {
+    if (!type_assignable(sema, lhs_type, rhs_type)) {
       return error(as->loc, "cannot assign '{}' type to '{}'",
                    rhs_type->name->text, lhs_type->name->text);
     }
@@ -819,8 +829,9 @@ bool check(Sema &sema, AstNode *n) {
     // members fail typechecking, we probably still want to declare them to
     // prevent too many chained errors for the code that use them.
     success = check_decl(sema, n->as<Decl>());
-    if (!declare(sema, n->as<Decl>()))
+    if (!declare(sema, n->as<Decl>())) {
       return false;
+    }
     return success;
   default:
     assert(!"unknown ast kind");

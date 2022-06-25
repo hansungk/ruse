@@ -3,5 +3,6 @@
 fn main() int {
    var arr: []int
    arr[3] = 4
+   var u = alloc(9)
    return arr[3]
 }

@@ -22,7 +22,6 @@ struct Driver {
   bool compile();
   void report() const;
   bool verify();
-  bool no_errors() const { return errors.empty(); }
 };
 
 #endif

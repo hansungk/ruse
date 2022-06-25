@@ -9,11 +9,11 @@ bool Driver::compile() {
   Parser parser{lexer, sema};
 
   auto file = parser.parse();
-  if (!no_errors()) {
+  if (!errors.empty()) {
     return false;
   }
 
-  setup_builtin_types(sema);
+  setup_builtin(sema);
   if (!check(sema, file)) {
     return false;
   }
