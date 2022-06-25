@@ -67,7 +67,7 @@ private:
   void parse_comma_separated_list(F1 &&parse_fn, F2 &&push_back_fn);
   FuncDecl *parseFuncDecl();
   StructDecl *parse_struct_decl();
-  bool isStartOfDecl();
+  bool is_start_of_decl();
 
   // Expression parsers
   Expr *parse_expr();

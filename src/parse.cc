@@ -96,7 +96,7 @@ Stmt *Parser::parse_stmt() {
         stmt = parse_if_stmt();
     } else if (tok.kind == Token::hash) {
         stmt = parse_builtin_stmt();
-    } else if (isStartOfDecl()) {
+    } else if (is_start_of_decl()) {
         stmt = parse_decl_stmt();
     } else {
         stmt = parse_expr_or_assign_stmt();
@@ -426,7 +426,7 @@ StructDecl *Parser::parse_struct_decl() {
     return sd;
 }
 
-bool Parser::isStartOfDecl() {
+bool Parser::is_start_of_decl() {
   switch (tok.kind) {
   case Token::kw_let:
   case Token::kw_struct:
@@ -453,7 +453,7 @@ bool Parser::isStartOfDecl() {
 // Parse a declaration.
 // Remember to modify is_start_of_decl() accordingly.
 Decl *Parser::parse_decl() {
-  assert(isStartOfDecl());
+  assert(is_start_of_decl());
 
   switch (tok.kind) {
   case Token::kw_let: {
@@ -867,7 +867,7 @@ void Parser::skip_newlines() {
 }
 
 AstNode *Parser::parse_toplevel() {
-    if (isStartOfDecl()) {
+    if (is_start_of_decl()) {
         return parse_decl();
     }
 

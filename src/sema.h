@@ -12,18 +12,20 @@ namespace cmp {
 inline void unreachable() { assert(false && "unreachable"); }
 
 struct Context {
-    // Current enclosing decls.
-    std::vector<FuncDecl *> func_stack;
-    std::vector<EnumDecl *> enum_decl_stack;
-    // Builtin types.
-    // The void type exists to differentiate the type of FuncCallExprs whose
-    // function no return values, from expressions that failed to typecheck and
-    // have their type field left as nullptr.
-    Type *ty_void = nullptr;
-    Type *ty_int = nullptr;
-    Type *ty_int64 = nullptr;
-    Type *ty_char = nullptr;
-    Type *ty_string = nullptr;
+  // Current enclosing decls.
+  std::vector<FuncDecl *> func_stack;
+  std::vector<EnumDecl *> enum_decl_stack;
+  // Builtin types.
+  // The void type exists to differentiate the type of FuncCallExprs whose
+  // function no return values, from expressions that failed to typecheck and
+  // have their type field left as nullptr.
+  Type *ty_void = nullptr;
+  Type *ty_int = nullptr;
+  Type *ty_int64 = nullptr;
+  Type *ty_char = nullptr;
+  Type *ty_string = nullptr;
+  // Used for type checking built-in functions, e.g. "arr = alloc(42)".
+  Type *ty_incomplete = nullptr;
 };
 
 // Maps a VarDecl to its borrow count in the current scope.

@@ -72,13 +72,16 @@ void setup_builtin(Sema &sema) {
   sema.context.ty_char = make_builtin_type_from_name(sema, "char");
   sema.context.ty_char->size = 1;
   sema.context.ty_string = make_builtin_type_from_name(sema, "string");
-  // FIXME: size of a string is something like pointer + length
+  // FIXME: size of a string should be something like pointer + length
   sema.context.ty_string->size = 4;
+  sema.context.ty_incomplete = make_builtin_type_from_name(sema, "incomplete");
+  sema.context.ty_incomplete->size = 0;
 
   auto decl_alloc = sema.make_node<FuncDecl>(sema.name_table.push("alloc"));
   check(sema, decl_alloc);
-  decl_alloc->params.push_back(make_temporary_decl(sema, sema.context.ty_int64));
-  decl_alloc->ret_type = sema.context.ty_int64;
+  decl_alloc->params.push_back(
+      make_temporary_decl(sema, sema.context.ty_int64));
+  decl_alloc->ret_type = sema.context.ty_incomplete;
   sema.name_table.push("buf");
   sema.name_table.push("len");
 }
@@ -415,7 +418,8 @@ bool check_expr(Sema &sema, Expr *e) {
       if (!check_expr(sema, c->args[i]))
         return false;
 
-      if (!type_assignable(sema, func_decl->params[i]->type, c->args[i]->type)) {
+      if (!type_assignable(sema, func_decl->params[i]->type,
+                           c->args[i]->type)) {
         auto suffix = (i == 0)   ? "st"
                       : (i == 1) ? "nd"
                       : (i == 2) ? "rd"
