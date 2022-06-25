@@ -649,10 +649,6 @@ Expr *Parser::parse_unary_expr() {
     expr = parse_structdef_maybe(expr);
     break;
   }
-  case Token::lbracket: {
-    expr = parse_cast_expr();
-    break;
-  }
   case Token::star: {
     next();
     expr = parse_unary_expr();
