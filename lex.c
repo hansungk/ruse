@@ -8,8 +8,8 @@
 #include <string.h>
 
 char *token_names[NUM_TOKENTYPES] = {
-	[TIDENT] = "identifier", [TNUM] = "number", [TNEWLINE] = "\\n",
-	[TLPAREN] = "(",         [TRPAREN] = ")",   [TCOMMENT] = "comment",
+    [TIDENT] = "identifier", [TNUM] = "number", [TNEWLINE] = "\\n",
+    [TLPAREN] = "(",         [TRPAREN] = ")",   [TCOMMENT] = "comment",
 };
 
 struct token_map keywords[] = {
@@ -19,74 +19,74 @@ struct token_map keywords[] = {
 };
 
 static char *readfile(const char *filename, long *filesize) {
-    FILE *f = fopen(filename, "r");
-    if (!f) {
-        fprintf(stderr, "error: %s: %s\n", filename, strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    fseek(f, 0, SEEK_END);
-    *filesize = ftell(f);
-    rewind(f);
+	FILE *f = fopen(filename, "r");
+	if (!f) {
+		fprintf(stderr, "error: %s: %s\n", filename, strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	fseek(f, 0, SEEK_END);
+	*filesize = ftell(f);
+	rewind(f);
 
-    char *s = malloc(*filesize + 1);
-    if (!s) {
-        fprintf(stderr, "fatal: out of memory\n");
-        exit(EXIT_FAILURE);
-    }
-    fread(s, *filesize, 1, f);
-    s[*filesize] = '\0';
-    fclose(f);
-    return s;
+	char *s = malloc(*filesize + 1);
+	if (!s) {
+		fprintf(stderr, "fatal: out of memory\n");
+		exit(EXIT_FAILURE);
+	}
+	fread(s, *filesize, 1, f);
+	s[*filesize] = '\0';
+	fclose(f);
+	return s;
 }
 
 static void step(struct lexer *l) {
-    if (l->rd_off < l->src.buflen) {
-        l->off = l->rd_off;
-        l->ch = l->src.buf[l->off];
-        if (l->ch == '\n') {
-            arrput(l->src.line_offs, l->off);
-        }
-        l->rd_off++;
-    } else {
-        l->off = l->src.buflen;
-        l->ch = 0; // EOF
-    }
+	if (l->rd_off < l->src.buflen) {
+		l->off = l->rd_off;
+		l->ch = l->src.buf[l->off];
+		if (l->ch == '\n') {
+			arrput(l->src.line_offs, l->off);
+		}
+		l->rd_off++;
+	} else {
+		l->off = l->src.buflen;
+		l->ch = 0; // EOF
+	}
 }
 
 static void consume(struct lexer *l, long n) {
-    for (long i = 0; i < n; i++) {
-        step(l);
-    }
+	for (long i = 0; i < n; i++) {
+		step(l);
+	}
 }
 
 static char lookn(struct lexer *l, long n) {
-    if (l->off + n < l->src.buflen) {
-        return l->src.buf[l->off + n];
-    }
-    return '\0';
+	if (l->off + n < l->src.buflen) {
+		return l->src.buf[l->off + n];
+	}
+	return '\0';
 }
 
 int lexer_from_file(struct lexer *l, const char *filename) {
-    memset(l, 0, sizeof(struct lexer));
-    strncpy(l->src.filename, filename, 255);
-    l->src.buf = readfile(filename, &l->src.buflen);
-    step(l);
-    return 1;
+	memset(l, 0, sizeof(struct lexer));
+	strncpy(l->src.filename, filename, 255);
+	l->src.buf = readfile(filename, &l->src.buflen);
+	step(l);
+	return 1;
 }
 
 int lexer_from_buf(struct lexer *l, const char *buf, size_t len) {
-    memset(l, 0, sizeof(struct lexer));
-    strncpy(l->src.filename, "(null)", 255);
-    l->src.buflen = len;
-    l->src.buf = calloc(len + 1, 1);
-    strncpy(l->src.buf, buf, len);
-    step(l);
-    return 1;
+	memset(l, 0, sizeof(struct lexer));
+	strncpy(l->src.filename, "(null)", 255);
+	l->src.buflen = len;
+	l->src.buf = calloc(len + 1, 1);
+	strncpy(l->src.buf, buf, len);
+	step(l);
+	return 1;
 }
 
 void lexer_cleanup(struct lexer *l) {
-    arrfree(l->src.line_offs);
-    free(l->src.buf);
+	arrfree(l->src.line_offs);
+	free(l->src.buf);
 }
 
 // Make a new token and place it at 'l->tok'.
@@ -104,8 +104,7 @@ static void lex_ident_or_keyword(struct lexer *l) {
 		for (; m->text[i] != '\0' && m->text[i] == lookn(l, i); i++)
 			; // nothing
 		// check both candidate and token have terminated
-		if (m->text[i] == '\0' && !isalnum(lookn(l, i)) &&
-		    lookn(l, i) != '_') {
+		if (m->text[i] == '\0' && !isalnum(lookn(l, i)) && lookn(l, i) != '_') {
 			consume(l, i);
 			maketoken(l, m->type);
 			// strdup here so that it becomes easy to clean tok.name later by
@@ -129,55 +128,55 @@ static void lex_ident_or_keyword(struct lexer *l) {
 }
 
 static void lex_symbol(struct lexer *l) {
-    // multi-char symbol
-    for (const struct token_map *m = &keywords[0]; m->text != NULL; m++) {
-        for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i); i++) {
-            if (m->text[i] == '\0') {
-                consume(l, i);
-                maketoken(l, m->type);
-                return;
-            }
-        }
-    }
+	// multi-char symbol
+	for (const struct token_map *m = &keywords[0]; m->text != NULL; m++) {
+		for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i); i++) {
+			if (m->text[i] == '\0') {
+				consume(l, i);
+				maketoken(l, m->type);
+				return;
+			}
+		}
+	}
 
-    // single-char symbol
-    char ch = l->ch;
-    step(l);
-    maketoken(l, ch);
+	// single-char symbol
+	char ch = l->ch;
+	step(l);
+	maketoken(l, ch);
 }
 
 static void skip_numbers(struct lexer *l) {
-    while (isdigit(l->ch))
-        step(l);
+	while (isdigit(l->ch))
+		step(l);
 }
 
 static void lex_number(struct lexer *l) {
-    skip_numbers(l);
-    if (l->ch == '.') {
-        step(l);
-        skip_numbers(l);
-    }
-    maketoken(l, TNUM);
+	skip_numbers(l);
+	if (l->ch == '.') {
+		step(l);
+		skip_numbers(l);
+	}
+	maketoken(l, TNUM);
 }
 
 static void lex_string(struct lexer *l) {
-    step(l); // opening "
-    while (l->ch != '\0') {
-        switch (l->ch) {
-        case '\\': // escaped char
-            step(l);
-            step(l);
-            break;
-        case '"':
-            step(l); // closing "
-            goto strclose;
-        default:
-            step(l);
-            break;
-        }
-    }
+	step(l); // opening "
+	while (l->ch != '\0') {
+		switch (l->ch) {
+		case '\\': // escaped char
+			step(l);
+			step(l);
+			break;
+		case '"':
+			step(l); // closing "
+			goto strclose;
+		default:
+			step(l);
+			break;
+		}
+	}
 strclose:
-    maketoken(l, TSTRING);
+	maketoken(l, TSTRING);
 }
 
 // Lex the next token and place it at l->tok.
@@ -247,22 +246,22 @@ int lex(struct lexer *l) {
 // Search linearly for line and column number that corresponds to the byte
 // position `pos`.
 struct src_loc locate(struct source *src, size_t pos) {
-    // TODO: performance
+	// TODO: performance
 
-    // single-line
-    if (arrlen(src->line_offs) == 0) {
-        return (struct src_loc){src->filename, 1, pos + 1};
-    }
+	// single-line
+	if (arrlen(src->line_offs) == 0) {
+		return (struct src_loc){src->filename, 1, pos + 1};
+	}
 
-    int line;
-    for (line = 0; line < arrlen(src->line_offs); line++) {
-        if (pos < src->line_offs[line]) {
-            break;
-        }
-    }
+	int line;
+	for (line = 0; line < arrlen(src->line_offs); line++) {
+		if (pos < src->line_offs[line]) {
+			break;
+		}
+	}
 
-    int col = pos - src->line_offs[line - 1];
-    return (struct src_loc){src->filename, line + 1, col};
+	int col = pos - src->line_offs[line - 1];
+	return (struct src_loc){src->filename, line + 1, col};
 }
 
 // Print 'tok' as string into buf.
@@ -278,45 +277,45 @@ char *tokenstr(const char *src, struct token tok, char *buf, size_t buflen) {
 
 // Compare the string content of the two tokens.
 int tokeneq(const char *src, struct token t1, struct token t2) {
-    char buf1[TOKLEN], buf2[TOKLEN];
-    tokenstr(src, t1, buf1, sizeof(buf1));
-    tokenstr(src, t2, buf2, sizeof(buf2));
-    return (strcmp(buf1, buf2) == 0);
+	char buf1[TOKLEN], buf2[TOKLEN];
+	tokenstr(src, t1, buf1, sizeof(buf1));
+	tokenstr(src, t2, buf2, sizeof(buf2));
+	return (strcmp(buf1, buf2) == 0);
 }
 
 // Return the descriptive name for a TokenType enum.
 // Different from tokenstr as it does not return the actual text for
 // the token, but the description for the type of the token.
 char *tokentypestr(enum token_type t, char *buf, size_t buflen) {
-    if (t >= TASCII)
-        snprintf(buf, buflen, "%s", token_names[t]);
-    else if (t == '\n')
-        snprintf(buf, buflen, "\\n");
-    else if (t == TEOF)
-        snprintf(buf, buflen, "EOF");
-    else
-        snprintf(buf, buflen, "%c", (char)t);
-    buf[buflen - 1] = '\0';
-    return buf;
+	if (t >= TASCII)
+		snprintf(buf, buflen, "%s", token_names[t]);
+	else if (t == '\n')
+		snprintf(buf, buflen, "\\n");
+	else if (t == TEOF)
+		snprintf(buf, buflen, "EOF");
+	else
+		snprintf(buf, buflen, "%c", (char)t);
+	buf[buflen - 1] = '\0';
+	return buf;
 }
 
 void tokenprint(const char *src, const struct token tok) {
-    char buf[TOKLEN];
+	char buf[TOKLEN];
 
-    switch (tok.type) {
-    case TIDENT:
-    case TCOMMENT:
-    case TNUM:
-    case TSTRING:
-        printf("%.*s", (int)(tok.range.end - tok.range.start),
-               src + tok.range.start);
-        break;
-    case TERR:
-        printf("error");
-        break;
-    default:
-        tokentypestr(tok.type, buf, sizeof(buf));
-        printf("%s", buf);
-        break;
-    }
+	switch (tok.type) {
+	case TIDENT:
+	case TCOMMENT:
+	case TNUM:
+	case TSTRING:
+		printf("%.*s", (int)(tok.range.end - tok.range.start),
+		       src + tok.range.start);
+		break;
+	case TERR:
+		printf("error");
+		break;
+	default:
+		tokentypestr(tok.type, buf, sizeof(buf));
+		printf("%s", buf);
+		break;
+	}
 }

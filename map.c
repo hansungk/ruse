@@ -22,11 +22,11 @@ static uint64_t strhash(const char *str) {
 
 // ref: https://stackoverflow.com/a/12996028
 static uint64_t hash(const void *p) {
-    uint64_t x = (uint64_t)p;
-    x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
-    x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
-    x = x ^ (x >> 31);
-    return x;
+	uint64_t x = (uint64_t)p;
+	x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
+	x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
+	x = x ^ (x >> 31);
+	return x;
 }
 
 void makemap(struct map *m) {
