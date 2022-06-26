@@ -370,21 +370,23 @@ static struct type *resolve_type_expr(struct context *ctx,
 	return type;
 }
 
-// Check if type `from` can be assigned to type `to`.
-static int type_compatible(struct type *to, struct type *from) {
+// Check if type `from` can be assigned to type `to`.  Also does automatic type
+// promotion on `from`, e.g. from int to int64.
+static int type_compatible(struct type *to, struct type **from) {
 	if (to->kind == TYPE_ARRAY) {
-		if (from->kind != TYPE_ARRAY) {
+		if ((*from)->kind != TYPE_ARRAY) {
 			return 0;
 		}
-		return type_compatible(to->base_type, from->base_type);
+		return type_compatible(to->base_type, &(*from)->base_type);
 	}
 	if (to == ty_any) {
 		return 1;
 	}
-	if (to == ty_int64 && from == ty_int) {
+	if (to == ty_int64 && *from == ty_int) {
+		*from = ty_int64;
 		return 1;
 	}
-	return to == from;
+	return to == *from;
 }
 
 static const struct ast_node *lookup_struct_field(struct type *parent_type,
@@ -432,8 +434,8 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 			return;
 		// a + b: if a's type is assignable to b's type, *or* the other way
 		// around, a binary operator typechecks.
-		if (!type_compatible(n->bin.lhs->type, n->bin.rhs->type) &&
-		    !type_compatible(n->bin.rhs->type, n->bin.lhs->type)) {
+		if (!type_compatible(n->bin.lhs->type, &n->bin.rhs->type) &&
+		    !type_compatible(n->bin.rhs->type, &n->bin.lhs->type)) {
 			return error(ctx, n->tok.loc,
 			             "incompatible types for binary operation");
 		}
@@ -469,11 +471,12 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		ctx->prefer_long = 0;
 		if (!n->subscript.index->type)
 			return;
-		if (n->subscript.index->type == ty_int) {
-			// Promote to int64 so that it can be used for address calculation
-			// without a hassle.
-			n->subscript.index->type = ty_int64;
-		}
+		type_compatible(ty_int64, &n->subscript.index->type);
+		// if (n->subscript.index->type == ty_int) {
+		// 	// Promote to int64 so that it can be used for address calculation
+		// 	// without a hassle.
+		// 	n->subscript.index->type = ty_int64;
+		// }
 		assert(n->subscript.array->decl);
 		n->decl = maketempdecl(ctx->parser);
 		n->type = n->subscript.array->type->base_type;
@@ -500,7 +503,7 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 				break;
 			assert(n->call.func->type->params[i]);
 			if (!type_compatible(n->call.func->type->params[i],
-			                     n->call.args[i]->type)) {
+			                     &n->call.args[i]->type)) {
 				char expect_buf[TOKLEN];
 				char got_buf[TOKLEN];
 				typename(n->call.func->type->params[i], expect_buf,
@@ -560,7 +563,7 @@ static int check_assignment(struct context *ctx, struct ast_node *to,
 		from->type->base_type = to->type->base_type;
 		return 1;
 	}
-	if (!type_compatible(to->type, from->type)) {
+	if (!type_compatible(to->type, &from->type)) {
 		error(ctx, to->loc, "cannot assign to an incompatible type");
 		return 0;
 	}

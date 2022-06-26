@@ -218,8 +218,8 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 			gen_expr_value(ctx, n->call.args[0]);
 			struct qbe_val alloc_size = stack_pop(ctx);
 			struct qbe_val val = stack_make_temp(ctx);
-			emit(ctx, "    %s =l call $%s(w %s)\n", val.text,
-			     "malloc", alloc_size.text);
+			emit(ctx, "    %s =l call $%s(l %s)\n", val.text, "malloc",
+			     alloc_size.text);
 			stack_push_temp(ctx, val);
 			break;
 		}
