@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static struct type *ty_any;
+static struct type *ty_undef;
 static struct type *ty_int;
 static struct type *ty_int64;
 static struct type *ty_string;
@@ -164,12 +164,12 @@ static void setup_builtin_types(struct context *ctx) {
 	// `ty_any` is a dummy type created for built-in functions like len() that
 	// can take a class of types, but have no way to represent their type
 	// because the langauge doesn't support generic types currently.
-	ty_any = calloc(1, sizeof(struct type));
-	ty_any->kind = TYPE_ATOM;
+	ty_undef = calloc(1, sizeof(struct type));
+	ty_undef->kind = TYPE_ATOM;
 	// FIXME: ty_any shouldn't really have a name
-	ty_any->tok = (struct token){.type = TINT, .name = "any"};
-	ty_any->size = 4;
-	push_type(ctx, ty_any);
+	ty_undef->tok = (struct token){.type = TINT, .name = "any"};
+	ty_undef->size = 4;
+	push_type(ctx, ty_undef);
 	ty_int = calloc(1, sizeof(struct type));
 	ty_int->kind = TYPE_ATOM;
 	ty_int->tok = (struct token){.type = TINT, .name = "int"};
@@ -200,7 +200,7 @@ static void setup_builtin_funcs(struct context *ctx) {
 	}
 	n->type = maketype(TYPE_FUNC, n->tok);
 	n->type->return_type = ty_int64;
-	arrput(n->type->params, ty_any);
+	arrput(n->type->params, ty_undef);
 
 	str = strdup("alloc");
 	struct token alloc_tok = {.type = TIDENT, .name = str};
@@ -209,7 +209,7 @@ static void setup_builtin_funcs(struct context *ctx) {
 		return;
 	}
 	n->type = maketype(TYPE_FUNC, n->tok);
-	n->type->return_type = makearraytype(ty_any, n->tok);
+	n->type->return_type = makearraytype(ty_undef, n->tok);
 	arrput(n->type->params, ty_int64);
 }
 
@@ -379,7 +379,7 @@ static int type_compatible(struct type *to, struct type **from) {
 		}
 		return type_compatible(to->base_type, &(*from)->base_type);
 	}
-	if (to == ty_any) {
+	if (to == ty_undef) {
 		return 1;
 	}
 	if (to == ty_int64 && *from == ty_int) {

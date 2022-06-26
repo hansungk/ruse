@@ -251,8 +251,13 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		if (value) {
 			member_addr = stack_pop(ctx);
 			val = stack_make_temp(ctx);
-			// FIXME: hardcoded type size
-			emit(ctx, "    %s =w loadw %s\n", val.text, member_addr.text);
+			if (n->type->size == 8) {
+				emit(ctx, "    %s =l loadl %s\n", val.text,
+				     member_addr.text);
+			} else {
+				emit(ctx, "    %s =w loadw %s\n", val.text,
+				     member_addr.text);
+			}
 			stack_push_temp(ctx, val);
 		}
 		break;
