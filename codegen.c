@@ -23,16 +23,13 @@ static char *qbe_val_name(struct qbe_val *val) {
 	memset(val->text, 0, sizeof(val->text));
 	switch (val->kind) {
 	case VAL_PARAM:
-		len = snprintf(val->text, sizeof(val->text), "%%%s",
-		               val->param_name);
+		len = snprintf(val->text, sizeof(val->text), "%%%s", val->param_name);
 		break;
 	case VAL_TEMP:
-		len = snprintf(val->text, sizeof(val->text), "%%.%d",
-		               val->temp_id);
+		len = snprintf(val->text, sizeof(val->text), "%%.%d", val->temp_id);
 		break;
 	case VAL_ADDR:
-		len = snprintf(val->text, sizeof(val->text), "%%A%d",
-		               val->addr_id);
+		len = snprintf(val->text, sizeof(val->text), "%%A%d", val->addr_id);
 		break;
 	default:
 		assert(!"unknown valstack kind");
@@ -78,6 +75,27 @@ static struct qbe_val stack_pop(struct context *ctx) {
 	return arrpop(ctx->valstack.data);
 }
 
+// Generate a memory load directive.
+static void gen_load(struct context *ctx, struct qbe_val val_addr,
+                     size_t size) {
+	struct qbe_val val = stack_make_temp(ctx);
+	if (size == 8) {
+		emit(ctx, "    %s =l loadl %s\n", val.text, val_addr.text);
+	} else {
+		emit(ctx, "    %s =w loadw %s\n", val.text, val_addr.text);
+	}
+	stack_push_temp(ctx, val);
+}
+
+// Generate a memory store directive.
+static void gen_store(struct context *ctx, size_t size) {
+	if (size == 8) {
+		emit(ctx, "    storel");
+	} else {
+		emit(ctx, "    storew");
+	}
+}
+
 static void gen_expr_value(struct context *ctx, struct ast_node *n);
 static void gen_expr_addr(struct context *ctx, struct ast_node *n);
 
@@ -118,16 +136,8 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		assert(ctx->scope);
 		stack_push_addr(ctx, n->decl->local_id);
 		if (value) {
-			if (n->decl->type->size == 8) {
-				val_lhs = stack_make_temp(ctx);
-				emit(ctx, "    %s =l loadl %s\n", val_lhs.text,
-				     stack_pop(ctx).text);
-			} else {
-				val_lhs = stack_make_temp(ctx);
-				emit(ctx, "    %s =w loadw %s\n", val_lhs.text,
-				     stack_pop(ctx).text);
-			}
-			stack_push_temp(ctx, val_lhs);
+			struct qbe_val val_addr = stack_pop(ctx);
+			gen_load(ctx, val_addr, n->type->size);
 		}
 		break;
 	case NBINEXPR: {
@@ -155,15 +165,7 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		// value of '*c' itself, we have to generate another load.
 		if (value) {
 			val_rhs = stack_pop(ctx);
-			val_lhs = stack_make_temp(ctx);
-			if (val_rhs.data_size == 8) {
-				emit(ctx, "    %s =l loadl %s\n", val_lhs.text,
-				     val_rhs.text);
-			} else {
-				emit(ctx, "    %s =w loadw %s\n", val_lhs.text,
-				     val_rhs.text);
-			}
-			stack_push_temp(ctx, val_lhs);
+			gen_load(ctx, val_rhs, val_rhs.data_size);
 		}
 		break;
 	case NREFEXPR:
@@ -198,21 +200,12 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		}
 		if (strcmp(n->call.func->tok.name, "len") == 0) {
 			assert(value && "taking address of len()?");
-
 			gen_expr_addr(ctx, n->call.args[0]);
 			struct qbe_val base_addr = stack_pop(ctx);
 			struct qbe_val element_addr = stack_make_temp(ctx);
 			emit(ctx, "    %s =l add %s, %d\n", element_addr.text,
 			     base_addr.text, 8);
-
-			struct qbe_val val = stack_make_temp(ctx);
-			// TODO: @copypaste from NDEREFEXPR
-			if (val_rhs.data_size == 8) {
-				emit(ctx, "    %s =l loadl %s\n", val.text, element_addr.text);
-			} else {
-				emit(ctx, "    %s =w loadw %s\n", val.text, element_addr.text);
-			}
-			stack_push_temp(ctx, val);
+			gen_load(ctx, element_addr, val_rhs.data_size);
 			break;
 		} else if (strcmp(n->call.func->tok.name, "alloc") == 0) {
 			gen_expr_value(ctx, n->call.args[0]);
@@ -245,20 +238,12 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		gen_expr_addr(ctx, n->member.parent);
 		struct qbe_val parent_addr = stack_pop(ctx);
 		struct qbe_val member_addr = stack_make_temp(ctx);
-		emit(ctx, "    %s =l add %s, %d\n", member_addr.text,
-		     parent_addr.text, n->member.offset);
+		emit(ctx, "    %s =l add %s, %d\n", member_addr.text, parent_addr.text,
+		     n->member.offset);
 		stack_push_temp(ctx, member_addr);
 		if (value) {
 			member_addr = stack_pop(ctx);
-			val = stack_make_temp(ctx);
-			if (n->type->size == 8) {
-				emit(ctx, "    %s =l loadl %s\n", val.text,
-				     member_addr.text);
-			} else {
-				emit(ctx, "    %s =w loadw %s\n", val.text,
-				     member_addr.text);
-			}
-			stack_push_temp(ctx, val);
+			gen_load(ctx, member_addr, n->type->size);
 		}
 		break;
 	}
@@ -273,14 +258,6 @@ static void gen_expr_value(struct context *ctx, struct ast_node *n) {
 
 static void gen_expr_addr(struct context *ctx, struct ast_node *n) {
 	gen_expr(ctx, n, 0);
-}
-
-static void gen_store(struct context *ctx, size_t size) {
-	if (size == 8) {
-		emit(ctx, "    storel");
-	} else {
-		emit(ctx, "    storew");
-	}
 }
 
 static void gen_decl(struct context *ctx, struct ast_node *n) {
