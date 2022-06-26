@@ -184,8 +184,9 @@ void parser_cleanup(struct parser *p) {
 }
 
 static void next(struct parser *p) {
-	if (p->l.tok.type == TEOF)
+	if (p->l.tok.type == TEOF) {
 		return;
+	}
 	lex(&p->l);
 	p->tok = p->l.tok;
 }
@@ -347,7 +348,6 @@ static struct ast_node *parse_unaryexpr(struct parser *p) {
 		rhs = parse_unaryexpr(p);
 		e = makederefexpr(p, rhs, tok);
 		break;
-		break;
 	case TAMPERSAND:
 		tok = p->tok;
 		next(p);
@@ -356,6 +356,7 @@ static struct ast_node *parse_unaryexpr(struct parser *p) {
 		break;
 	default:
 		error(p, "expected an expression");
+		// TODO: do a better job of rewinding parsing position from here
 		break;
 	}
 
@@ -455,6 +456,7 @@ static struct ast_node *parse_assign_or_exprstmt(struct parser *p,
                                                  struct ast_node *expr) {
 	struct ast_node *stmt = NULL;
 
+	assert(expr);
 	if (p->tok.type == TEQUAL) {
 		next(p);
 		struct ast_node *rhs = parse_expr(p);
@@ -463,6 +465,7 @@ static struct ast_node *parse_assign_or_exprstmt(struct parser *p,
 		stmt = makeexprstmt(p, expr);
 	}
 	expect_end_of_line(p);
+
 	return stmt;
 }
 

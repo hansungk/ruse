@@ -78,4 +78,5 @@ _test test/ref.ruse
 _test test/func.ruse
 _test test/gen_ref.ruse
 _test test/gen_func.ruse
+_test test/gen_array.ruse
 _test test/gen_struct.ruse

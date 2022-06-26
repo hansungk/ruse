@@ -192,7 +192,7 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		}
 		break;
 	}
-	case NCALL:
+	case NCALL: {
 		if (!n->call.func->type->return_type) {
 			assert(!"func without return value not implemented");
 		}
@@ -214,6 +214,14 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 			}
 			stack_push_temp(ctx, val);
 			break;
+		} else if (strcmp(n->call.func->tok.name, "alloc") == 0) {
+			gen_expr_value(ctx, n->call.args[0]);
+			struct qbe_val alloc_size = stack_pop(ctx);
+			struct qbe_val val = stack_make_temp(ctx);
+			emit(ctx, "    %s =l call $%s(w %s)\n", val.text,
+			     "malloc", alloc_size.text);
+			stack_push_temp(ctx, val);
+			break;
 		}
 		// Push parameters in reverse order so that they are in correct order
 		// when popped.
@@ -232,6 +240,7 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		arrput(ctx->valstack.data, val_lhs);
 		ctx->valstack.next_temp_id++;
 		break;
+	}
 	case NMEMBER: {
 		gen_expr_addr(ctx, n->member.parent);
 		struct qbe_val parent_addr = stack_pop(ctx);
