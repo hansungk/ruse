@@ -125,19 +125,31 @@ static struct qbe_val array_gen_len(struct context *ctx,
 	return len_addr;
 }
 
+// Generate address where the "buf" field of an array or a slice resides.
+// Note that this does not push the resulting value to the stack.
+static struct qbe_val array_gen_buf(struct context *ctx,
+                                    struct qbe_val array_addr) {
+	struct qbe_val buf_addr = stack_make_temp(ctx);
+	emit(ctx, "    %s =l add %s, %d\n", buf_addr.text, array_addr.text, 8);
+	return buf_addr;
+}
+
 // Generate address where the element at `index` of an array resides.
 // `n` is the declaration node of the array.
 // Note that this does not push the resulting value to the stack.
 static struct qbe_val array_gen_element(struct context *ctx, struct ast_node *n,
                                         struct qbe_val array_addr,
                                         struct qbe_val index) {
+	// Need to take indirect access to the 'buf' field of the array.
+	struct qbe_val buf_addr = array_gen_buf(ctx, array_addr);
+	gen_load(ctx, buf_addr, 8 /* FIXME */);
+	struct qbe_val buf_ptr_val = stack_pop(ctx);
+
 	struct qbe_val elem_addr = stack_make_temp(ctx);
 	emit(ctx, "    %s =l mul %d, %s\n", elem_addr.text,
 	     n->type->base_type->size, index.text);
-	emit(ctx, "    %s =l add %s, %d\n", elem_addr.text, elem_addr.text,
-	     array_len_field_size);
 	emit(ctx, "    %s =l add %s, %s\n", elem_addr.text, elem_addr.text,
-	     array_addr.text);
+	     buf_ptr_val.text);
 	return elem_addr;
 }
 
@@ -239,6 +251,8 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 			emit(ctx, "    %s =l mul %d, %s\n", malloc_bytesize.text,
 			     n->type->base_type->size, malloc_nmemb.text);
 			struct qbe_val val = stack_make_temp(ctx);
+			val.data_size =
+			    8; // FIXME arbitrary; can we extract this from the AST node?
 			emit(ctx, "    %s =l call $%s(l %s)\n", val.text, "malloc",
 			     malloc_bytesize.text);
 			stack_push_temp(ctx, val);
@@ -292,9 +306,14 @@ static void gen_expr_addr(struct context *ctx, struct ast_node *n) {
 // it doesn't work for NVARDECL; NVARDECL does not have an LHS expression.
 // TODO: rewrite AST at check so that we can just handle NASSIGN.
 static void gen_assign(struct context *ctx, struct ast_node *lhs,
-                       struct qbe_val val_lhs, struct qbe_val val_rhs) {
-	gen_store(ctx, val_rhs.data_size);
-	emit(ctx, " %s, %s\n", val_rhs.text, val_lhs.text);
+                       struct qbe_val lhs_addr, struct qbe_val rhs_val) {
+	struct qbe_val target_addr = lhs_addr;
+	if (lhs->type->kind == TYPE_SLICE) {
+		assert(lhs_addr.kind == VAL_ADDR);
+		target_addr = array_gen_buf(ctx, lhs_addr);
+	}
+	gen_store(ctx, rhs_val.data_size);
+	emit(ctx, " %s, %s\n", rhs_val.text, target_addr.text);
 }
 
 static void gen_decl(struct context *ctx, struct ast_node *n) {
@@ -310,12 +329,11 @@ static void gen_decl(struct context *ctx, struct ast_node *n) {
 		// TODO: proper alignment
 		emit(ctx, "    %%A%d =l alloc4 %ld\n", n->local_id, n->type->size);
 		struct qbe_val val_lhs = stack_make_addr(ctx, n->local_id);
-		stack_push_addr(ctx, val_lhs);
-		if (!n->var_decl.init_expr)
-			break;
-		gen(ctx, n->var_decl.init_expr);
-		struct qbe_val val_rhs = stack_pop(ctx);
-		gen_assign(ctx, n, val_lhs, val_rhs);
+		if (n->var_decl.init_expr) {
+			gen(ctx, n->var_decl.init_expr);
+			struct qbe_val val_rhs = stack_pop(ctx);
+			gen_assign(ctx, n, val_lhs, val_rhs);
+		}
 		break;
 	}
 	case NSTRUCT:
