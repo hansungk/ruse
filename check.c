@@ -14,7 +14,7 @@ static struct ast_node *declare(struct context *ctx, struct ast_node *n);
 static struct type *push_type(struct context *ctx, struct type *ty);
 
 // buf pointer 8 + size 8
-static const int array_size = 16;
+static const int array_struct_size = 16;
 
 void fatal(const char *fmt, ...) {
 	va_list args;
@@ -45,7 +45,15 @@ struct type *maketype(enum type_kind kind, struct token tok) {
 struct type *makearraytype(struct type *elem_type, struct token tok) {
 	struct type *t = maketype(TYPE_ARRAY, tok);
 	t->base_type = elem_type;
-	t->size = array_size;
+	t->size = array_struct_size;
+	return t;
+}
+
+// FIXME: remove 'tok'
+struct type *makeslicetype(struct type *elem_type, struct token tok) {
+	struct type *t = maketype(TYPE_SLICE, tok);
+	t->base_type = elem_type;
+	t->size = array_struct_size; // FIXME: should be different for slices?
 	return t;
 }
 
@@ -100,6 +108,12 @@ static char *type_expr_name(const struct ast_type_expr *type_expr, char *buf,
 		break;
 	case TYPE_ARRAY:
 		wlen = snprintf(buf, buflen, "[]");
+		curlen = buflen - wlen;
+		cur = buf + wlen;
+		type_expr_name(&type_expr->base_type->type_expr, cur, curlen);
+		break;
+	case TYPE_SLICE:
+		wlen = snprintf(buf, buflen, "[N]"); // TODO: output actual number
 		curlen = buflen - wlen;
 		cur = buf + wlen;
 		type_expr_name(&type_expr->base_type->type_expr, cur, curlen);
@@ -209,7 +223,7 @@ static void setup_builtin_funcs(struct context *ctx) {
 		return;
 	}
 	n->type = maketype(TYPE_FUNC, n->tok);
-	n->type->return_type = makearraytype(ty_undef, n->tok);
+	n->type->return_type = makeslicetype(ty_undef, n->tok);
 	arrput(n->type->params, ty_int64);
 }
 
@@ -350,6 +364,14 @@ static struct type *resolve_type_expr(struct context *ctx,
 			return NULL;
 		}
 		return makearraytype(base_type, type_expr->base_type->tok);
+	} else if (type_expr->typekind == TYPE_SLICE) {
+		assert(type_expr->base_type);
+		struct type *base_type =
+		    resolve_type_expr(ctx, &type_expr->base_type->type_expr);
+		if (!base_type) {
+			return NULL;
+		}
+		return makeslicetype(base_type, type_expr->base_type->tok);
 	} else if (type_expr->typekind == TYPE_POINTER) {
 		assert(type_expr->base_type);
 		struct type *base_type =
@@ -362,7 +384,8 @@ static struct type *resolve_type_expr(struct context *ctx,
 	type_expr_name(type_expr, buf, sizeof(buf));
 	type = lookup_type(ctx, buf);
 	if (!type) {
-		assert(type_expr->typekind == TYPE_ATOM);
+		assert(type_expr->typekind == TYPE_ATOM &&
+		       "derived type should have been handled before");
 		error(ctx, type_expr->loc, "unknown type '%s'", buf);
 		return NULL;
 	}
@@ -373,8 +396,8 @@ static struct type *resolve_type_expr(struct context *ctx,
 // Check if type `from` can be assigned to type `to`.  Also does automatic type
 // promotion on `from`, e.g. from int to int64.
 static int type_compatible(struct type *to, struct type **from) {
-	if (to->kind == TYPE_ARRAY) {
-		if ((*from)->kind != TYPE_ARRAY) {
+	if (to->kind == TYPE_ARRAY || to->kind == TYPE_SLICE) {
+		if (to->kind != (*from)->kind) {
 			return 0;
 		}
 		return type_compatible(to->base_type, &(*from)->base_type);
@@ -519,8 +542,9 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 			assert(arrlen(n->call.args) == 1);
 			if (n->call.args[0]->type->kind != TYPE_ARRAY) {
 				return error(ctx, n->call.args[0]->loc,
-				             "len() called with non-array");
+				             "len() called on a non-array");
 			}
+			// TODO: TYPE_SLICE
 		}
 		n->type = n->call.func->type->return_type;
 		break;
@@ -556,8 +580,8 @@ static int check_assignment(struct context *ctx, struct ast_node *to,
 
 	if (from->kind == NCALL &&
 	    strcmp(from->call.func->tok.name, "alloc") == 0) {
-		if (to->type->kind != TYPE_ARRAY) {
-			error(ctx, to->loc, "cannot assign to a non-array");
+		if (to->type->kind != TYPE_SLICE) {
+			error(ctx, to->loc, "alloc() can be only used to a slice");
 			return 0;
 		}
 		from->type->base_type = to->type->base_type;
