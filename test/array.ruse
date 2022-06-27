@@ -13,4 +13,11 @@ fn main() int {
     arr2 = arr2[0] // error
     arr2[0] = arr2 // error
     arr2[0] = 3
+
+    var notype = alloc(3)
+    notype[0] = arr2 // error
+    notype[0] = arr2[0]
+
+    var span = &arr
+    span[0] = 3
 }

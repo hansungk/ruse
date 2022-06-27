@@ -208,11 +208,15 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 			gen_load(ctx, element_addr, val_rhs.data_size);
 			break;
 		} else if (strcmp(n->call.func->tok.name, "alloc") == 0) {
+			assert(n->type->kind == TYPE_ARRAY);
 			gen_expr_value(ctx, n->call.args[0]);
-			struct qbe_val alloc_size = stack_pop(ctx);
+			struct qbe_val malloc_nmemb = stack_pop(ctx);
+			struct qbe_val malloc_bytesize = stack_make_temp(ctx);
+			emit(ctx, "    %s =l mul %d, %s\n", malloc_bytesize.text,
+			     n->type->base_type->size, malloc_nmemb.text);
 			struct qbe_val val = stack_make_temp(ctx);
 			emit(ctx, "    %s =l call $%s(l %s)\n", val.text, "malloc",
-			     alloc_size.text);
+			     malloc_bytesize.text);
 			stack_push_temp(ctx, val);
 			break;
 		}
