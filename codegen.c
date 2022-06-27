@@ -109,6 +109,15 @@ static int is_param(const struct ast_node *func, const struct ast_node *var) {
 	return 0;
 }
 
+// Generate address where the "len" field of an array resides.
+// Note that this does not push the resulting value to the stack.
+static struct qbe_val array_gen_len(struct context *ctx,
+                                    struct qbe_val array_addr) {
+	struct qbe_val val = stack_make_temp(ctx);
+	emit(ctx, "    %s =l add %s, %d\n", val.text, array_addr.text, 0);
+	return val;
+}
+
 // 'value' is whether gen_expr() has to generate the actual value of the
 // expression and put it on the valstack.  If its value is 0, only the address
 // of the expression (which has to be lvalue) will be put on the valstack.
@@ -201,14 +210,11 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		if (strcmp(n->call.func->tok.name, "len") == 0) {
 			assert(value && "taking address of len()?");
 			gen_expr_addr(ctx, n->call.args[0]);
-			struct qbe_val base_addr = stack_pop(ctx);
-			struct qbe_val element_addr = stack_make_temp(ctx);
-			emit(ctx, "    %s =l add %s, %d\n", element_addr.text,
-			     base_addr.text, 8);
-			gen_load(ctx, element_addr, val_rhs.data_size);
+			struct qbe_val len_addr = array_gen_len(ctx, stack_pop(ctx));
+			gen_load(ctx, len_addr, val_rhs.data_size);
 			break;
 		} else if (strcmp(n->call.func->tok.name, "alloc") == 0) {
-			assert(n->type->kind == TYPE_ARRAY);
+			assert(n->type->kind == TYPE_SLICE);
 			gen_expr_value(ctx, n->call.args[0]);
 			struct qbe_val malloc_nmemb = stack_pop(ctx);
 			struct qbe_val malloc_bytesize = stack_make_temp(ctx);

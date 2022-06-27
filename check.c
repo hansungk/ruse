@@ -540,9 +540,10 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 		// TODO: turn this into check_builtin_func()
 		if (strcmp(n->call.func->tok.name, "len") == 0) {
 			assert(arrlen(n->call.args) == 1);
-			if (n->call.args[0]->type->kind != TYPE_ARRAY) {
+			if (n->call.args[0]->type->kind != TYPE_ARRAY &&
+			    n->call.args[0]->type->kind != TYPE_SLICE) {
 				return error(ctx, n->call.args[0]->loc,
-				             "len() called on a non-array");
+				             "len() can be used only for arrays and slices");
 			}
 			// TODO: TYPE_SLICE
 		}
@@ -581,7 +582,7 @@ static int check_assignment(struct context *ctx, struct ast_node *to,
 	if (from->kind == NCALL &&
 	    strcmp(from->call.func->tok.name, "alloc") == 0) {
 		if (to->type->kind != TYPE_SLICE) {
-			error(ctx, to->loc, "alloc() can be only used to a slice");
+			error(ctx, to->loc, "alloc() can be only used for slices");
 			return 0;
 		}
 		from->type->base_type = to->type->base_type;

@@ -18,5 +18,5 @@ fn main() int {
     notype[0] = arr2[0]
 
     var slice []int
-    len(slice) // error
+    len(slice)
 }
