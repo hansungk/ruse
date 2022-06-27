@@ -62,7 +62,8 @@ static struct qbe_val stack_make_temp(struct context *ctx) {
 }
 
 static struct qbe_val stack_make_addr(struct context *ctx, int addr_id) {
-	struct qbe_val v = {VAL_ADDR, .addr_id = addr_id, .data_size = 8};
+	struct qbe_val v = {VAL_ADDR, .addr_id = addr_id,
+	                    .data_size = pointer_size};
 	(void)ctx;
 	qbe_val_name(&v);
 	return v;
@@ -142,7 +143,7 @@ static struct qbe_val array_gen_element(struct context *ctx, struct ast_node *n,
                                         struct qbe_val index) {
 	// Need to take indirect access to the 'buf' field of the array.
 	struct qbe_val buf_addr = array_gen_buf(ctx, array_addr);
-	gen_load(ctx, buf_addr, 8 /* FIXME */);
+	gen_load(ctx, buf_addr, pointer_size);
 	struct qbe_val buf_ptr_val = stack_pop(ctx);
 
 	struct qbe_val elem_addr = stack_make_temp(ctx);
@@ -251,8 +252,8 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 			emit(ctx, "    %s =l mul %d, %s\n", malloc_bytesize.text,
 			     n->type->base_type->size, malloc_nmemb.text);
 			struct qbe_val val = stack_make_temp(ctx);
-			val.data_size =
-			    8; // FIXME arbitrary; can we extract this from the AST node?
+			val.data_size = pointer_size; // FIXME arbitrary; can we extract
+			                              // this from the AST node?
 			emit(ctx, "    %s =l call $%s(l %s)\n", val.text, "malloc",
 			     malloc_bytesize.text);
 			stack_push_temp(ctx, val);
