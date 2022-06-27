@@ -336,6 +336,6 @@ int do_errors(const struct error *errors);
 static const int array_struct_size = 16;
 static const int array_len_field_size = 8;
 
-void codegen(struct context *ctx, struct ast_node *n);
+void gen(struct context *ctx, struct ast_node *n);
 
 #endif

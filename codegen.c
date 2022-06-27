@@ -61,17 +61,23 @@ static struct qbe_val stack_make_temp(struct context *ctx) {
 	return v;
 }
 
+static struct qbe_val stack_make_addr(struct context *ctx, int addr_id) {
+	struct qbe_val v = {VAL_ADDR, .addr_id = addr_id, .data_size = 8};
+	(void)ctx;
+	qbe_val_name(&v);
+	return v;
+}
+
 static void stack_push_temp(struct context *ctx, const struct qbe_val val) {
 	arrput(ctx->valstack.data, val);
 }
 
-static void stack_push_addr(struct context *ctx, int addr_id) {
-	struct qbe_val v = {VAL_ADDR, .addr_id = addr_id, .data_size = 8};
-	qbe_val_name(&v);
-	arrput(ctx->valstack.data, v);
+static void stack_push_addr(struct context *ctx, const struct qbe_val val) {
+	arrput(ctx->valstack.data, val);
 }
 
 static struct qbe_val stack_pop(struct context *ctx) {
+	assert(arrlen(ctx->valstack.data) > 0);
 	return arrpop(ctx->valstack.data);
 }
 
@@ -88,6 +94,7 @@ static void gen_load(struct context *ctx, struct qbe_val val_addr,
 }
 
 // Generate a memory store directive.
+// TODO: also generate operands in this
 static void gen_store(struct context *ctx, size_t size) {
 	if (size == 8) {
 		emit(ctx, "    storel");
@@ -121,9 +128,9 @@ static struct qbe_val array_gen_len(struct context *ctx,
 // Generate address where the element at `index` of an array resides.
 // `n` is the declaration node of the array.
 // Note that this does not push the resulting value to the stack.
-static struct qbe_val array_gen_index(struct context *ctx, struct ast_node *n,
-                                      struct qbe_val array_addr,
-                                      struct qbe_val index) {
+static struct qbe_val array_gen_element(struct context *ctx, struct ast_node *n,
+                                        struct qbe_val array_addr,
+                                        struct qbe_val index) {
 	struct qbe_val elem_addr = stack_make_temp(ctx);
 	emit(ctx, "    %s =l mul %d, %s\n", elem_addr.text,
 	     n->type->base_type->size, index.text);
@@ -159,7 +166,8 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 			break;
 		}
 		assert(ctx->scope);
-		stack_push_addr(ctx, n->decl->local_id);
+		val = stack_make_addr(ctx, n->decl->local_id);
+		stack_push_addr(ctx, val);
 		if (value) {
 			struct qbe_val val_addr = stack_pop(ctx);
 			gen_load(ctx, val_addr, n->type->size);
@@ -198,18 +206,16 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		break;
 	case NSUBSCRIPT: {
 		gen_expr_addr(ctx, n->subscript.array);
-		// This relies on the fact that the 'buf' pointer of an array struct is
-		// at offset 8.
-		// FIXME: can probably merge this with NMEMBER?
 		struct qbe_val array_base_addr = stack_pop(ctx);
 		gen_expr_value(ctx, n->subscript.index);
 		struct qbe_val index_value = stack_pop(ctx);
-		struct qbe_val element_addr = array_gen_index(
+		struct qbe_val element_addr = array_gen_element(
 		    ctx, n->subscript.array, array_base_addr, index_value);
 		stack_push_temp(ctx, element_addr);
 		if (value) {
 			element_addr = stack_pop(ctx);
 			val = stack_make_temp(ctx);
+			// TODO: use gen_load
 			emit(ctx, "    %s =w loadw %s\n", val.text, element_addr.text);
 			stack_push_temp(ctx, val);
 		}
@@ -282,30 +288,36 @@ static void gen_expr_addr(struct context *ctx, struct ast_node *n) {
 	gen_expr(ctx, n, 0);
 }
 
+// This function cannot accept just the ast_nodes instead of qbe_val, because
+// it doesn't work for NVARDECL; NVARDECL does not have an LHS expression.
+// TODO: rewrite AST at check so that we can just handle NASSIGN.
+static void gen_assign(struct context *ctx, struct ast_node *lhs,
+                       struct qbe_val val_lhs, struct qbe_val val_rhs) {
+	gen_store(ctx, val_rhs.data_size);
+	emit(ctx, " %s, %s\n", val_rhs.text, val_lhs.text);
+}
+
 static void gen_decl(struct context *ctx, struct ast_node *n) {
 	char buf[TOKLEN];
-	struct qbe_val val;
 
 	assert(n->decl);
 	tokenstr(ctx->src->buf, n->decl->tok, buf, sizeof(buf));
 
 	switch (n->kind) {
-	case NVARDECL:
+	case NVARDECL: {
 		// FIXME: is it better to assign decl_id here or in check?
 		n->local_id = ctx->curr_decl_id++;
-		// TODO: proper datasize handling
 		// TODO: proper alignment
 		emit(ctx, "    %%A%d =l alloc4 %ld\n", n->local_id, n->type->size);
-		if (!n->var_decl.init_expr) {
+		struct qbe_val val_lhs = stack_make_addr(ctx, n->local_id);
+		stack_push_addr(ctx, val_lhs);
+		if (!n->var_decl.init_expr)
 			break;
-		}
-		codegen(ctx, n->var_decl.init_expr);
-		assert(arrlen(ctx->valstack.data) > 0);
-		val = stack_pop(ctx);
-		// TODO: unify this with assignment
-		gen_store(ctx, val.data_size);
-		emit(ctx, " %s, %%A%d\n", qbe_val_name(&val), n->local_id);
+		gen(ctx, n->var_decl.init_expr);
+		struct qbe_val val_rhs = stack_pop(ctx);
+		gen_assign(ctx, n, val_lhs, val_rhs);
 		break;
+	}
 	case NSTRUCT:
 		for (long i = 0; i < arrlen(n->struct_.fields); i++) {
 			gen_decl(ctx, n->struct_.fields[i]);
@@ -320,22 +332,20 @@ static void gen_decl(struct context *ctx, struct ast_node *n) {
 }
 
 static void gen_stmt(struct context *ctx, struct ast_node *n) {
-	struct qbe_val val_lhs, val_rhs;
-
 	switch (n->kind) {
 	case NEXPRSTMT:
 		gen_expr_value(ctx, n->expr_stmt.expr);
 		break;
-	case NASSIGN:
+	case NASSIGN: {
 		gen_expr_value(ctx, n->assign_expr.init_expr);
 		gen_expr_addr(ctx, n->assign_expr.lhs);
-		val_lhs = stack_pop(ctx);
-		val_rhs = stack_pop(ctx);
-		gen_store(ctx, val_rhs.data_size);
-		emit(ctx, " %s, %s\n", qbe_val_name(&val_rhs), qbe_val_name(&val_lhs));
+		struct qbe_val val_lhs = stack_pop(ctx);
+		struct qbe_val val_rhs = stack_pop(ctx);
+		gen_assign(ctx, n->assign_expr.lhs, val_lhs, val_rhs);
 		break;
+	}
 	case NRETURN:
-		codegen(ctx, n->return_expr.expr);
+		gen(ctx, n->return_expr.expr);
 		emit(ctx, "    ret %s\n", stack_pop(ctx).text);
 		break;
 	default:
@@ -343,13 +353,13 @@ static void gen_stmt(struct context *ctx, struct ast_node *n) {
 	}
 }
 
-void codegen(struct context *ctx, struct ast_node *n) {
+void gen(struct context *ctx, struct ast_node *n) {
 	assert(n);
 
 	switch (n->kind) {
 	case NFILE:
 		for (int i = 0; i < arrlen(n->file.body); i++) {
-			codegen(ctx, n->file.body[i]);
+			gen(ctx, n->file.body[i]);
 		}
 		break;
 	case NFUNC:
@@ -373,7 +383,7 @@ void codegen(struct context *ctx, struct ast_node *n) {
 		}
 		// body
 		for (int i = 0; i < arrlen(n->func.stmts); i++) {
-			codegen(ctx, n->func.stmts[i]);
+			gen(ctx, n->func.stmts[i]);
 		}
 		scope_close(ctx);
 		// TODO: free scope here?

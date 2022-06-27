@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	codegen(&ctx, n);
+	gen(&ctx, n);
 	fflush(ctx.outfile);
 
 	// FILE *fp_qbe = popen("qbe out.qbe", "r");

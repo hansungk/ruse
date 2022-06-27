@@ -11,7 +11,7 @@ $ ./ruse
 
 ## todo
 
-* unify emit of loads and stores
+* fix gen_store
 * annotate generated qbe code
 * array type
 * merge unaryexpr and typeexpr parsing
