@@ -13,9 +13,6 @@ static struct type *ty_string;
 static struct ast_node *declare(struct context *ctx, struct ast_node *n);
 static struct type *push_type(struct context *ctx, struct type *ty);
 
-// buf pointer 8 + size 8
-static const int array_struct_size = 16;
-
 void fatal(const char *fmt, ...) {
 	va_list args;
 

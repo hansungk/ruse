@@ -113,9 +113,25 @@ static int is_param(const struct ast_node *func, const struct ast_node *var) {
 // Note that this does not push the resulting value to the stack.
 static struct qbe_val array_gen_len(struct context *ctx,
                                     struct qbe_val array_addr) {
-	struct qbe_val val = stack_make_temp(ctx);
-	emit(ctx, "    %s =l add %s, %d\n", val.text, array_addr.text, 0);
-	return val;
+	struct qbe_val len_addr = stack_make_temp(ctx);
+	emit(ctx, "    %s =l add %s, %d\n", len_addr.text, array_addr.text, 0);
+	return len_addr;
+}
+
+// Generate address where the element at `index` of an array resides.
+// `n` is the declaration node of the array.
+// Note that this does not push the resulting value to the stack.
+static struct qbe_val array_gen_index(struct context *ctx, struct ast_node *n,
+                                      struct qbe_val array_addr,
+                                      struct qbe_val index) {
+	struct qbe_val elem_addr = stack_make_temp(ctx);
+	emit(ctx, "    %s =l mul %d, %s\n", elem_addr.text,
+	     n->type->base_type->size, index.text);
+	emit(ctx, "    %s =l add %s, %d\n", elem_addr.text, elem_addr.text,
+	     array_len_field_size);
+	emit(ctx, "    %s =l add %s, %s\n", elem_addr.text, elem_addr.text,
+	     array_addr.text);
+	return elem_addr;
 }
 
 // 'value' is whether gen_expr() has to generate the actual value of the
@@ -183,17 +199,13 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 	case NSUBSCRIPT: {
 		gen_expr_addr(ctx, n->subscript.array);
 		// This relies on the fact that the 'buf' pointer of an array struct is
-		// at offset 0.
+		// at offset 8.
 		// FIXME: can probably merge this with NMEMBER?
 		struct qbe_val array_base_addr = stack_pop(ctx);
 		gen_expr_value(ctx, n->subscript.index);
-		assert(n->subscript.index->type->size == 8 /* XXX */);
 		struct qbe_val index_value = stack_pop(ctx);
-		struct qbe_val element_addr = stack_make_temp(ctx);
-		emit(ctx, "    %s =l mul %d, %s\n", element_addr.text,
-		     n->subscript.array->type->size, index_value.text);
-		emit(ctx, "    %s =l add %s, %s\n", element_addr.text,
-		     element_addr.text, array_base_addr.text);
+		struct qbe_val element_addr = array_gen_index(
+		    ctx, n->subscript.array, array_base_addr, index_value);
 		stack_push_temp(ctx, element_addr);
 		if (value) {
 			element_addr = stack_pop(ctx);

@@ -332,6 +332,10 @@ struct ast_node *lookup(struct context *ctx, const struct ast_node *n);
 void check(struct context *ctx, struct ast_node *n);
 int do_errors(const struct error *errors);
 
+// buf pointer 8 + size 8
+static const int array_struct_size = 16;
+static const int array_len_field_size = 8;
+
 void codegen(struct context *ctx, struct ast_node *n);
 
 #endif
