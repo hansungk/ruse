@@ -141,6 +141,7 @@ enum node_kind {
 enum type_kind {
 	TYPE_ATOM,
 	TYPE_ARRAY,
+	TYPE_SLICE,
 	TYPE_POINTER,
 	TYPE_FUNC,
 };
@@ -225,8 +226,10 @@ struct ast_node {
 			struct src_loc loc;
 			enum type_kind typekind;
 			struct token tok;
-			// base type of a pointer, array, etc.
+			// type of the target of a pointer, element of an array, etc.
 			struct ast_node *base_type;
+			// 'size' part of [size]int
+			struct ast_node *size_expr;
 		} type_expr;
 	};
 	// Type of this node.  If this is NULL that means the typecheck on this

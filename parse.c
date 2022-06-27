@@ -515,12 +515,20 @@ static struct ast_node *parse_typeexpr(struct parser *p) {
 		texpr = maketypeexpr(p, TYPE_POINTER, tok);
 		texpr->type_expr.base_type = parse_typeexpr(p);
 		break;
-	case TLBRACKET:
+	case TLBRACKET: {
 		expect(p, TLBRACKET);
-		expect(p, TRBRACKET);
-		texpr = maketypeexpr(p, TYPE_ARRAY, tok);
+		if (p->tok.type != TRBRACKET) {
+			struct ast_node *sexpr = parse_expr(p);
+			expect(p, TRBRACKET);
+			texpr = maketypeexpr(p, TYPE_SLICE, tok);
+			texpr->type_expr.size_expr = sexpr;
+		} else {
+			expect(p, TRBRACKET);
+			texpr = maketypeexpr(p, TYPE_ARRAY, tok);
+		}
 		texpr->type_expr.base_type = parse_typeexpr(p);
 		break;
+	}
 	default:
 		assert(!"unimplemented");
 	}

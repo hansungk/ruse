@@ -1,7 +1,7 @@
 // fail
 
 fn main() int {
-    var arr []int
+    var arr [20]int
     arr[0] = 42
     arr[0 + 20] = 42
     len(arr[0]) // error
@@ -18,6 +18,6 @@ fn main() int {
     notype[0] = arr2 // error
     notype[0] = arr2[0]
 
-    var span = &arr
+    var span = arr
     span[0] = 3
 }
