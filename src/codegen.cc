@@ -197,13 +197,18 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     codegen_expr_value(se->index_expr);
     emitnl("%_{} =l mul {}, {}", stack.next_id, stack.pop().format(),
            se->array_expr->type->base_type->size);
+    annotate("{}: offset for {}[]", se->loc.line,
+             se->array_expr->decl->name->text);
     stack.push_temp();
     emitnl("%_{} =l add {}, {}", stack.next_id, stack.pop().format(),
            stack.pop().format());
+    annotate("{}: base address for {}[]", se->loc.line,
+             se->array_expr->decl->name->text);
     stack.push_temp();
     if (value) {
       emitnl("%_{} =w loadw {}", stack.next_id, stack.pop().format());
-      annotate("{}: load array", se->loc.line);
+      annotate("{}: load element of {}[]", se->loc.line,
+               se->array_expr->decl->name->text);
       stack.push_temp();
     }
     break;
