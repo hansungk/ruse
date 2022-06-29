@@ -100,13 +100,15 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     // Rewrite alloc()'s return type to be a pointer.
     // TODO: generalize to other built-in functions.
     if (func_decl->name == sema.name_table.get("alloc")) {
-      fmt::print("type kind was {}\n", func_decl->ret_type->kind);
       assert(func_decl->ret_type->kind == TypeKind::array);
       func_decl->ret_type = get_derived_type(sema, TypeKind::pointer,
                                              func_decl->ret_type->base_type);
-    }
-
-    if (func_decl->ret_type) {
+      // TODO: w for size is hardcoded; should QbeValue encode type size?
+      emitnl("%_{} =l call $malloc(w {}", stack.next_id,
+             generated_args[0].format());
+      emit(")");
+      stack.push_temp();
+    } else if (func_decl->ret_type) {
       emitnl("%_{} ={} call ${}(", stack.next_id,
              func_decl->ret_type->qbe_type_string(), c->func_decl->name->text);
       for (size_t i = 0; i < c->args.size(); i++) {
