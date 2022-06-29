@@ -192,7 +192,6 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
   }
   case Expr::subscript: {
     auto se = e->as<SubscriptExpr>();
-    ;
     codegen_expr_address(se->array_expr);
     codegen_expr_value(se->index_expr);
     emitnl("%_{} =l mul {}, {}", stack.next_id, stack.pop().format(),
@@ -535,7 +534,7 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
 
   // Annotate on what we assigned to.
   std::string lhs_text = "LHS";
-  if (lhs->is<VarDecl>()) {
+  if (lhs->is<VarDecl>() && lhs->as<VarDecl>()->name) {
     lhs_text = lhs->as<VarDecl>()->name->text;
   }
   // TODO: annotate proper name for temp decls, e.g. "*p"
