@@ -2,11 +2,11 @@
 
 namespace cmp {
 
-std::string Type::qbe_abity_string() const {
+std::string Type::qbe_type_string() const {
   std::string s;
   if (builtin) {
-    // TODO: "l", "s", "d", ...
-    s = "w";
+    // TODO: "s", "d", ...
+    s = (size == 8) ? "l" : "w";
   } else if (is_pointer()) {
     s = "l";
   } else {
@@ -97,11 +97,20 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
       generated_args.push_back(stack.pop());
     }
 
+    // Rewrite alloc()'s return type to be a pointer.
+    // TODO: generalize to other built-in functions.
+    if (func_decl->name == sema.name_table.get("alloc")) {
+      fmt::print("type kind was {}\n", func_decl->ret_type->kind);
+      assert(func_decl->ret_type->kind == TypeKind::array);
+      func_decl->ret_type = get_derived_type(sema, TypeKind::pointer,
+                                             func_decl->ret_type->base_type);
+    }
+
     if (func_decl->ret_type) {
       emitnl("%_{} ={} call ${}(", stack.next_id,
-             func_decl->ret_type->qbe_abity_string(), c->func_decl->name->text);
+             func_decl->ret_type->qbe_type_string(), c->func_decl->name->text);
       for (size_t i = 0; i < c->args.size(); i++) {
-        emit("{} {}, ", c->args[i]->type->qbe_abity_string(),
+        emit("{} {}, ", c->args[i]->type->qbe_type_string(),
              generated_args[i].format());
       }
       emit(")");
@@ -110,7 +119,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
       emitnl("call ${}(", c->func_decl->name->text);
       // @Copypaste from above
       for (size_t i = 0; i < c->args.size(); i++) {
-        emit("{} {}, ", c->args[i]->type->qbe_abity_string(),
+        emit("{} {}, ", c->args[i]->type->qbe_type_string(),
              generated_args[i].format());
       }
       emit(")");
@@ -354,11 +363,11 @@ void QbeGen::codegen_decl(Decl *d) {
       break;
     }
 
-    emit("\nexport function {} ${}(", f->ret_type->qbe_abity_string(),
+    emit("\nexport function {} ${}(", f->ret_type->qbe_type_string(),
          f->name->text);
 
     for (auto param : f->params) {
-      emit("{} %{}, ", param->type->qbe_abity_string(), param->name->text);
+      emit("{} %{}, ", param->type->qbe_type_string(), param->name->text);
     }
 
     emit(") {{");

@@ -585,6 +585,10 @@ bool check_stmt(Sema &sema, Stmt *s) {
         as->rhs->as<CallExpr>()->func_decl->name ==
             sema.name_table.get("alloc")) {
       // Fix type of alloc() from incomplete to match LHS
+      assert(as->lhs->type->kind == TypeKind::array);
+      // FIXME: convoluted
+      as->rhs->as<CallExpr>()->func_decl->as<FuncDecl>()->ret_type =
+          as->lhs->type;
       as->rhs->type = as->lhs->type;
     }
     if (!type_assignable(sema, as->lhs->type, as->rhs->type)) {

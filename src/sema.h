@@ -144,6 +144,7 @@ void setup_builtin(Sema &s);
 
 bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl);
 bool declare(Sema &sema, Decl *decl);
+Type *get_derived_type(Sema &sema, TypeKind kind, Type *base_type);
 bool check(Sema &sema, AstNode *n);
 
 struct QbeValue {
