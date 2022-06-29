@@ -1,9 +1,9 @@
 // run 4
 
 fn main() int {
-   var arr: []int
-   arr[3] = 4
-   var u: []int64
+   // var arr: []int
+   // arr[3] = 4
+   var u: []int
    u = alloc(9)
-   return arr[3]
+   return u[0]
 }

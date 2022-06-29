@@ -516,9 +516,14 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
   } else {
     assert(!"unknown type size");
   }
+
+  // Annotate on what we assigned to.
+  std::string lhs_text = "LHS";
+  if (lhs->is<VarDecl>()) {
+    lhs_text = lhs->as<VarDecl>()->name->text;
+  }
   // TODO: annotate proper name for temp decls, e.g. "*p"
-  // annotate("{}: store to {}", rhs->loc.line, lhs->name->text);
-  annotate("{}: store to LHS", rhs->loc.line);
+  annotate("{}: store to {}", rhs->loc.line, lhs_text);
 }
 
 // Emit a value by allocating it on the stack memory.  That value will be

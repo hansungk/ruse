@@ -47,7 +47,7 @@ struct AstNode {
     assert(is<T>());
     return static_cast<const T *>(this);
   }
-  template <typename T> bool is();
+  template <typename T> bool is() const;
 
   std::string_view text(const Sema &sema);
 
@@ -83,7 +83,7 @@ struct Stmt : public AstNode {
   } kind;
 
   Stmt(Kind s) : AstNode(AstNode::stmt), kind(s) {}
-  template <typename T> bool is();
+  template <typename T> bool is() const;
 };
 
 // Variable declaration statement; doesn't include function declarations.
@@ -148,15 +148,21 @@ struct BadStmt : public Stmt {
   BadStmt() : Stmt(Stmt::bad) {}
 };
 
-template <> inline bool Stmt::is<DeclStmt>() { return kind == decl; }
-template <> inline bool Stmt::is<ExprStmt>() { return kind == expr; }
-template <> inline bool Stmt::is<AssignStmt>() { return kind == assign; }
-template <> inline bool Stmt::is<ReturnStmt>() { return kind == return_; }
-template <> inline bool Stmt::is<CompoundStmt>() { return kind == compound; }
-template <> inline bool Stmt::is<IfStmt>() { return kind == if_; }
-template <> inline bool Stmt::is<BuiltinStmt>() { return kind == builtin; }
-template <> inline bool Stmt::is<BadStmt>() { return kind == bad; }
-template <typename T> inline bool Stmt::is() { assert(!"unimplemented is()"); }
+template <> inline bool Stmt::is<DeclStmt>() const { return kind == decl; }
+template <> inline bool Stmt::is<ExprStmt>() const { return kind == expr; }
+template <> inline bool Stmt::is<AssignStmt>() const { return kind == assign; }
+template <> inline bool Stmt::is<ReturnStmt>() const { return kind == return_; }
+template <> inline bool Stmt::is<CompoundStmt>() const {
+  return kind == compound;
+}
+template <> inline bool Stmt::is<IfStmt>() const { return kind == if_; }
+template <> inline bool Stmt::is<BuiltinStmt>() const {
+  return kind == builtin;
+}
+template <> inline bool Stmt::is<BadStmt>() const { return kind == bad; }
+template <typename T> inline bool Stmt::is() const {
+  assert(!"unimplemented is()");
+}
 
 // Expressions
 // ===========
@@ -190,7 +196,7 @@ struct Expr : public AstNode {
   Decl *decl = nullptr;
 
   Expr(Kind e) : AstNode(AstNode::expr), kind(e), type(nullptr) {}
-  template <typename T> bool is();
+  template <typename T> bool is() const;
   bool is_lvalue() const { return decl != nullptr; }
 };
 
@@ -333,23 +339,31 @@ struct BadExpr : public Expr {
   BadExpr() : Expr(Expr::bad) {}
 };
 
-template <> inline bool Expr::is<IntegerLiteral>() {
+template <> inline bool Expr::is<IntegerLiteral>() const {
   return kind == integer_literal;
 }
-template <> inline bool Expr::is<StringLiteral>() {
+template <> inline bool Expr::is<StringLiteral>() const {
   return kind == string_literal;
 }
-template <> inline bool Expr::is<DeclRefExpr>() { return kind == decl_ref; }
-template <> inline bool Expr::is<CallExpr>() { return kind == call; }
-template <> inline bool Expr::is<StructDefExpr>() { return kind == struct_def; }
-template <> inline bool Expr::is<CastExpr>() { return kind == cast; }
-template <> inline bool Expr::is<MemberExpr>() { return kind == member; }
-template <> inline bool Expr::is<SubscriptExpr>() { return kind == subscript; }
-template <> inline bool Expr::is<UnaryExpr>() { return kind == unary; }
-template <> inline bool Expr::is<BinaryExpr>() { return kind == binary; }
-template <> inline bool Expr::is<TypeExpr>() { return kind == type_; }
-template <> inline bool Expr::is<BadExpr>() { return kind == bad; }
-template <typename T> inline bool Expr::is() { assert(!"unimplemented is()"); }
+template <> inline bool Expr::is<DeclRefExpr>() const {
+  return kind == decl_ref;
+}
+template <> inline bool Expr::is<CallExpr>() const { return kind == call; }
+template <> inline bool Expr::is<StructDefExpr>() const {
+  return kind == struct_def;
+}
+template <> inline bool Expr::is<CastExpr>() const { return kind == cast; }
+template <> inline bool Expr::is<MemberExpr>() const { return kind == member; }
+template <> inline bool Expr::is<SubscriptExpr>() const {
+  return kind == subscript;
+}
+template <> inline bool Expr::is<UnaryExpr>() const { return kind == unary; }
+template <> inline bool Expr::is<BinaryExpr>() const { return kind == binary; }
+template <> inline bool Expr::is<TypeExpr>() const { return kind == type_; }
+template <> inline bool Expr::is<BadExpr>() const { return kind == bad; }
+template <typename T> inline bool Expr::is() const {
+  assert(!"unimplemented is()");
+}
 
 // Declarations
 // ============
@@ -381,7 +395,7 @@ struct Decl : public AstNode {
   Decl(Kind d, Name *n) : Decl(d, n, nullptr) {}
   Decl(Kind d, Name *n, Type *t)
       : AstNode(AstNode::decl), kind(d), name(n), type(t) {}
-  template <typename T> bool is();
+  template <typename T> bool is() const;
 };
 
 // Variable declaration.
@@ -492,28 +506,30 @@ struct BadDecl : public Decl {
   BadDecl() : Decl(Decl::bad) {}
 };
 
-template <> inline bool Decl::is<VarDecl>() { return kind == var; }
-template <> inline bool Decl::is<FuncDecl>() { return kind == func; }
-template <> inline bool Decl::is<FieldDecl>() { return kind == field; }
-template <> inline bool Decl::is<StructDecl>() { return kind == struct_; }
-template <> inline bool Decl::is<EnumVariantDecl>() {
+template <> inline bool Decl::is<VarDecl>() const { return kind == var; }
+template <> inline bool Decl::is<FuncDecl>() const { return kind == func; }
+template <> inline bool Decl::is<FieldDecl>() const { return kind == field; }
+template <> inline bool Decl::is<StructDecl>() const { return kind == struct_; }
+template <> inline bool Decl::is<EnumVariantDecl>() const {
   return kind == enum_variant;
 }
-template <> inline bool Decl::is<EnumDecl>() { return kind == enum_; }
-template <> inline bool Decl::is<BadDecl>() { return kind == bad; }
-template <typename T> inline bool Decl::is() { assert(!"unimplemented is()"); }
+template <> inline bool Decl::is<EnumDecl>() const { return kind == enum_; }
+template <> inline bool Decl::is<BadDecl>() const { return kind == bad; }
+template <typename T> inline bool Decl::is() const {
+  assert(!"unimplemented is()");
+}
 
-template <> inline bool AstNode::is<File>() { return kind == file; }
-template <> inline bool AstNode::is<Stmt>() { return kind == stmt; }
-template <> inline bool AstNode::is<Decl>() { return kind == decl; }
-template <> inline bool AstNode::is<Expr>() { return kind == expr; }
-template <typename T> inline bool AstNode::is() {
+template <> inline bool AstNode::is<File>() const { return kind == file; }
+template <> inline bool AstNode::is<Stmt>() const { return kind == stmt; }
+template <> inline bool AstNode::is<Decl>() const { return kind == decl; }
+template <> inline bool AstNode::is<Expr>() const { return kind == expr; }
+template <typename T> inline bool AstNode::is() const {
   if (is<Stmt>()) {
-    return static_cast<Stmt *>(this)->is<T>();
+    return static_cast<const Stmt *>(this)->is<T>();
   } else if (is<Decl>()) {
-    return static_cast<Decl *>(this)->is<T>();
+    return static_cast<const Decl *>(this)->is<T>();
   } else if (is<Expr>()) {
-    return static_cast<Expr *>(this)->is<T>();
+    return static_cast<const Expr *>(this)->is<T>();
   } else {
     return false;
   }
