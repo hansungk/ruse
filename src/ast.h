@@ -221,13 +221,13 @@ struct CallExpr : public Expr {
   } kind;
 
   // This could be either DeclRefExpr ("f()") or MemberExpr ("s.m()").
-  Expr *callee_expr = nullptr;
+  Expr *func_expr = nullptr;
   // Decl of the called function, or the destination type for typecasts.
-  Decl *callee_decl = nullptr; // FIXME: just use callee_expr->decl
+  Decl *func_decl = nullptr; // FIXME: just use callee_expr->decl
   std::vector<Expr *> args;
 
   CallExpr(Kind kind, Expr *ce, const std::vector<Expr *> &args)
-      : Expr(Expr::call), kind(kind), callee_expr(ce), args(args) {}
+      : Expr(Expr::call), kind(kind), func_expr(ce), args(args) {}
 };
 
 // '.memb = expr' part in Struct { ... }.

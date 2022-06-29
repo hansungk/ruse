@@ -87,8 +87,8 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
   case Expr::call: {
     auto c = e->as<CallExpr>();
 
-    assert(c->callee_decl->kind == Decl::func);
-    auto func_decl = c->callee_decl->as<FuncDecl>();
+    assert(c->func_decl->kind == Decl::func);
+    auto func_decl = c->func_decl->as<FuncDecl>();
 
     // codegen arguments first
     std::vector<QbeValue> generated_args;
@@ -99,7 +99,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
 
     if (func_decl->ret_type_expr) {
       emitln("%_{} ={} call ${}(", stack.next_id,
-             qbe_abity_string(func_decl->ret_type), c->callee_decl->name->text);
+             qbe_abity_string(func_decl->ret_type), c->func_decl->name->text);
 
       for (size_t i = 0; i < c->args.size(); i++) {
         emit("{} {}, ", qbe_abity_string(c->args[i]->type),
@@ -110,7 +110,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
 
       stack.push_temp();
     } else {
-      emitln("call ${}(", c->callee_decl->name->text);
+      emitln("call ${}(", c->func_decl->name->text);
 
       // @Copypaste from above
       for (size_t i = 0; i < c->args.size(); i++) {

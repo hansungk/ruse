@@ -2,6 +2,7 @@
 #include "fmt/core.h"
 #include "parse.h"
 #include "source.h"
+#include "src/ast.h"
 #include "types.h"
 #include <cassert>
 #include <cstdarg>
@@ -187,17 +188,13 @@ Type *get_derived_type(Sema &sema, TypeKind kind, Type *base_type) {
 }
 
 bool type_assignable(Sema &sema, const Type *to, const Type *from) {
-  // TODO: Typecheck assignment rules so far:
-  //
-  // 1. Pointer <- mutable pointer.
-  // 2. Exact same match.
-
   // Allow promotion from mutable to immutable pointer.
   if (to->is_pointer() && from->is_pointer()) {
     // NOTE: this may be related to 'unification'. Ref:
     // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
     return type_assignable(sema, to->base_type, from->base_type);
-  } else if (to == sema.context.ty_int64 && from == sema.context.ty_int) {
+  }
+  if (to == sema.context.ty_int64 && from == sema.context.ty_int) {
     return true;
   }
   return to == from;
@@ -391,20 +388,20 @@ bool check_expr(Sema &sema, Expr *e) {
       assert(!"not implemented");
     }
 
-    if (!check_expr(sema, c->callee_expr))
+    if (!check_expr(sema, c->func_expr))
       return false;
 
-    assert(c->callee_expr->decl);
+    assert(c->func_expr->decl);
 
-    c->callee_decl = c->callee_expr->decl;
-    if (c->callee_decl->kind != Decl::func) {
+    c->func_decl = c->func_expr->decl;
+    if (c->func_decl->kind != Decl::func) {
       return error(c->loc,
                    "'{}' is not a function or a method", // FIXME differentiate
                                                          // between function and
                                                          // method?
-                   c->callee_decl->name->text);
+                   c->func_decl->name->text);
     }
-    auto func_decl = c->callee_decl->as<FuncDecl>();
+    auto func_decl = c->func_decl->as<FuncDecl>();
     assert(func_decl->ret_type);
     c->type = func_decl->ret_type;
 
@@ -577,23 +574,23 @@ bool check_stmt(Sema &sema, Stmt *s) {
   }
   case Stmt::assign: {
     auto as = s->as<AssignStmt>();
-    if (!check_expr(sema, as->rhs))
+    if (!check_expr(sema, as->rhs) || !check_expr(sema, as->lhs))
       return false;
-    if (!check_expr(sema, as->lhs))
-      return false;
-
-    auto lhs_type = as->lhs->type;
-    auto rhs_type = as->rhs->type;
 
     if (!as->lhs->is_lvalue()) {
       return error(as->loc, "cannot assign to an rvalue");
     }
 
-    if (!type_assignable(sema, lhs_type, rhs_type)) {
-      return error(as->loc, "cannot assign '{}' type to '{}'",
-                   rhs_type->name->text, lhs_type->name->text);
+    if (as->rhs->kind == Expr::call &&
+        as->rhs->as<CallExpr>()->func_decl->name ==
+            sema.name_table.get("alloc")) {
+      // Fix type of alloc() from incomplete to match LHS
+      as->rhs->type = as->lhs->type;
     }
-
+    if (!type_assignable(sema, as->lhs->type, as->rhs->type)) {
+      return error(as->loc, "cannot assign '{}' type to '{}'",
+                   as->rhs->type->name->text, as->lhs->type->name->text);
+    }
     break;
   }
   case Stmt::if_: {
