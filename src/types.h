@@ -100,6 +100,7 @@ struct Type {
   bool is_struct() const;
   bool is_pointer() const;
   bool is_builtin(Sema &sema) const;
+  std::string qbe_abity_string() const;
 };
 
 Type *make_struct_type(Sema &sema, Name *n, Decl *decl);

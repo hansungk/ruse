@@ -2,15 +2,15 @@
 
 namespace cmp {
 
-std::string qbe_abity_string(const Type *type) {
+std::string Type::qbe_abity_string() const {
   std::string s;
-  if (type->builtin) {
+  if (builtin) {
     // TODO: "l", "s", "d", ...
     s = "w";
-  } else if (type->is_pointer()) {
+  } else if (is_pointer()) {
     s = "l";
   } else {
-    s = fmt::format(":{}", type->name->text);
+    s = fmt::format(":{}", name->text);
   }
   return s;
 }
@@ -99,9 +99,9 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
 
     if (func_decl->ret_type) {
       emitnl("%_{} ={} call ${}(", stack.next_id,
-             qbe_abity_string(func_decl->ret_type), c->func_decl->name->text);
+             func_decl->ret_type->qbe_abity_string(), c->func_decl->name->text);
       for (size_t i = 0; i < c->args.size(); i++) {
-        emit("{} {}, ", qbe_abity_string(c->args[i]->type),
+        emit("{} {}, ", c->args[i]->type->qbe_abity_string(),
              generated_args[i].format());
       }
       emit(")");
@@ -110,7 +110,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
       emitnl("call ${}(", c->func_decl->name->text);
       // @Copypaste from above
       for (size_t i = 0; i < c->args.size(); i++) {
-        emit("{} {}, ", qbe_abity_string(c->args[i]->type),
+        emit("{} {}, ", c->args[i]->type->qbe_abity_string(),
              generated_args[i].format());
       }
       emit(")");
@@ -354,11 +354,11 @@ void QbeGen::codegen_decl(Decl *d) {
       break;
     }
 
-    emit("\nexport function {} ${}(", qbe_abity_string(f->ret_type),
+    emit("\nexport function {} ${}(", f->ret_type->qbe_abity_string(),
          f->name->text);
 
     for (auto param : f->params) {
-      emit("{} %{}, ", qbe_abity_string(param->type), param->name->text);
+      emit("{} %{}, ", param->type->qbe_abity_string(), param->name->text);
     }
 
     emit(") {{");
