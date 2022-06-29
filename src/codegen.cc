@@ -23,9 +23,9 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
   switch (e->kind) {
   case Expr::integer_literal: {
     char cl = (e->type == sema.context.ty_int64) ? 'l' : 'w';
-    emitln("%_{} ={} add 0, {}", stack.next_id, cl,
+    emitnl("%_{} ={} add 0, {}", stack.next_id, cl,
            e->as<IntegerLiteral>()->value);
-    annotate("{}: integer literal", e->loc.line);
+    annotate("{}: literal", e->loc.line);
     stack.push_temp();
     break;
   }
@@ -68,11 +68,11 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
           assert(!dre->type->builtin);
           assert(dre->type->origin_decl->kind == Decl::struct_);
         } else if (dre->type->size == 8) {
-          emitln("%_{} =l loadl {}", stack.next_id, stack.pop().format());
+          emitnl("%_{} =l loadl {}", stack.next_id, stack.pop().format());
           annotate("{}: load {}", dre->loc.line, dre->text(sema));
           stack.push_temp();
         } else if (dre->type->size == 4) {
-          emitln("%_{} =w loadw {}", stack.next_id, stack.pop().format());
+          emitnl("%_{} =w loadw {}", stack.next_id, stack.pop().format());
           annotate("{}: load {}", dre->loc.line, dre->text(sema));
           stack.push_temp();
         } else {
@@ -97,29 +97,23 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
       generated_args.push_back(stack.pop());
     }
 
-    if (func_decl->ret_type_expr) {
-      emitln("%_{} ={} call ${}(", stack.next_id,
+    if (func_decl->ret_type) {
+      emitnl("%_{} ={} call ${}(", stack.next_id,
              qbe_abity_string(func_decl->ret_type), c->func_decl->name->text);
-
       for (size_t i = 0; i < c->args.size(); i++) {
         emit("{} {}, ", qbe_abity_string(c->args[i]->type),
              generated_args[i].format());
       }
-
       emit(")");
-
       stack.push_temp();
     } else {
-      emitln("call ${}(", c->func_decl->name->text);
-
+      emitnl("call ${}(", c->func_decl->name->text);
       // @Copypaste from above
       for (size_t i = 0; i < c->args.size(); i++) {
         emit("{} {}, ", qbe_abity_string(c->args[i]->type),
              generated_args[i].format());
       }
-
       emit(")");
-
       // Don't push to valstack here; that the caller doesn't erroneously
       // pop afterwards should have been checked by the semantic phase.
     }
@@ -142,7 +136,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
       // Calculate the right offsetted memory location for each
       // member.
       assert(term.field_decl);
-      emitln("%a{} =l add %a{}, {}", stack.next_id, id,
+      emitnl("%a{} =l add %a{}, {}", stack.next_id, id,
              term.field_decl->offset);
       annotate("{}: offset of {}.{}", sde->loc.line, sde->text(sema),
                term.name->text);
@@ -171,14 +165,14 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     // emit correct address first
     codegen_expr_address(mem->parent_expr);
 
-    emitln("%a{} =l add {}, {}", stack.next_id, stack.pop().format(),
+    emitnl("%a{} =l add {}, {}", stack.next_id, stack.pop().format(),
            mem->field_decl->offset);
     annotate("{}: offset of {}", mem->loc.line, mem->text(sema));
     stack.push_address();
 
     if (value) {
       // TODO: for struct values?
-      emitln("%_{} =w loadw {}", stack.next_id, stack.pop().format());
+      emitnl("%_{} =w loadw {}", stack.next_id, stack.pop().format());
       annotate("{}: load {}", mem->loc.line, mem->text(sema));
       stack.push_temp();
     }
@@ -190,14 +184,14 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     ;
     codegen_expr_address(se->array_expr);
     codegen_expr_value(se->index_expr);
-    emitln("%_{} =l mul {}, {}", stack.next_id, stack.pop().format(),
+    emitnl("%_{} =l mul {}, {}", stack.next_id, stack.pop().format(),
            se->array_expr->type->base_type->size);
     stack.push_temp();
-    emitln("%_{} =l add {}, {}", stack.next_id, stack.pop().format(),
+    emitnl("%_{} =l add {}, {}", stack.next_id, stack.pop().format(),
            stack.pop().format());
     stack.push_temp();
     if (value) {
-      emitln("%_{} =w loadw {}", stack.next_id, stack.pop().format());
+      emitnl("%_{} =w loadw {}", stack.next_id, stack.pop().format());
       annotate("{}: load array", se->loc.line);
       stack.push_temp();
     }
@@ -215,7 +209,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
         // If `value` is true, emit another load to get the
         // dereferenced value.
         // FIXME: size?
-        emitln("%_{} =w loadw {}", stack.next_id, stack.pop().format());
+        emitnl("%_{} =w loadw {}", stack.next_id, stack.pop().format());
         annotate("{}: dereference {}", ue->loc.line, ue->operand->text(sema));
         stack.push_temp();
       }
@@ -246,7 +240,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     default:
       assert(!"unknown binary expr kind");
     }
-    emitln("%_{} =w {} {}, {}", stack.next_id, op_str, stack.pop().format(),
+    emitnl("%_{} =w {} {}, {}", stack.next_id, op_str, stack.pop().format(),
            stack.pop().format());
     annotate("{}: binary op '{}'", binary->loc.line, binary->op.str());
     stack.push_temp();
@@ -297,7 +291,7 @@ void QbeGen::codegen_stmt(Stmt *s) {
     // (usually) happens by address.
     // assert(valstack.peek().kind == ValueKind::value);
 
-    emitln("ret {}", stack.pop().format());
+    emitnl("ret {}", stack.pop().format());
     // This is here only to make QBE not complain.  In practice, no
     // instructions after this point should be reachable.
     emit("\n@L{}", label_id);
@@ -308,10 +302,10 @@ void QbeGen::codegen_stmt(Stmt *s) {
     auto id = ifelse_label_id;
     ifelse_label_id++;
     codegen_expr_value(if_stmt->cond);
-    emitln("jnz {}, @if_{}, @else_{}", stack.pop().format(), id, id);
+    emitnl("jnz {}, @if_{}, @else_{}", stack.pop().format(), id, id);
     emit("\n@if_{}", id);
     codegen_stmt(if_stmt->if_body);
-    emitln("jmp @fi_{}", id);
+    emitnl("jmp @fi_{}", id);
     emit("\n@else_{}", id);
     if (if_stmt->else_if_stmt) {
       codegen_stmt(if_stmt->else_if_stmt);
@@ -380,7 +374,7 @@ void QbeGen::codegen_decl(Decl *d) {
         // frame_local_id?
         param->frame_local_id = stack.next_id;
         stack.next_id++;
-        emitln("%a{} =l add 0, %{}", param->frame_local_id, param->name->text);
+        emitnl("%a{} =l add 0, %{}", param->frame_local_id, param->name->text);
       }
 
       // TODO: Maybe better to just check f->extern_ instead of f->body.
@@ -392,7 +386,7 @@ void QbeGen::codegen_decl(Decl *d) {
       // Analyses in the earlier passes should make sure that this ret is
       // not reachable.  This is only here to make QBE work meanwhile
       // those analyses are not fully implemented yet.
-      emitln("ret");
+      emitnl("ret");
     }
     sema.context.func_stack.pop_back();
 
@@ -424,7 +418,7 @@ void QbeGen::codegen_decl(Decl *d) {
     }
     s->type->size = offset;
 
-    emitln("type :{} = {{", s->name->text);
+    emitnl("type :{} = {{", s->name->text);
     for (auto field : s->fields) {
       (void)field;
       emit("w, ");
@@ -476,16 +470,16 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
       auto rhs_text = fmt::format("{}.{}", rhs->text(sema), field->name->text);
 
       // load address from source; calculate address of the field
-      emitln("%a{} =l add {}, {}", stack.next_id, rhs_value.format(),
+      emitnl("%a{} =l add {}, {}", stack.next_id, rhs_value.format(),
              field->offset);
       annotate("{}: address of {}", rhs->loc.line, rhs_text);
       stack.push_address();
 
       // load value of the field
       if (struct_decl->alignment == 8) {
-        emitln("%_{} =l loadl {}", stack.next_id, stack.pop().format());
+        emitnl("%_{} =l loadl {}", stack.next_id, stack.pop().format());
       } else if (struct_decl->alignment == 4) {
-        emitln("%_{} =w loadw {}", stack.next_id, stack.pop().format());
+        emitnl("%_{} =w loadw {}", stack.next_id, stack.pop().format());
       } else {
         assert(!"unknown alignment");
       }
@@ -495,7 +489,7 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
       // calculate the address of the LHS field first
       auto lhs_text = fmt::format("{}.{}", lhs->name->text, field->name->text);
       auto value_to_be_copied = stack.pop();
-      emitln("%a{} =l add {}, {}", stack.next_id, lhs_address.format(),
+      emitnl("%a{} =l add {}, {}", stack.next_id, lhs_address.format(),
              field->offset);
       annotate("{}: address of {}", rhs->loc.line, lhs_text);
       stack.push_address();
@@ -503,10 +497,10 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
       // store value to dest address of LHS
       auto lhs_address = stack.pop();
       if (struct_decl->alignment == 8) {
-        emitln("storel {}, {}", value_to_be_copied.format(),
+        emitnl("storel {}, {}", value_to_be_copied.format(),
                lhs_address.format());
       } else if (struct_decl->alignment == 4) {
-        emitln("storew {}, {}", value_to_be_copied.format(),
+        emitnl("storew {}, {}", value_to_be_copied.format(),
                lhs_address.format());
       } else {
         assert(!"unknown alignment");
@@ -516,9 +510,9 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
   }
   // For non-struct types, a simple store is enough.
   else if (lhs_type->size == 8) {
-    emitln("storel {}, {}", rhs_value.format(), lhs_address.format());
+    emitnl("storel {}, {}", rhs_value.format(), lhs_address.format());
   } else if (lhs_type->size == 4) {
-    emitln("storew {}, {}", rhs_value.format(), lhs_address.format());
+    emitnl("storew {}, {}", rhs_value.format(), lhs_address.format());
   } else {
     assert(!"unknown type size");
   }
@@ -540,7 +534,7 @@ long QbeGen::emit_stack_alloc(const Type *type, size_t line,
 
   assert(type->size > 0);
 
-  emitln("%a{} =l ", id);
+  emitnl("%a{} =l ", id);
   // FIXME: unify 'ptr' and 'ref'
   if (type->kind == TypeKind::pointer) {
     // assumes pointers are always 8 bytes
@@ -569,7 +563,7 @@ long QbeGen::emit_stack_alloc(const Type *type, size_t line,
 }
 
 void QbeGen::codegen_data_section() {
-  emitln("data $string = {{ b \"hello\", b 0 }}");
+  emitnl("data $string = {{ b \"hello\", b 0 }}");
 }
 
 void QbeGen::codegen(AstNode *n) {

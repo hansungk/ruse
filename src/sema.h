@@ -246,16 +246,18 @@ struct QbeGen {
     file = fopen(filename, "w");
   }
   ~QbeGen() { fclose(file); }
-  template <typename... Args> void emitln(Args &&...args) {
+  // Emit on a new line, starting with indentation.
+  template <typename... Args> void emitnl(Args &&...args) {
     fmt::print(file, "\n{:{}}", "", indent);
     fmt::print(file, std::forward<Args>(args)...);
   }
+  // Emit continually at the end of the current line.
   template <typename... Args> void emit(Args &&...args) {
     fmt::print(file, std::forward<Args>(args)...);
   }
   // Annotate the last emitted QBE line.
   template <typename... Args> void annotate(Args &&...args) {
-    fmt::print(file, "   # ");
+    fmt::print(file, "			# ");
     fmt::print(file, std::forward<Args>(args)...);
   }
   struct IndentBlock {

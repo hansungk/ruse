@@ -435,7 +435,6 @@ struct VarDecl : public Decl {
 // Note that FuncDecl doesn't have a related type; only its ret_type will be
 // set here.
 struct FuncDecl : public Decl {
-  Type *ret_type = nullptr;        // return type of the function
   VarDecl *struct_param = nullptr; // struct parameter for methods
   StructDecl *target_struct =
       nullptr; // target struct that this method is implemented in. Should
@@ -445,6 +444,7 @@ struct FuncDecl : public Decl {
   std::vector<VarDecl *> params; // list of parameters
   CompoundStmt *body = nullptr;  // body statements
   Expr *ret_type_expr = nullptr; // return type expression
+  Type *ret_type = nullptr;      // return type of the function
 
   FuncDecl(Name *n) : Decl(Decl::func, n) {}
   size_t args_count() const { return params.size(); }
