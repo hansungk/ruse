@@ -61,9 +61,9 @@ struct AstNode {
 
 // File is simply a group of Toplevels.
 struct File : public AstNode {
-    File() : AstNode(AstNode::file) {}
+  File() : AstNode(AstNode::file) {}
 
-    std::vector<AstNode *> toplevels;
+  std::vector<AstNode *> toplevels;
 };
 
 //
@@ -88,15 +88,15 @@ struct Stmt : public AstNode {
 
 // Variable declaration statement; doesn't include function declarations.
 struct DeclStmt : public Stmt {
-    DeclStmt(Decl *d) : Stmt(Stmt::decl), decl(d) {}
+  DeclStmt(Decl *d) : Stmt(Stmt::decl), decl(d) {}
 
-    Decl *decl;
+  Decl *decl;
 };
 
 struct ExprStmt : public Stmt {
-    ExprStmt(Expr *e) : Stmt(Stmt::expr), expr(e) {}
+  ExprStmt(Expr *e) : Stmt(Stmt::expr), expr(e) {}
 
-    Expr *expr;
+  Expr *expr;
 };
 
 // Assignment statements, such as `a = b` or `a[0] = func()`.
@@ -104,48 +104,48 @@ struct ExprStmt : public Stmt {
 // but this is not easily determined at the parsing stage.  The assignability
 // will be checked at the semantic stage.
 struct AssignStmt : public Stmt {
-    AssignStmt(Expr *l, Expr *r, bool m)
-        : Stmt(Stmt::assign), lhs(l), rhs(r), move(m) {}
+  AssignStmt(Expr *l, Expr *r, bool m)
+      : Stmt(Stmt::assign), lhs(l), rhs(r), move(m) {}
 
-    Expr *lhs;
-    Expr *rhs;
-    bool move;
+  Expr *lhs;
+  Expr *rhs;
+  bool move;
 };
 
 struct ReturnStmt : public Stmt {
-    Expr *expr;
+  Expr *expr;
 
-    ReturnStmt(Expr *e) : Stmt(Stmt::return_), expr(e) {}
+  ReturnStmt(Expr *e) : Stmt(Stmt::return_), expr(e) {}
 };
 
 struct CompoundStmt : public Stmt {
-    std::vector<AstNode *> stmts;
+  std::vector<AstNode *> stmts;
 
-    CompoundStmt() : Stmt(Stmt::compound) {}
+  CompoundStmt() : Stmt(Stmt::compound) {}
 };
 
 struct IfStmt : public Stmt {
-    Expr *cond;            // conditional expr
-    CompoundStmt *if_body; // body for true cond
-    // Views 'else if' clauses as a separate if statement that is embedeed in
-    // the 'else' clause.  'else_if' and 'else_body' cannot be non-null at the
-    // same time.
-    IfStmt *else_if_stmt = nullptr;
-    CompoundStmt *else_body = nullptr;
+  Expr *cond;            // conditional expr
+  CompoundStmt *if_body; // body for true cond
+  // Views 'else if' clauses as a separate if statement that is embedeed in
+  // the 'else' clause.  'else_if' and 'else_body' cannot be non-null at the
+  // same time.
+  IfStmt *else_if_stmt = nullptr;
+  CompoundStmt *else_body = nullptr;
 
-    IfStmt(Expr *e, CompoundStmt *is, IfStmt *ei, CompoundStmt *es)
-        : Stmt(Stmt::if_), cond(e), if_body(is), else_if_stmt(ei),
-          else_body(es) {}
+  IfStmt(Expr *e, CompoundStmt *is, IfStmt *ei, CompoundStmt *es)
+      : Stmt(Stmt::if_), cond(e), if_body(is), else_if_stmt(ei), else_body(es) {
+  }
 };
 
 struct BuiltinStmt : public Stmt {
-    std::string_view text;
+  std::string_view text;
 
-    BuiltinStmt(std::string_view sv) : Stmt(Stmt::builtin), text(sv) {}
+  BuiltinStmt(std::string_view sv) : Stmt(Stmt::builtin), text(sv) {}
 };
 
 struct BadStmt : public Stmt {
-    BadStmt() : Stmt(Stmt::bad) {}
+  BadStmt() : Stmt(Stmt::bad) {}
 };
 
 template <> inline bool Stmt::is<DeclStmt>() { return kind == decl; }
@@ -195,61 +195,59 @@ struct Expr : public AstNode {
 };
 
 struct IntegerLiteral : public Expr {
-    int64_t value;
+  int64_t value;
 
-    IntegerLiteral(int64_t v) : Expr(Expr::integer_literal), value(v) {}
+  IntegerLiteral(int64_t v) : Expr(Expr::integer_literal), value(v) {}
 };
 
 struct StringLiteral : public Expr {
-    std::string_view value;
+  std::string_view value;
 
-    StringLiteral(std::string_view sv)
-        : Expr(Expr::string_literal), value(sv) {}
+  StringLiteral(std::string_view sv) : Expr(Expr::string_literal), value(sv) {}
 };
 
 // A unary expression that references a declaration object, e.g. a variable or
 // a function.
 struct DeclRefExpr : public Expr {
-    Name *name = nullptr;
+  Name *name = nullptr;
 
-    DeclRefExpr(Name *n) : Expr(Expr::decl_ref), name(n) {}
+  DeclRefExpr(Name *n) : Expr(Expr::decl_ref), name(n) {}
 };
 
 // Also includes typecasts.
 struct CallExpr : public Expr {
-    enum Kind {
-        func,
-    } kind;
+  enum Kind {
+    func,
+  } kind;
 
-    // This could be either DeclRefExpr ("f()") or MemberExpr ("s.m()").
-    Expr *callee_expr = nullptr;
-    // Decl of the called function, or the destination type for typecasts.
-    Decl *callee_decl = nullptr; // FIXME: just use callee_expr->decl
-    std::vector<Expr *> args;
+  // This could be either DeclRefExpr ("f()") or MemberExpr ("s.m()").
+  Expr *callee_expr = nullptr;
+  // Decl of the called function, or the destination type for typecasts.
+  Decl *callee_decl = nullptr; // FIXME: just use callee_expr->decl
+  std::vector<Expr *> args;
 
-    CallExpr(Kind kind, Expr *ce, const std::vector<Expr *> &args)
-        : Expr(Expr::call), kind(kind), callee_expr(ce), args(args) {}
+  CallExpr(Kind kind, Expr *ce, const std::vector<Expr *> &args)
+      : Expr(Expr::call), kind(kind), callee_expr(ce), args(args) {}
 };
 
 // '.memb = expr' part in Struct { ... }.
 struct StructDefTerm {
-    Name *name = nullptr;
-    Expr *initexpr = nullptr;
-    FieldDecl *field_decl = nullptr;
+  Name *name = nullptr;
+  Expr *initexpr = nullptr;
+  FieldDecl *field_decl = nullptr;
 };
 
 // 'Struct { .m1 = .e1, .m2 = e2, ... }'
 struct StructDefExpr : public Expr {
-    // Either a DeclRefExpr or a MemberExpr.
-    // @Improve: Technically, we might be able to just have this as a Name. It
-    // doesn't make sense all the intermediate Exprs in a MemberExpr has to have
-    // an associated Type.
-    DeclRefExpr *name_expr;
-    std::vector<StructDefTerm> terms;
+  // Either a DeclRefExpr or a MemberExpr.
+  // @Improve: Technically, we might be able to just have this as a Name. It
+  // doesn't make sense all the intermediate Exprs in a MemberExpr has to have
+  // an associated Type.
+  DeclRefExpr *name_expr;
+  std::vector<StructDefTerm> terms;
 
-    StructDefExpr(DeclRefExpr *dre,
-                  const std::vector<StructDefTerm> &t)
-        : Expr(Expr::struct_def), name_expr(dre), terms(t) {}
+  StructDefExpr(DeclRefExpr *dre, const std::vector<StructDefTerm> &t)
+      : Expr(Expr::struct_def), name_expr(dre), terms(t) {}
 };
 
 // 'struct.mem'
@@ -289,51 +287,50 @@ struct CastExpr : public Expr {
 };
 
 struct UnaryExpr : public Expr {
-    const enum Kind {
-        paren,
-        ref,
-        var_ref,
-        deref,
-        plus,  // TODO
-        minus, // TODO
-    } kind;
+  const enum Kind {
+    paren,
+    ref,
+    var_ref,
+    deref,
+    plus,  // TODO
+    minus, // TODO
+  } kind;
 
-    Expr *operand;
+  Expr *operand;
 
-    UnaryExpr(Kind k, Expr *oper)
-        : Expr(Expr::unary), kind(k), operand(oper) {}
+  UnaryExpr(Kind k, Expr *oper) : Expr(Expr::unary), kind(k), operand(oper) {}
 };
 
 struct BinaryExpr : public Expr {
-    Expr *lhs;
-    Token op;
-    Expr *rhs;
+  Expr *lhs;
+  Token op;
+  Expr *rhs;
 
-    BinaryExpr(Expr *lhs_, Token op_, Expr *rhs_)
-        : Expr(Expr::binary), lhs(lhs_), op(op_), rhs(rhs_) {
-        loc = lhs->loc;
-    }
+  BinaryExpr(Expr *lhs_, Token op_, Expr *rhs_)
+      : Expr(Expr::binary), lhs(lhs_), op(op_), rhs(rhs_) {
+    loc = lhs->loc;
+  }
 };
 
 struct TypeExpr : public Expr {
-    TypeKind kind = TypeKind::value;
-    // Name of the type. TODO: should this contain '&' and '[]'?
-    Name *name = nullptr;
-    // Expr's 'decl' is the Decl object that represents this type.
+  TypeKind kind = TypeKind::value;
+  // Name of the type. TODO: should this contain '&' and '[]'?
+  Name *name = nullptr;
+  // Expr's 'decl' is the Decl object that represents this type.
 
-    // Is this type mutable?
-    bool mut = false;
-    // E.g., 'T' part of '*T'.  It is Expr rather than TypeExpr mainly so that
-    // it can store BadExpr.  XXX dirty.
-    Expr *subexpr = nullptr;
+  // Is this type mutable?
+  bool mut = false;
+  // E.g., 'T' part of '*T'.  It is Expr rather than TypeExpr mainly so that
+  // it can store BadExpr.  XXX dirty.
+  Expr *subexpr = nullptr;
 
-    // TODO: incomplete.
-    TypeExpr(TypeKind k, Name *n, bool m, Name *lt, Expr *se)
-        : Expr(Expr::type_), kind(k), name(n), mut(m), subexpr(se) {}
+  // TODO: incomplete.
+  TypeExpr(TypeKind k, Name *n, bool m, Name *lt, Expr *se)
+      : Expr(Expr::type_), kind(k), name(n), mut(m), subexpr(se) {}
 };
 
 struct BadExpr : public Expr {
-    BadExpr() : Expr(Expr::bad) {}
+  BadExpr() : Expr(Expr::bad) {}
 };
 
 template <> inline bool Expr::is<IntegerLiteral>() {
@@ -445,55 +442,54 @@ struct FuncDecl : public Decl {
                // be null for freestanding functions.
                // @Improve: don't really want to keep this as a member.
   bool extern_ = false; // whether this function has an external linkage
-  std::vector<VarDecl *> params;      // list of parameters
-  CompoundStmt *body = nullptr;       // body statements
-  Expr *ret_type_expr = nullptr;      // return type expression
+  std::vector<VarDecl *> params; // list of parameters
+  CompoundStmt *body = nullptr;  // body statements
+  Expr *ret_type_expr = nullptr; // return type expression
 
   FuncDecl(Name *n) : Decl(Decl::func, n) {}
   size_t args_count() const { return params.size(); }
 };
 
 struct FieldDecl : public Decl {
-    Expr *type_expr = nullptr;
+  Expr *type_expr = nullptr;
 
-    // Byte offset of this field in the struct.
-    long offset = 0;
+  // Byte offset of this field in the struct.
+  long offset = 0;
 
-    FieldDecl(Name *n, Expr *texpr)
-        : Decl(Decl::field, n), type_expr(texpr) {}
+  FieldDecl(Name *n, Expr *texpr) : Decl(Decl::field, n), type_expr(texpr) {}
 };
 
 // Struct declaration.
 struct StructDecl : public Decl {
-    std::vector<FieldDecl *> fields; // FIXME: unneeded with decl_table.
-    // Decl table that stores methods, fields(TODO), etc.
-    ScopedTable<Name *, Decl *> decl_table;
+  std::vector<FieldDecl *> fields; // FIXME: unneeded with decl_table.
+  // Decl table that stores methods, fields(TODO), etc.
+  ScopedTable<Name *, Decl *> decl_table;
 
-    // By a multiple of how much the start address for this struct should be
-    // aligned to.
-    uint64_t alignment;
+  // By a multiple of how much the start address for this struct should be
+  // aligned to.
+  uint64_t alignment;
 
-    StructDecl(Name *n) : Decl(Decl::struct_, n) {}
+  StructDecl(Name *n) : Decl(Decl::struct_, n) {}
 };
 
 // A variant type in an enum.
 struct EnumVariantDecl : public Decl {
-    std::vector<Expr *> fields; // type of the fields
+  std::vector<Expr *> fields; // type of the fields
 
-    EnumVariantDecl(Name *n, std::vector<Expr *> f)
-        : Decl(Decl::enum_variant, n), fields(f) {}
+  EnumVariantDecl(Name *n, std::vector<Expr *> f)
+      : Decl(Decl::enum_variant, n), fields(f) {}
 };
 
 // Enum declaration.
 struct EnumDecl : public Decl {
-    std::vector<EnumVariantDecl *> variants; // variants
+  std::vector<EnumVariantDecl *> variants; // variants
 
-    EnumDecl(Name *n, std::vector<EnumVariantDecl *> m)
-        : Decl(Decl::enum_, n), variants(m) {}
+  EnumDecl(Name *n, std::vector<EnumVariantDecl *> m)
+      : Decl(Decl::enum_, n), variants(m) {}
 };
 
 struct BadDecl : public Decl {
-    BadDecl() : Decl(Decl::bad) {}
+  BadDecl() : Decl(Decl::bad) {}
 };
 
 template <> inline bool Decl::is<VarDecl>() { return kind == var; }

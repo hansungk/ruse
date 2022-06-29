@@ -97,6 +97,7 @@ if __name__ == "__main__":
     test('build/ruse', 'test/return.ruse')
     test('build/ruse', 'test/if.ruse')
     test('build/ruse', 'test/typecheck.ruse')
+    test('build/ruse', 'test/array.ruse')
     test('build/ruse', 'test/struct.ruse')
     test('build/ruse', 'test/struct2.ruse')
     test('build/ruse', 'test/func.ruse')

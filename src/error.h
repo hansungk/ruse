@@ -6,11 +6,11 @@
 namespace cmp {
 
 struct Error {
-    SourceLoc loc;
-    std::string message;
+  SourceLoc loc;
+  std::string message;
 
-    Error() {}
-    Error(SourceLoc loc, const std::string &msg) : loc(loc), message(msg) {}
+  Error() {}
+  Error(SourceLoc loc, const std::string &msg) : loc(loc), message(msg) {}
 };
 
 } // namespace cmp

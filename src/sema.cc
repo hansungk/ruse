@@ -79,85 +79,85 @@ void setup_builtin(Sema &sema) {
 
   auto decl_alloc = sema.make_node<FuncDecl>(sema.name_table.push("alloc"));
   check(sema, decl_alloc);
-  decl_alloc->params.push_back(
-      make_temporary_decl(sema, sema.context.ty_int64));
+  auto alloc_param = make_temporary_decl(sema, sema.context.ty_int64);
+  decl_alloc->params.push_back(alloc_param);
   decl_alloc->ret_type = sema.context.ty_incomplete;
+
+  // TODO
   sema.name_table.push("buf");
   sema.name_table.push("len");
 }
 
 Sema::~Sema() {
-    for (auto t : type_pool) {
-        delete t;
-    }
+  for (auto t : type_pool) {
+    delete t;
+  }
 }
 
 void Sema::scope_open() {
-    decl_table.scope_open();
-    type_table.scope_open();
-    lifetime_table.scope_open();
-    borrow_table.scope_open();
+  decl_table.scope_open();
+  type_table.scope_open();
+  lifetime_table.scope_open();
+  borrow_table.scope_open();
 }
 
 void Sema::scope_close() {
-    decl_table.scope_close();
-    type_table.scope_close();
-    lifetime_table.scope_close();
-    borrow_table.scope_close();
+  decl_table.scope_close();
+  type_table.scope_close();
+  lifetime_table.scope_close();
+  borrow_table.scope_close();
 }
 
 bool Type::is_struct() const {
-    return kind == TypeKind::value && origin_decl &&
-           origin_decl->kind == Decl::struct_;
+  return kind == TypeKind::value && origin_decl &&
+         origin_decl->kind == Decl::struct_;
 }
 
-bool Type::is_pointer() const {
-  return kind == TypeKind::pointer;
-}
+bool Type::is_pointer() const { return kind == TypeKind::pointer; }
 
 bool Type::is_builtin(Sema &sema) const {
-    return this == sema.context.ty_int || this == sema.context.ty_char ||
-           this == sema.context.ty_void || this == sema.context.ty_string;
+  return this == sema.context.ty_int || this == sema.context.ty_char ||
+         this == sema.context.ty_void || this == sema.context.ty_string;
 }
 
 bool declare_in_struct(StructDecl *struct_decl, Name *name, Decl *decl) {
-    assert(struct_decl);
+  assert(struct_decl);
 
-    auto found = struct_decl->decl_table.find(name);
-    if (found && found->value->kind == decl->kind &&
-        found->scope_level == struct_decl->decl_table.curr_scope_level) {
-        return error(decl->loc, "redefinition of '{}' inside struct {}",
-                     name->text, struct_decl->name->text);
-    }
+  auto found = struct_decl->decl_table.find(name);
+  if (found && found->value->kind == decl->kind &&
+      found->scope_level == struct_decl->decl_table.curr_scope_level) {
+    return error(decl->loc, "redefinition of '{}' inside struct {}", name->text,
+                 struct_decl->name->text);
+  }
 
-    struct_decl->decl_table.insert(name, decl);
-    return true;
+  struct_decl->decl_table.insert(name, decl);
+  return true;
 }
 
 // Declare a `decl` that has `name` in the current scope.
 // Returns true if success; otherwise (e.g.  redeclaration), return false and
 // do error handling.
 bool declare(Sema &sema, Decl *decl) {
-    assert(decl);
+  assert(decl);
 
-    // For struct methods, we need to declare in a special struct-local scope.
-    if (decl->kind == Decl::func) {
-        auto fd = decl->as<FuncDecl>();
-        // If 'fd' is a struct method, if its struct parameter fails check,
-        // we can't declare them in its method scope.
-        if (fd->struct_param && fd->target_struct) {
-            return declare_in_struct(fd->target_struct, fd->name, fd);
-        }
+  // For struct methods, we need to declare in a special struct-local scope.
+  if (decl->kind == Decl::func) {
+    auto fd = decl->as<FuncDecl>();
+    // If 'fd' is a struct method, if its struct parameter fails check,
+    // we can't declare them in its method scope.
+    if (fd->struct_param && fd->target_struct) {
+      return declare_in_struct(fd->target_struct, fd->name, fd);
     }
+  }
 
-    auto found = sema.decl_table.find(decl->name);
-    if (found && found->value->kind == decl->kind &&
-        found->scope_level == sema.decl_table.curr_scope_level) {
-        return error(decl->loc, "redefinition of '{}'", decl->name->text);
-    }
+  auto found = sema.decl_table.find(decl->name);
+  if (found && found->value->kind == decl->kind &&
+      found->scope_level == sema.decl_table.curr_scope_level) {
+    return error(decl->loc, "redefinition of '{}'", decl->name->text);
+  }
 
-    sema.decl_table.insert(decl->name, decl);
-    return true;
+  sema.decl_table.insert(decl->name, decl);
+  return true;
 }
 
 // Get or construct a derived type with kind `kind`, from a given type
@@ -263,9 +263,9 @@ bool check_unary_expr(Sema &sema, UnaryExpr *u) {
 }
 
 Name *name_of_member_expr(Sema &sema, MemberExpr *mem) {
-    auto text = std::string{mem->parent_expr->decl->name->text} + "." +
-                mem->member_name->text;
-    return sema.name_table.push(text.c_str());
+  auto text = std::string{mem->parent_expr->decl->name->text} + "." +
+              mem->member_name->text;
+  return sema.name_table.push(text.c_str());
 }
 
 VarDecl *VarDecl::findMemberDecl(const Name *member_name) const {
@@ -687,8 +687,7 @@ static bool check_func_decl(Sema &sema, FuncDecl *f) {
                    struct_param_type->name->text);
     } else {
       // all is good
-      f->target_struct =
-          struct_param_type->origin_decl->as<StructDecl>();
+      f->target_struct = struct_param_type->origin_decl->as<StructDecl>();
     }
   }
 

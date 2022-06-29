@@ -7,7 +7,8 @@
 
 namespace cmp {
 
-Name *make_name_of_derived_type(NameTable &names, TypeKind kind, Name *referee_name);
+Name *make_name_of_derived_type(NameTable &names, TypeKind kind,
+                                Name *referee_name);
 
 class Parser {
 public:

@@ -186,7 +186,8 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     break;
   }
   case Expr::subscript: {
-    auto se = e->as<SubscriptExpr>();;
+    auto se = e->as<SubscriptExpr>();
+    ;
     codegen_expr_address(se->array_expr);
     codegen_expr_value(se->index_expr);
     emitln("%_{} =l mul {}, {}", stack.next_id, stack.pop().format(),
@@ -245,8 +246,8 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     default:
       assert(!"unknown binary expr kind");
     }
-    emitln("%_{} =w {} {}, {}", stack.next_id, op_str,
-           stack.pop().format(), stack.pop().format());
+    emitln("%_{} =w {} {}, {}", stack.next_id, op_str, stack.pop().format(),
+           stack.pop().format());
     annotate("{}: binary op '{}'", binary->loc.line, binary->op.str());
     stack.push_temp();
     break;
@@ -258,9 +259,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
 
 void QbeGen::codegen_expr_value(Expr *e) { codegen_expr_explicit(e, true); }
 
-void QbeGen::codegen_expr_address(Expr *e) {
-  codegen_expr_explicit(e, false);
-}
+void QbeGen::codegen_expr_address(Expr *e) { codegen_expr_explicit(e, false); }
 
 void QbeGen::codegen_stmt(Stmt *s) {
   switch (s->kind) {

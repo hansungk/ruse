@@ -6,76 +6,75 @@
 namespace cmp {
 
 Parser::Parser(Lexer &l, Sema &sema) : lexer{l}, sema(sema) {
-    // insert keywords in name table
-    for (auto m : keyword_map)
-        sema.name_table.push(m.first);
+  // insert keywords in name table
+  for (auto m : keyword_map)
+    sema.name_table.push(m.first);
 
-    // set up lookahead and cache
-    next();
+  // set up lookahead and cache
+  next();
 }
 
 void Parser::error(const std::string &msg) {
-    auto srcloc = locate();
-    sema.errors.push_back({srcloc, msg});
-    fmt::print(stderr, "{}:{}:{}: {}\n", srcloc.filename, srcloc.line,
-               srcloc.col, msg);
-    exit(EXIT_FAILURE);
+  auto srcloc = locate();
+  sema.errors.push_back({srcloc, msg});
+  fmt::print(stderr, "{}:{}:{}: {}\n", srcloc.filename, srcloc.line, srcloc.col,
+             msg);
+  exit(EXIT_FAILURE);
 }
 
 void Parser::error_expected(const std::string &msg) {
-    std::string s = fmt::format("expected {}, found '{}'", msg, tok.str());
-    error(s);
+  std::string s = fmt::format("expected {}, found '{}'", msg, tok.str());
+  error(s);
 }
 
 void Parser::next() {
-    if (tok.kind == Token::eos)
-        return;
+  if (tok.kind == Token::eos)
+    return;
 
-    // update cache if necessary
-    if (next_read_pos == token_cache.size()) {
-        auto t = lexer.lex();
-        token_cache.push_back(t);
-    }
+  // update cache if necessary
+  if (next_read_pos == token_cache.size()) {
+    auto t = lexer.lex();
+    token_cache.push_back(t);
+  }
 
-    last_tok_endpos = tok.endPos();
-    tok = token_cache[next_read_pos];
-    next_read_pos++;
+  last_tok_endpos = tok.endPos();
+  tok = token_cache[next_read_pos];
+  next_read_pos++;
 }
 
 Parser::State Parser::save_state() {
-    return State{tok, last_tok_endpos, next_read_pos, sema.errors.size()};
+  return State{tok, last_tok_endpos, next_read_pos, sema.errors.size()};
 }
 
 void Parser::restore_state(State state) {
-    tok = state.tok;
-    last_tok_endpos = state.last_tok_endpos;
-    next_read_pos = state.next_read_pos;
-    sema.errors.resize(state.error_count);
+  tok = state.tok;
+  last_tok_endpos = state.last_tok_endpos;
+  next_read_pos = state.next_read_pos;
+  sema.errors.resize(state.error_count);
 }
 
 // Returns true if match succeeded, false otherwise.
 bool Parser::expect(Token::Kind kind, const std::string &msg = "") {
-    if (tok.kind != kind) {
-        std::string s = msg;
-        if (msg.empty()) {
-            s = fmt::format(
-                "expected '{}', found '{}'", tokenTypeToString(kind),
-                std::string{tok.start,
-                            static_cast<size_t>(tok.end - tok.start)});
-        }
-        error(s);
-        // Don't make progress if the match failed.
-        // Note: the Go compiler does otherwise. Is that necessary?
-        return false;
+  if (tok.kind != kind) {
+    std::string s = msg;
+    if (msg.empty()) {
+      s = fmt::format(
+          "expected '{}', found '{}'", tokenTypeToString(kind),
+          std::string{tok.start, static_cast<size_t>(tok.end - tok.start)});
     }
-    next();
-    return true;
+    error(s);
+    // Don't make progress if the match failed.
+    // Note: the Go compiler does otherwise. Is that necessary?
+    return false;
+  }
+  next();
+  return true;
 }
 
 // Assumes that comments can only come at the end of a line, i.e. it considers
 // only the line '//' comments.
 bool Parser::is_end_of_stmt() const {
-    return tok.kind == Token::newline || tok.kind == Token::comment;
+  return tok.kind == Token::newline || tok.kind == Token::comment;
 }
 
 bool Parser::is_eos() const { return tok.kind == Token::eos; }
@@ -86,143 +85,143 @@ bool Parser::is_eos() const { return tok.kind == Token::eos; }
 //     Decl
 //     Expr
 Stmt *Parser::parse_stmt() {
-    Stmt *stmt = nullptr;
+  Stmt *stmt = nullptr;
 
-    if (tok.kind == Token::lbrace) {
-        stmt = parse_compound_stmt();
-    } else if (tok.kind == Token::kw_return) {
-        stmt = parse_return_stmt();
-    } else if (tok.kind == Token::kw_if) {
-        stmt = parse_if_stmt();
-    } else if (tok.kind == Token::hash) {
-        stmt = parse_builtin_stmt();
-    } else if (is_start_of_decl()) {
-        stmt = parse_decl_stmt();
-    } else {
-        stmt = parse_expr_or_assign_stmt();
-    }
-    skip_newlines();
+  if (tok.kind == Token::lbrace) {
+    stmt = parse_compound_stmt();
+  } else if (tok.kind == Token::kw_return) {
+    stmt = parse_return_stmt();
+  } else if (tok.kind == Token::kw_if) {
+    stmt = parse_if_stmt();
+  } else if (tok.kind == Token::hash) {
+    stmt = parse_builtin_stmt();
+  } else if (is_start_of_decl()) {
+    stmt = parse_decl_stmt();
+  } else {
+    stmt = parse_expr_or_assign_stmt();
+  }
+  skip_newlines();
 
-    return stmt;
+  return stmt;
 }
 
 Stmt *Parser::parse_return_stmt() {
-    auto pos = tok.pos;
+  auto pos = tok.pos;
 
-    expect(Token::kw_return);
+  expect(Token::kw_return);
 
-    // optional
-    Expr *expr = nullptr;
-    if (!is_end_of_stmt()) {
-        expr = parse_expr();
-    }
-    if (!is_end_of_stmt()) {
-        skip_until_end_of_line();
-        expect(Token::newline);
-        return sema.make_node_pos<BadStmt>(pos);
-    }
+  // optional
+  Expr *expr = nullptr;
+  if (!is_end_of_stmt()) {
+    expr = parse_expr();
+  }
+  if (!is_end_of_stmt()) {
     skip_until_end_of_line();
     expect(Token::newline);
-    return sema.make_node_pos<ReturnStmt>(pos, expr);
+    return sema.make_node_pos<BadStmt>(pos);
+  }
+  skip_until_end_of_line();
+  expect(Token::newline);
+  return sema.make_node_pos<ReturnStmt>(pos, expr);
 }
 
 // Simplest way to represent the if-elseif-else chain is to view the else-if
 // clause as simply a separate if statement that is embedded under the else
 // statement.
 IfStmt *Parser::parse_if_stmt() {
-    auto pos = tok.pos;
+  auto pos = tok.pos;
 
-    expect(Token::kw_if);
+  expect(Token::kw_if);
 
-    Expr *cond = parse_expr();
-    CompoundStmt *cstmt = parse_compound_stmt();
+  Expr *cond = parse_expr();
+  CompoundStmt *cstmt = parse_compound_stmt();
 
-    IfStmt *elseif = nullptr;
-    CompoundStmt *cstmt_false = nullptr;
+  IfStmt *elseif = nullptr;
+  CompoundStmt *cstmt_false = nullptr;
 
-    if (tok.kind == Token::kw_else) {
-        next();
+  if (tok.kind == Token::kw_else) {
+    next();
 
-        if (tok.kind == Token::kw_if) {
-            elseif = parse_if_stmt();
-        } else if (tok.kind == Token::lbrace) {
-            cstmt_false = parse_compound_stmt();
-        } else {
-            expect(Token::lbrace);
+    if (tok.kind == Token::kw_if) {
+      elseif = parse_if_stmt();
+    } else if (tok.kind == Token::lbrace) {
+      cstmt_false = parse_compound_stmt();
+    } else {
+      expect(Token::lbrace);
 
-            // do our best to recover
-            parse_expr();
-            if (tok.kind == Token::lbrace) {
-                cstmt_false = parse_compound_stmt();
-            } else {
-                skip_to_next_line();
-            }
-        }
+      // do our best to recover
+      parse_expr();
+      if (tok.kind == Token::lbrace) {
+        cstmt_false = parse_compound_stmt();
+      } else {
+        skip_to_next_line();
+      }
     }
+  }
 
-    return sema.make_node_pos<IfStmt>(pos, cond, cstmt, elseif, cstmt_false);
+  return sema.make_node_pos<IfStmt>(pos, cond, cstmt, elseif, cstmt_false);
 }
 
 // This could be 'let a = ...' or a 'struct { ... }'; look into parseDecl()
 // (FIXME doc).
 DeclStmt *Parser::parse_decl_stmt() {
-    VarDecl *var_decl = nullptr;
+  VarDecl *var_decl = nullptr;
 
-    switch (tok.kind) {
-    case Token::kw_let:
-        next();
-        var_decl = parse_var_decl(VarDecl::local_);
-        break;
-    case Token::kw_var:
-        next();
-        var_decl = parse_var_decl(VarDecl::local_);
-        var_decl->mut = true;
-        break;
-    default:
-        assert(!"not implemented");
-    }
+  switch (tok.kind) {
+  case Token::kw_let:
+    next();
+    var_decl = parse_var_decl(VarDecl::local_);
+    break;
+  case Token::kw_var:
+    next();
+    var_decl = parse_var_decl(VarDecl::local_);
+    var_decl->mut = true;
+    break;
+  default:
+    assert(!"not implemented");
+  }
 
-    if (!is_end_of_stmt()) {
-        // XXX: remove bad check
-        if (var_decl && static_cast<Decl *>(var_decl)->kind != Decl::bad) {
-            expect(Token::newline);
-        }
-        // try to recover
-        skip_until_end_of_line();
+  if (!is_end_of_stmt()) {
+    // XXX: remove bad check
+    if (var_decl && static_cast<Decl *>(var_decl)->kind != Decl::bad) {
+      expect(Token::newline);
     }
-    return sema.make_node<DeclStmt>(var_decl);
+    // try to recover
+    skip_until_end_of_line();
+  }
+  return sema.make_node<DeclStmt>(var_decl);
 }
 
 // Upon seeing an expression, we don't know yet if it is a simple expression
 // statement or an assignment statement until we see the '=' token and the RHS.
 // This function handles both cases in one go.
 Stmt *Parser::parse_expr_or_assign_stmt() {
-    auto pos = tok.pos;
+  auto pos = tok.pos;
 
-    auto lhs = parse_expr();
-    // ExprStmt: expression ends with a newline
-    if (is_end_of_stmt()) {
-        skip_until_end_of_line();
-        expect(Token::newline);
-        return sema.make_node<ExprStmt>(lhs);
-    }
+  auto lhs = parse_expr();
+  // ExprStmt: expression ends with a newline
+  if (is_end_of_stmt()) {
+    skip_until_end_of_line();
+    expect(Token::newline);
+    return sema.make_node<ExprStmt>(lhs);
+  }
 
-    bool move = false;
-    // AssignStmt: expression is followed by '=' or '<-'
-    // (anything else is treated as an error)
-    if (tok.kind == Token::reversearrow) {
-        move = true;
-        next();
-    } else if (!expect(Token::equals, "expected '=' or '\\n' after expression")) {
-        skip_until_end_of_line();
-        expect(Token::newline);
-        return sema.make_node_pos<BadStmt>(pos);
-    }
+  bool move = false;
+  // AssignStmt: expression is followed by '=' or '<-'
+  // (anything else is treated as an error)
+  if (tok.kind == Token::reversearrow) {
+    move = true;
+    next();
+  } else if (!expect(Token::equals, "expected '=' or '\\n' after expression")) {
+    skip_until_end_of_line();
+    expect(Token::newline);
+    return sema.make_node_pos<BadStmt>(pos);
+  }
 
-    // At this point, it becomes certain that this is an assignment statement,
-    // and so we can safely unwrap for RHS.
-    auto rhs = parse_expr();
-    return sema.make_node_pos<AssignStmt>(pos, lhs, rhs, move);
+  // At this point, it becomes certain that this is an assignment statement,
+  // and so we can safely unwrap for RHS.
+  auto rhs = parse_expr();
+  return sema.make_node_pos<AssignStmt>(pos, lhs, rhs, move);
 }
 
 // Compound statement is a scoped block that consists of multiple statements.
@@ -230,65 +229,64 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 // CompoundStmt:
 //     { Stmt* }
 CompoundStmt *Parser::parse_compound_stmt() {
-    expect(Token::lbrace);
-    auto compound = sema.make_node<CompoundStmt>();
+  expect(Token::lbrace);
+  auto compound = sema.make_node<CompoundStmt>();
 
-    while (!is_eos()) {
-        skip_newlines();
-        if (tok.kind == Token::rbrace)
-            break;
-        auto line = parse_toplevel();
-        compound->stmts.push_back(line);
-    }
+  while (!is_eos()) {
+    skip_newlines();
+    if (tok.kind == Token::rbrace)
+      break;
+    auto line = parse_toplevel();
+    compound->stmts.push_back(line);
+  }
 
-    expect(Token::rbrace);
-    return compound;
+  expect(Token::rbrace);
+  return compound;
 }
 
 BuiltinStmt *Parser::parse_builtin_stmt() {
-    auto start = tok.pos;
-    skip_until_end_of_line();
-    auto end = tok.pos;
-    std::string_view text{lexer.source().buf.data() + start, end - start};
-    return sema.make_node_pos<BuiltinStmt>(start, text);
+  auto start = tok.pos;
+  skip_until_end_of_line();
+  auto end = tok.pos;
+  std::string_view text{lexer.source().buf.data() + start, end - start};
+  return sema.make_node_pos<BuiltinStmt>(start, text);
 }
 
 static Name *push_token_to_name_table(Sema &sema, const Token tok) {
-    return sema.name_table.pushlen(tok.start, tok.end - tok.start);
+  return sema.name_table.pushlen(tok.start, tok.end - tok.start);
 }
 
 // Doesn't include 'let' or 'var'.
 VarDecl *Parser::parse_var_decl(VarDecl::Kind kind) {
-    auto pos = tok.pos;
+  auto pos = tok.pos;
 
-    if (tok.kind != Token::ident) {
-        error_expected("an identifier");
-    }
+  if (tok.kind != Token::ident) {
+    error_expected("an identifier");
+  }
 
-    Name *name = push_token_to_name_table(sema, tok);
+  Name *name = push_token_to_name_table(sema, tok);
+  next();
+
+  VarDecl *v = nullptr;
+  // '=' comes either first, or after the ': type' part.
+  if (tok.kind == Token::colon) {
     next();
-
-    VarDecl *v = nullptr;
-    // '=' comes either first, or after the ': type' part.
-    if (tok.kind == Token::colon) {
-        next();
-        auto type_expr = parse_type_expr();
-        v = sema.make_node_pos<VarDecl>(pos, name, kind, type_expr, nullptr);
-    }
-    if (tok.kind == Token::equals) {
-        next();
-        auto assign_expr = parse_expr();
-        if (v)
-            static_cast<VarDecl *>(v)->assign_expr = assign_expr;
-        else
-            v = sema.make_node_pos<VarDecl>(pos, name, kind, nullptr,
-                                            assign_expr);
-    }
-    if (!v) {
-        error_expected("'=' or ':' after var name");
-        v = nullptr;
-    }
-    return v;
+    auto type_expr = parse_type_expr();
+    v = sema.make_node_pos<VarDecl>(pos, name, kind, type_expr, nullptr);
+  }
+  if (tok.kind == Token::equals) {
+    next();
+    auto assign_expr = parse_expr();
+    if (v)
+      static_cast<VarDecl *>(v)->assign_expr = assign_expr;
+    else
+      v = sema.make_node_pos<VarDecl>(pos, name, kind, nullptr, assign_expr);
+  }
+  if (!v) {
+    error_expected("'=' or ':' after var name");
+    v = nullptr;
+  }
+  return v;
 }
 
 // Parses a comma separated list of AST nodes whose type is T*.  Parser
@@ -300,42 +298,42 @@ VarDecl *Parser::parse_var_decl(VarDecl::Kind kind) {
 // Doesn't account for the enclosing parentheses or braces.
 template <typename T, typename F1, typename F2>
 void Parser::parse_comma_separated_list(F1 &&parse_fn, F2 &&do_on_parse) {
-    // With both ) and } checked, this works for both function argument lists
-    // and struct fields.
-    auto finishers = {Token::rparen, Token::rbrace};
-    auto delimiters = {Token::comma, Token::newline, Token::rparen, Token::rbrace};
+  // With both ) and } checked, this works for both function argument lists
+  // and struct fields.
+  auto finishers = {Token::rparen, Token::rbrace};
+  auto delimiters = {Token::comma, Token::newline, Token::rparen,
+                     Token::rbrace};
 
-    for (;;) {
-        skip_newlines();
-        if (tok.is_any(finishers) || is_eos())
-            break;
+  for (;;) {
+    skip_newlines();
+    if (tok.is_any(finishers) || is_eos())
+      break;
 
-        T elem;
-        bool success = parse_fn(elem);
-        if (success) {
-            do_on_parse(elem);
-        }
-
-        // Determining where a decl ends in a list is a little tricky.  Here,
-        // we stop for any token that is either (1) separator tokens like comma
-        // or newline, or (2) closing tokens like parentheses and braces.
-        if (!success) {
-            skip_until_any(delimiters);
-        } else if (!tok.is_any(delimiters)) {
-            // For cases where a VarDecl succeeds parsing but there is a
-            // leftover token, e.g. 'a: int###', we need to directly check the
-            // next token is the delimiting token, and do an appropriate error
-            // report.
-            error(fmt::format("trailing token '{}' after declaration",
-                              tok.str()));
-            skip_until_any(delimiters);
-        }
-
-        // Skip comma if any. This allows trailing comma at the end, such as
-        // '(a,)'.
-        if (tok.kind == Token::comma)
-            next();
+    T elem;
+    bool success = parse_fn(elem);
+    if (success) {
+      do_on_parse(elem);
     }
+
+    // Determining where a decl ends in a list is a little tricky.  Here,
+    // we stop for any token that is either (1) separator tokens like comma
+    // or newline, or (2) closing tokens like parentheses and braces.
+    if (!success) {
+      skip_until_any(delimiters);
+    } else if (!tok.is_any(delimiters)) {
+      // For cases where a VarDecl succeeds parsing but there is a
+      // leftover token, e.g. 'a: int###', we need to directly check the
+      // next token is the delimiting token, and do an appropriate error
+      // report.
+      error(fmt::format("trailing token '{}' after declaration", tok.str()));
+      skip_until_any(delimiters);
+    }
+
+    // Skip comma if any. This allows trailing comma at the end, such as
+    // '(a,)'.
+    if (tok.kind == Token::comma)
+      next();
+  }
 }
 
 FuncDecl *Parser::parseFuncDecl() {
@@ -395,35 +393,35 @@ FuncDecl *Parser::parseFuncDecl() {
 }
 
 StructDecl *Parser::parse_struct_decl() {
-    auto pos = tok.pos;
-    Name *name = nullptr;
+  auto pos = tok.pos;
+  Name *name = nullptr;
 
-    expect(Token::kw_struct);
+  expect(Token::kw_struct);
 
-    if (tok.kind != Token::ident) {
-        error_expected("an identifier");
-        skip_until(Token::lbrace);
-    } else {
-        name = push_token_to_name_table(sema, tok);
-        next();
-    }
+  if (tok.kind != Token::ident) {
+    error_expected("an identifier");
+    skip_until(Token::lbrace);
+  } else {
+    name = push_token_to_name_table(sema, tok);
+    next();
+  }
 
-    auto sd = sema.make_node_pos<StructDecl>(pos, name);
+  auto sd = sema.make_node_pos<StructDecl>(pos, name);
 
-    expect(Token::lbrace);
+  expect(Token::lbrace);
+  skip_newlines();
+  while (tok.kind != Token::rbrace) {
+    // FIXME: Creates a throwaway VarDecl.
+    auto var_decl = parse_var_decl(VarDecl::struct_);
+    auto field_decl = sema.make_node_pos<FieldDecl>(
+        var_decl->pos, var_decl->name, var_decl->type_expr);
+    sd->fields.push_back(field_decl);
+    declare_in_struct(sd, field_decl->name, field_decl);
     skip_newlines();
-    while (tok.kind != Token::rbrace) {
-        // FIXME: Creates a throwaway VarDecl.
-        auto var_decl = parse_var_decl(VarDecl::struct_);
-        auto field_decl = sema.make_node_pos<FieldDecl>(
-            var_decl->pos, var_decl->name, var_decl->type_expr);
-        sd->fields.push_back(field_decl);
-        declare_in_struct(sd, field_decl->name, field_decl);
-        skip_newlines();
-    }
-    expect(Token::rbrace, "unterminated struct declaration");
+  }
+  expect(Token::rbrace, "unterminated struct declaration");
 
-    return sd;
+  return sd;
 }
 
 bool Parser::is_start_of_decl() {
@@ -478,27 +476,27 @@ Decl *Parser::parse_decl() {
 }
 
 Expr *Parser::parse_literal_expr() {
-    Expr *expr = nullptr;
-    // TODO Literals other than integers?
-    switch (tok.kind) {
-    case Token::number: {
-        std::string s{tok.start, static_cast<size_t>(tok.end - tok.start)};
-        int value = std::stoi(s);
-        expr = sema.make_node_pos<IntegerLiteral>(tok.pos, value);
-        break;
-    }
-    case Token::string:
-        expr = sema.make_node_pos<StringLiteral>(
-            tok.pos, std::string_view{
-                         tok.start, static_cast<size_t>(tok.end - tok.start)});
-        break;
-    default:
-        assert(false && "non-integer literals not implemented");
-    }
+  Expr *expr = nullptr;
+  // TODO Literals other than integers?
+  switch (tok.kind) {
+  case Token::number: {
+    std::string s{tok.start, static_cast<size_t>(tok.end - tok.start)};
+    int value = std::stoi(s);
+    expr = sema.make_node_pos<IntegerLiteral>(tok.pos, value);
+    break;
+  }
+  case Token::string:
+    expr = sema.make_node_pos<StringLiteral>(
+        tok.pos,
+        std::string_view{tok.start, static_cast<size_t>(tok.end - tok.start)});
+    break;
+  default:
+    assert(false && "non-integer literals not implemented");
+  }
 
-    next();
+  next();
 
-    return expr;
+  return expr;
 }
 
 // Upon seeing an expression that starts with an identifier, we don't know
@@ -543,17 +541,17 @@ Expr *Parser::parse_postfix_maybe(Expr *expr) {
 }
 
 Expr *Parser::parse_cast_expr() {
-    auto pos = tok.pos;
+  auto pos = tok.pos;
 
-    expect(Token::lbracket);
-    auto type_expr = parse_type_expr();
-    expect(Token::rbracket);
+  expect(Token::lbracket);
+  auto type_expr = parse_type_expr();
+  expect(Token::rbracket);
 
-    expect(Token::lparen);
-    auto target_expr = parse_expr();
-    expect(Token::rparen);
+  expect(Token::lparen);
+  auto target_expr = parse_expr();
+  expect(Token::rparen);
 
-    return sema.make_node_pos<CastExpr>(pos, type_expr, target_expr);
+  return sema.make_node_pos<CastExpr>(pos, type_expr, target_expr);
 }
 
 // Get the Name handle that designates a reference type of a given referee type
@@ -561,20 +559,20 @@ Expr *Parser::parse_cast_expr() {
 // already-declared reference types from the type table. TODO: looks kinda like
 // an unnecessary step.
 Name *make_name_of_derived_type(NameTable &names, TypeKind kind,
-                           Name *referee_name) {
-    std::string s;
-    switch (kind) {
-    case TypeKind::pointer:
-        s = "*";
-        break;
-    case TypeKind::array:
-        s = "[]";
-        break;
-    default:
-        assert(!"unknown type kind");
-    }
-    s += referee_name->text;
-    return names.push(s.c_str());
+                                Name *referee_name) {
+  std::string s;
+  switch (kind) {
+  case TypeKind::pointer:
+    s = "*";
+    break;
+  case TypeKind::array:
+    s = "[]";
+    break;
+  default:
+    assert(!"unknown type kind");
+  }
+  s += referee_name->text;
+  return names.push(s.c_str());
 }
 
 // Parse a type expression.  A type expression is simply every stream of tokens
@@ -693,22 +691,22 @@ Expr *Parser::parse_unary_expr() {
 namespace {
 
 int binary_op_precedence(const Token &op) {
-    switch (op.kind) {
-    case Token::star:
-    case Token::slash:
-        return 2;
-    case Token::plus:
-    case Token::minus:
-        return 1;
-    case Token::doubleequals:
-    case Token::notequals:
-    case Token::greaterthan:
-    case Token::lesserthan:
-        return 0;
-    default:
-        // not an operator
-        return -1;
-    }
+  switch (op.kind) {
+  case Token::star:
+  case Token::slash:
+    return 2;
+  case Token::plus:
+  case Token::minus:
+    return 1;
+  case Token::doubleequals:
+  case Token::notequals:
+  case Token::greaterthan:
+  case Token::lesserthan:
+    return 0;
+  default:
+    // not an operator
+    return -1;
+  }
 }
 
 } // namespace
@@ -756,48 +754,48 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
 }
 
 bool Parser::lookahead_struct_def() {
-    auto s = save_state();
+  auto s = save_state();
 
-    if (tok.kind != Token::lbrace) {
-        goto fail;
-    }
+  if (tok.kind != Token::lbrace) {
+    goto fail;
+  }
 
-    // empty ({})
-    if (tok.kind == Token::rbrace) {
-        goto success;
-    }
-    next();
+  // empty ({})
+  if (tok.kind == Token::rbrace) {
+    goto success;
+  }
+  next();
 
-    if (tok.kind != Token::dot) {
-        goto fail;
-    }
+  if (tok.kind != Token::dot) {
+    goto fail;
+  }
 
 success:
-    restore_state(s);
-    return true;
+  restore_state(s);
+  return true;
 
 fail:
-    restore_state(s);
-    return false;
+  restore_state(s);
+  return false;
 }
 
 // Parse '.memb = expr' part in Struct { .m1 = e1, .m2 = e2, ... }.
 // Returns false if there is no more valid term to parse.
 bool Parser::parse_structdef_field(StructDefTerm &result) {
-    if (!expect(Token::dot))
-        return false;
-    Name *name = push_token_to_name_table(sema, tok);
-    next();
+  if (!expect(Token::dot))
+    return false;
+  Name *name = push_token_to_name_table(sema, tok);
+  next();
 
-    if (!expect(Token::equals))
-        return false;
+  if (!expect(Token::equals))
+    return false;
 
-    auto expr = parse_expr();
-    if (!expr)
-        return false;
+  auto expr = parse_expr();
+  if (!expr)
+    return false;
 
-    result = StructDefTerm{name, expr};
-    return true;
+  result = StructDefTerm{name, expr};
+  return true;
 }
 
 // If this expression has a trailing {...}, parse as a struct definition
@@ -837,70 +835,68 @@ Expr *Parser::parse_expr() {
 }
 
 void Parser::skip_until(Token::Kind kind) {
-    while (!is_eos() && tok.kind != kind)
-        next();
+  while (!is_eos() && tok.kind != kind)
+    next();
 }
 
 void Parser::skip_until_any(std::initializer_list<Token::Kind> &kinds) {
-    while (!is_eos() && !tok.is_any(kinds))
-        next();
+  while (!is_eos() && !tok.is_any(kinds))
+    next();
 }
 
 void Parser::skip_until_end_of_line() {
-    while (!is_eos() && tok.kind != Token::newline)
-        next();
+  while (!is_eos() && tok.kind != Token::newline)
+    next();
 }
 
 // Used when the current statement turns out to be broken and we just want to
 // skip this whole line.
 void Parser::skip_to_next_line() {
-    skip_until_end_of_line();
-    expect(Token::newline);
+  skip_until_end_of_line();
+  expect(Token::newline);
 }
 
 // The language is newline-aware, but newlines are mostly meaningless unless
 // they are at the end of a statement or a declaration.  In those cases we use
 // this to skip over them.
 void Parser::skip_newlines() {
-    while (tok.kind == Token::newline || tok.kind == Token::comment)
-        next();
+  while (tok.kind == Token::newline || tok.kind == Token::comment)
+    next();
 }
 
 AstNode *Parser::parse_toplevel() {
-    if (is_start_of_decl()) {
-        return parse_decl();
-    }
+  if (is_start_of_decl()) {
+    return parse_decl();
+  }
 
-    auto stmt = parse_stmt();
-    if (!stmt) {
-        error(fmt::format(
-            "unexpected '{}' at toplevel",
-            std::string{tok.start, static_cast<size_t>(tok.end - tok.start)}));
-        skip_to_next_line();
-        return nullptr;
-    }
-    return stmt;
+  auto stmt = parse_stmt();
+  if (!stmt) {
+    error(fmt::format(
+        "unexpected '{}' at toplevel",
+        std::string{tok.start, static_cast<size_t>(tok.end - tok.start)}));
+    skip_to_next_line();
+    return nullptr;
+  }
+  return stmt;
 }
 
 File *Parser::parse_file() {
-    auto file = sema.make_node<File>();
+  auto file = sema.make_node<File>();
 
-    skip_newlines();
+  skip_newlines();
 
-    while (!is_eos()) {
-        auto toplevel = parse_toplevel();
-        if (!toplevel) {
-            continue;
-        }
-        file->toplevels.push_back(toplevel);
-        skip_newlines();
+  while (!is_eos()) {
+    auto toplevel = parse_toplevel();
+    if (!toplevel) {
+      continue;
     }
+    file->toplevels.push_back(toplevel);
+    skip_newlines();
+  }
 
-    return file;
+  return file;
 }
 
-AstNode *Parser::parse() {
-    return parse_file();
-}
+AstNode *Parser::parse() { return parse_file(); }
 
 } // namespace cmp

@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
   // free functions?
   auto d1 = Driver::from_path(Path{argv[1]});
   if (!d1.compile()) {
-      return EXIT_FAILURE;
+    return EXIT_FAILURE;
   }
 
   return EXIT_SUCCESS;

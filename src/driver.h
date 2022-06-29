@@ -2,8 +2,8 @@
 #ifndef CMP_DRIVER_H
 #define CMP_DRIVER_H
 
-#include "source.h"
 #include "error.h"
+#include "source.h"
 
 using namespace cmp;
 

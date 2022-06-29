@@ -126,45 +126,45 @@ bool is_ident_or_keyword(const Token tok);
 /// Assumes that the associated Source outlives it.
 class Lexer {
 public:
-    const Source &src;            // source fed to this lexer
-    std::string_view sv;          // view into the source buffer
-    const char *look;             // lookahead position
-    const char *curr;             // start of the current token
-    std::vector<size_t> line_off; // offsets of each newline
-    size_t num_ident = 0;         // number of identifiers found
+  const Source &src;            // source fed to this lexer
+  std::string_view sv;          // view into the source buffer
+  const char *look;             // lookahead position
+  const char *curr;             // start of the current token
+  std::vector<size_t> line_off; // offsets of each newline
+  size_t num_ident = 0;         // number of identifiers found
 
-    Lexer(const Source &s)
-        : src(s), sv(src.buf.data(), src.buf.size()), look(std::cbegin(sv)),
-          curr(std::cbegin(sv)) {}
+  Lexer(const Source &s)
+      : src(s), sv(src.buf.data(), src.buf.size()), look(std::cbegin(sv)),
+        curr(std::cbegin(sv)) {}
 
-    /// Lex the current token and advance to the next one.
-    Token lex();
-    /// Lex all of the source text and return the array of tokens.
-    std::vector<Token> lex_all();
-    /// Peek the next token without consuming it.
-    Token peek();
-    const Source &source() const { return src; }
+  /// Lex the current token and advance to the next one.
+  Token lex();
+  /// Lex all of the source text and return the array of tokens.
+  std::vector<Token> lex_all();
+  /// Peek the next token without consuming it.
+  Token peek();
+  const Source &source() const { return src; }
 
 private:
-    Token lex_ident_or_keyword();
-    Token lex_number();
-    Token lex_string();
-    Token lex_comment();
-    Token lex_symbol();
+  Token lex_ident_or_keyword();
+  Token lex_number();
+  Token lex_string();
+  Token lex_comment();
+  Token lex_symbol();
 
-    // Advance lex position by one character.
-    void step();
-    const char *lookn(long n) const;
-    const char *eos() const {
-        // account for '\0' at the end
-        return std::cend(sv) - 1;
-    }
-    size_t pos() const { return curr - std::cbegin(sv); }
-    Token make_token(Token::Kind kind);
-    Token make_token_with_literal(Token::Kind kind);
-    template <typename F> void skip_while(F &&lambda);
-    void skip_whitespace();
-    void error(const std::string &msg);
+  // Advance lex position by one character.
+  void step();
+  const char *lookn(long n) const;
+  const char *eos() const {
+    // account for '\0' at the end
+    return std::cend(sv) - 1;
+  }
+  size_t pos() const { return curr - std::cbegin(sv); }
+  Token make_token(Token::Kind kind);
+  Token make_token_with_literal(Token::Kind kind);
+  template <typename F> void skip_while(F &&lambda);
+  void skip_whitespace();
+  void error(const std::string &msg);
 };
 
 } // namespace cmp
