@@ -475,8 +475,13 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
   // XXX: This assumes that any LHS type that is larger than an eightbyte is
   // a struct.
   auto lhs_type = lhs->type;
-  if (lhs_type->size > 8) {
-    assert(lhs_type->kind == TypeKind::value);
+  if (lhs_type->kind == TypeKind::array) {
+    if (rhs->kind == Expr::call &&
+        rhs->as<CallExpr>()->func_decl == sema.context.fn_alloc) {
+      assert(false);
+    }
+  } else if (lhs_type->size > 8) {
+    assert(lhs_type->kind == TypeKind::atom);
     assert(!lhs_type->builtin);
     assert(lhs_type->origin_decl->kind == Decl::struct_);
     auto struct_decl = lhs_type->origin_decl->as<StructDecl>();
@@ -567,7 +572,7 @@ long QbeGen::emit_stack_alloc(const Type *type, size_t line,
            "ptr & builtin for Types is possible?");
     emit("alloc4");
   } else {
-    assert(type->kind == TypeKind::value);
+    assert(type->kind == TypeKind::atom);
     assert(type->origin_decl->kind == Decl::struct_ &&
            "non-struct value type?");
     if (type->origin_decl->as<StructDecl>()->alignment == 4) {

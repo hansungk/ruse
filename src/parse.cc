@@ -587,7 +587,7 @@ Expr *Parser::parse_type_expr() {
     next();
   }
 
-  TypeKind type_kind = TypeKind::value;
+  TypeKind type_kind = TypeKind::atom;
   Name *lt_name = nullptr;
   Expr *subexpr = nullptr;
   // String to push to the name table.  Push full names of the derived types
@@ -610,7 +610,7 @@ Expr *Parser::parse_type_expr() {
                                      subexpr->as<TypeExpr>()->name)
                ->text;
   } else if (is_ident_or_keyword(tok)) {
-    type_kind = TypeKind::value;
+    type_kind = TypeKind::atom;
 
     text = std::string{tok.start, static_cast<size_t>(tok.end - tok.start)};
     next();

@@ -26,6 +26,8 @@ struct Context {
   Type *ty_string = nullptr;
   // Used for type checking built-in functions, e.g. "arr = alloc(42)".
   Type *ty_incomplete = nullptr;
+
+  FuncDecl *fn_alloc = nullptr;
 };
 
 // Maps a VarDecl to its borrow count in the current scope.

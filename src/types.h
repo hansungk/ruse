@@ -62,10 +62,12 @@ struct NameTable {
 };
 
 enum class TypeKind {
-  value, // built-in, struct
+  atom, // built-in, struct
   pointer,
   array,
 };
+
+constexpr size_t array_struct_size = 16;
 
 // 'Type' represents a type, whether it be a built-in type, a user-defined
 // struct, or a reference to another of those.  Similar to Names, Types are
@@ -79,7 +81,7 @@ enum class TypeKind {
 // outlive the lexical scope of a single AST node. TODO: say about whether
 // storing them in memory pools or the scoped table.
 struct Type {
-  TypeKind kind = TypeKind::value;
+  TypeKind kind = TypeKind::atom;
   // Name of the type. TODO: include * or [] in the name?
   Name *name = nullptr;
   // Whether this is a builtin type or not.

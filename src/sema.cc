@@ -21,7 +21,7 @@ template <typename... Args> static bool error(SourceLoc loc, Args &&...args) {
 }
 
 Type *make_struct_type(Sema &sema, Name *n, Decl *decl) {
-  Type *t = new Type(TypeKind::value, n);
+  Type *t = new Type(TypeKind::atom, n);
   t->origin_decl = decl;
   sema.type_pool.push_back(t);
   return t;
@@ -39,14 +39,13 @@ Type *make_pointer_type(Sema &sema, Name *name, Type *base_type) {
 Type *make_array_type(Sema &sema, Name *name, Type *base_type) {
   Type *t = new Type(TypeKind::array, name);
   t->base_type = base_type;
-  // assumes pointers are always 8 bytes
-  t->size = 8;
+  t->size = array_struct_size;
   sema.type_pool.push_back(t);
   return t;
 }
 
 Type *make_builtin_type(Sema &sema, Name *n) {
-  Type *t = new Type(TypeKind::value, n);
+  Type *t = new Type(TypeKind::atom, n);
   t->builtin = true;
   sema.type_pool.push_back(t);
   return t;
@@ -79,7 +78,9 @@ void setup_builtin(Sema &sema) {
   sema.context.ty_incomplete->size = 0;
 
   auto decl_alloc = sema.make_node<FuncDecl>(sema.name_table.push("alloc"));
+  // Calling check will also declare the function in the global scope.
   check(sema, decl_alloc);
+  sema.context.fn_alloc = decl_alloc;
   auto alloc_param = make_temporary_decl(sema, sema.context.ty_int64);
   decl_alloc->params.push_back(alloc_param);
   decl_alloc->ret_type = sema.context.ty_incomplete;
@@ -110,7 +111,7 @@ void Sema::scope_close() {
 }
 
 bool Type::is_struct() const {
-  return kind == TypeKind::value && origin_decl &&
+  return kind == TypeKind::atom && origin_decl &&
          origin_decl->kind == Decl::struct_;
 }
 
@@ -529,7 +530,7 @@ bool check_expr(Sema &sema, Expr *e) {
         return false;
     }
 
-    if (t->kind == TypeKind::value) {
+    if (t->kind == TypeKind::atom) {
       // This is the very first point a new value type is encountered.
       auto sym = sema.decl_table.find(t->name);
       if (!sym)
@@ -582,8 +583,7 @@ bool check_stmt(Sema &sema, Stmt *s) {
     }
 
     if (as->rhs->kind == Expr::call &&
-        as->rhs->as<CallExpr>()->func_decl->name ==
-            sema.name_table.get("alloc")) {
+        as->rhs->as<CallExpr>()->func_decl == sema.context.fn_alloc) {
       // Fix type of alloc() from incomplete to match LHS
       assert(as->lhs->type->kind == TypeKind::array);
       // FIXME: convoluted

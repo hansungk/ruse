@@ -319,7 +319,7 @@ struct BinaryExpr : public Expr {
 };
 
 struct TypeExpr : public Expr {
-  TypeKind kind = TypeKind::value;
+  TypeKind kind = TypeKind::atom;
   // Name of the type. TODO: should this contain '&' and '[]'?
   Name *name = nullptr;
   // Expr's 'decl' is the Decl object that represents this type.
