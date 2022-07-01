@@ -321,8 +321,8 @@ struct context {
 		int next_temp_id; // next id to be pushed to valstack
 	} valstack;
 	struct qbe_format {
-		int line_len;
 		int indent;
+		int line_len; // used to align annotation comments
 	} qbefmt;
 };
 

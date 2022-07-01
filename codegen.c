@@ -158,18 +158,20 @@ is_param(const struct ast_node *func, const struct ast_node *var) {
 // Generate address where the "len" field of an array resides.
 // Note that this does not push the resulting value to the stack.
 static struct qbe_val
-array_gen_len(struct context *ctx, struct qbe_val array_addr) {
+gen_array_len(struct context *ctx, struct qbe_val array_addr) {
 	struct qbe_val len_addr = stack_make_temp(ctx);
 	emitln(ctx, "%s =l add %s, %d", len_addr.text, array_addr.text, 0);
+	annotate(ctx, "'len' of array");
 	return len_addr;
 }
 
 // Generate address where the "buf" field of an array or a slice resides.
 // Note that this does not push the resulting value to the stack.
 static struct qbe_val
-array_gen_buf(struct context *ctx, struct qbe_val array_addr) {
+gen_array_buf(struct context *ctx, struct qbe_val array_addr) {
 	struct qbe_val buf_addr = stack_make_temp(ctx);
 	emitln(ctx, "%s =l add %s, %d", buf_addr.text, array_addr.text, 8);
+	annotate(ctx, "'buf' of array");
 	return buf_addr;
 }
 
@@ -177,18 +179,21 @@ array_gen_buf(struct context *ctx, struct qbe_val array_addr) {
 // `n` is the declaration node of the array.
 // Note that this does not push the resulting value to the stack.
 static struct qbe_val
-array_gen_element(struct context *ctx, struct ast_node *n,
+gen_array_element(struct context *ctx, struct ast_node *n,
                   struct qbe_val array_addr, struct qbe_val index) {
 	// Need to take indirect access to the 'buf' field of the array.
-	struct qbe_val buf_addr = array_gen_buf(ctx, array_addr);
+	struct qbe_val buf_addr = gen_array_buf(ctx, array_addr);
 	gen_load(ctx, buf_addr, pointer_size);
+	annotate(ctx, "load '%s'", n->tok.name);
 	struct qbe_val buf_ptr_val = stack_pop(ctx);
 
 	struct qbe_val elem_addr = stack_make_temp(ctx);
 	emitln(ctx, "%s =l mul %d, %s", elem_addr.text,
 	     n->type->base_type->size, index.text);
+	annotate(ctx, "stride of array index");
 	emitln(ctx, "%s =l add %s, %s", elem_addr.text, elem_addr.text,
 	     buf_ptr_val.text);
+	annotate(ctx, "offset to array '%s'", n->tok.name);
 	return elem_addr;
 }
 
@@ -209,6 +214,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		// There seems to be no direct way to assign a number literal to a
 		// temporary in QBE, so use a bogus add 0.
 		emitln(ctx, "%s =%c add 0, %s", val.text, wl, buf);
+		annotate(ctx, "integer constant");
 		stack_push_temp(ctx, val);
 		break;
 	}
@@ -223,6 +229,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		if (value) {
 			struct qbe_val val_addr = stack_pop(ctx);
 			gen_load(ctx, val_addr, n->type->size);
+			annotate(ctx, "load '%s'\n", n->tok.name);
 		}
 		break;
 	case NBINEXPR: {
@@ -261,7 +268,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		struct qbe_val array_base_addr = stack_pop(ctx);
 		gen_expr_value(ctx, n->subscript.index);
 		struct qbe_val index_value = stack_pop(ctx);
-		struct qbe_val element_addr = array_gen_element(
+		struct qbe_val element_addr = gen_array_element(
 		    ctx, n->subscript.array, array_base_addr, index_value);
 		stack_push_temp(ctx, element_addr);
 		if (value) {
@@ -280,7 +287,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		if (strcmp(n->call.func->tok.name, "len") == 0) {
 			assert(value && "taking address of len()?");
 			gen_expr_addr(ctx, n->call.args[0]);
-			struct qbe_val len_addr = array_gen_len(ctx, stack_pop(ctx));
+			struct qbe_val len_addr = gen_array_len(ctx, stack_pop(ctx));
 			gen_load(ctx, len_addr, val_rhs.data_size);
 			break;
 		} else if (strcmp(n->call.func->tok.name, "alloc") == 0) {
@@ -322,10 +329,12 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		struct qbe_val member_addr = stack_make_temp(ctx);
 		emitln(ctx, "%s =l add %s, %d", member_addr.text, parent_addr.text,
 		     n->member.offset);
+		annotate(ctx, "offset for member '%s'", n->tok.name);
 		stack_push_temp(ctx, member_addr);
 		if (value) {
 			member_addr = stack_pop(ctx);
 			gen_load(ctx, member_addr, n->type->size);
+			annotate(ctx, "load member '%s'", n->tok.name);
 		}
 		break;
 	}
@@ -353,7 +362,7 @@ gen_assign(struct context *ctx, struct ast_node *lhs, struct qbe_val lhs_addr,
 	struct qbe_val target_addr = lhs_addr;
 	if (lhs->type->kind == TYPE_SLICE) {
 		assert(lhs_addr.kind == VAL_ADDR);
-		target_addr = array_gen_buf(ctx, lhs_addr);
+		target_addr = gen_array_buf(ctx, lhs_addr);
 	}
 	gen_store(ctx, rhs_val.data_size);
 	emit(ctx, " %s, %s", rhs_val.text, target_addr.text);
@@ -372,8 +381,9 @@ gen_decl(struct context *ctx, struct ast_node *n) {
 		// FIXME: is it better to assign decl_id here or in check?
 		n->local_id = ctx->curr_decl_id++;
 		// TODO: proper alignment
-		emitln(ctx, "%%A%d =l alloc4 %ld", n->local_id, n->type->size);
 		struct qbe_val val_lhs = stack_make_addr(ctx, n->local_id);
+		emitln(ctx, "%s =l alloc4 %ld", val_lhs.text, n->type->size);
+		annotate(ctx, "stack variable '%s'", n->tok.name);
 		if (n->var_decl.init_expr) {
 			gen(ctx, n->var_decl.init_expr);
 			struct qbe_val val_rhs = stack_pop(ctx);
