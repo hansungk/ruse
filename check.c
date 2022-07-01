@@ -13,7 +13,8 @@ static struct type *ty_string;
 static struct ast_node *declare(struct context *ctx, struct ast_node *n);
 static struct type *push_type(struct context *ctx, struct type *ty);
 
-void fatal(const char *fmt, ...) {
+void
+fatal(const char *fmt, ...) {
 	va_list args;
 
 	fprintf(stderr, "fatal: ");
@@ -25,7 +26,8 @@ void fatal(const char *fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
-struct type *maketype(enum type_kind kind, struct token tok) {
+struct type *
+maketype(enum type_kind kind, struct token tok) {
 	struct type *t = calloc(1, sizeof(struct ast_node));
 	if (!t) {
 		fprintf(stderr, "alloc error\n");
@@ -39,7 +41,8 @@ struct type *maketype(enum type_kind kind, struct token tok) {
 }
 
 // FIXME: remove 'tok'
-struct type *makearraytype(struct type *elem_type, struct token tok) {
+struct type *
+makearraytype(struct type *elem_type, struct token tok) {
 	struct type *t = maketype(TYPE_ARRAY, tok);
 	t->base_type = elem_type;
 	t->size = array_struct_size;
@@ -47,7 +50,8 @@ struct type *makearraytype(struct type *elem_type, struct token tok) {
 }
 
 // FIXME: remove 'tok'
-struct type *makeslicetype(struct type *elem_type, struct token tok) {
+struct type *
+makeslicetype(struct type *elem_type, struct token tok) {
 	struct type *t = maketype(TYPE_SLICE, tok);
 	t->base_type = elem_type;
 	t->size = array_struct_size; // FIXME: should be different for slices?
@@ -55,7 +59,8 @@ struct type *makeslicetype(struct type *elem_type, struct token tok) {
 }
 
 // FIXME: remove 'tok'
-struct type *makepointertype(struct type *target, struct token tok) {
+struct type *
+makepointertype(struct type *target, struct token tok) {
 	struct type *t = maketype(TYPE_POINTER, tok);
 	t->base_type = target;
 	t->size = 8;
@@ -91,8 +96,9 @@ static char *typename(const struct type *type, char *buf, size_t buflen) {
 }
 
 // XXX: @copypaste from typename()
-static char *type_expr_name(const struct ast_type_expr *type_expr, char *buf,
-                            size_t buflen) {
+static char *
+type_expr_name(const struct ast_type_expr *type_expr, char *buf,
+               size_t buflen) {
 	int wlen = 0;
 	char *cur = NULL;
 	size_t curlen = 0;
@@ -135,8 +141,8 @@ static char *type_expr_name(const struct ast_type_expr *type_expr, char *buf,
 }
 
 // TODO: merge this with the one in parse.c?
-static void error(struct context *ctx, struct src_loc loc, const char *fmt,
-                  ...) {
+static void
+error(struct context *ctx, struct src_loc loc, const char *fmt, ...) {
 	struct error e;
 	va_list args;
 
@@ -150,7 +156,8 @@ static void error(struct context *ctx, struct src_loc loc, const char *fmt,
 	arrput(ctx->errors, e);
 }
 
-int do_errors(const struct error *errors) {
+int
+do_errors(const struct error *errors) {
 	for (long i = 0; i < arrlen(errors); i++) {
 		struct error e = errors[i];
 		fprintf(stderr, "%s:%d:%d: error: %s\n", e.loc.filename, e.loc.line,
@@ -159,18 +166,21 @@ int do_errors(const struct error *errors) {
 	return arrlen(errors) == 0;
 }
 
-static struct scope *makescope(void) {
+static struct scope *
+makescope(void) {
 	struct scope *s = calloc(sizeof(struct scope), 1);
 	makemap(&s->map);
 	return s;
 }
 
-static void freescope(struct scope *s) {
+static void
+freescope(struct scope *s) {
 	freemap(&s->map);
 	free(s);
 }
 
-static void setup_builtin_types(struct context *ctx) {
+static void
+setup_builtin_types(struct context *ctx) {
 	// FIXME: free(ty_int), calloc() check
 	// `ty_any` is a dummy type created for built-in functions like len() that
 	// can take a class of types, but have no way to represent their type
@@ -198,7 +208,8 @@ static void setup_builtin_types(struct context *ctx) {
 	push_type(ctx, ty_string);
 }
 
-static void setup_builtin_funcs(struct context *ctx) {
+static void
+setup_builtin_funcs(struct context *ctx) {
 	struct ast_node *n;
 
 	// FIXME: because tok.name is free()ed in parser_cleanup, we need to
@@ -226,7 +237,8 @@ static void setup_builtin_funcs(struct context *ctx) {
 
 // NOTE: This *has* to be called after parse(), as it copies over the error
 // list from the parser.
-void context_init(struct context *ctx, struct parser *p) {
+void
+context_init(struct context *ctx, struct parser *p) {
 	memset(ctx, 0, sizeof(struct context));
 	ctx->src = &p->l.src;
 	ctx->parser = p;
@@ -244,7 +256,8 @@ void context_init(struct context *ctx, struct parser *p) {
 	setup_builtin_funcs(ctx);
 }
 
-void context_free(struct context *ctx) {
+void
+context_free(struct context *ctx) {
 	freescope(ctx->scope);
 	arrfree(ctx->valstack.data);
 	// FIXME: free errors[i].msg
@@ -253,7 +266,8 @@ void context_free(struct context *ctx) {
 }
 
 // Open a scope, creating a new one.
-void scope_open(struct context *ctx) {
+void
+scope_open(struct context *ctx) {
 	struct scope *new_scope = makescope();
 	new_scope->outer = ctx->scope;
 	ctx->scope = new_scope;
@@ -261,12 +275,14 @@ void scope_open(struct context *ctx) {
 }
 
 // Open a scope using an existing scope that is already constructed.
-void scope_open_with(struct context *ctx, struct scope *scope) {
+void
+scope_open_with(struct context *ctx, struct scope *scope) {
 	scope->outer = ctx->scope;
 	ctx->scope = scope;
 }
 
-void scope_close(struct context *ctx) {
+void
+scope_close(struct context *ctx) {
 	// struct scope *current = ctx->scope;
 	ctx->scope = ctx->scope->outer;
 	// TODO: freescope(current);
@@ -274,7 +290,8 @@ void scope_close(struct context *ctx) {
 }
 
 // Declare 'n' in the current scope.  'n' can be a variable or a function.
-static struct ast_node *declare(struct context *ctx, struct ast_node *n) {
+static struct ast_node *
+declare(struct context *ctx, struct ast_node *n) {
 	if (!mapput(&ctx->scope->map, n->tok.name, n)) {
 		char buf[TOKLEN];
 		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
@@ -287,7 +304,8 @@ static struct ast_node *declare(struct context *ctx, struct ast_node *n) {
 
 // Finds the declaration node that first declared the variable referenced by
 // 'n'.
-struct ast_node *lookup(struct context *ctx, const struct ast_node *n) {
+struct ast_node *
+lookup(struct context *ctx, const struct ast_node *n) {
 	struct scope *s = ctx->scope;
 	while (s) {
 		struct ast_node *found = mapget(&s->map, n->tok.name);
@@ -299,7 +317,8 @@ struct ast_node *lookup(struct context *ctx, const struct ast_node *n) {
 }
 
 // Pushes a new type to the current scope.
-static struct type *push_type(struct context *ctx, struct type *ty) {
+static struct type *
+push_type(struct context *ctx, struct type *ty) {
 	char buf[TOKLEN];
 
 	typename(ty, buf, sizeof(buf));
@@ -313,7 +332,8 @@ static struct type *push_type(struct context *ctx, struct type *ty) {
 // Pushes a new type to the global scope.  This can be used to push derived
 // types of builtin types, e.g. *int.
 // FIXME: not used.
-static struct type *push_type_global(struct context *ctx, struct type *ty) {
+static struct type *
+push_type_global(struct context *ctx, struct type *ty) {
 	char buf[TOKLEN];
 
 	struct scope *scope = ctx->typescope;
@@ -330,7 +350,8 @@ static struct type *push_type_global(struct context *ctx, struct type *ty) {
 }
 
 // Finds the type object that first declared the type whose name is 'name'.
-static struct type *lookup_type(struct context *ctx, const char *name) {
+static struct type *
+lookup_type(struct context *ctx, const char *name) {
 	struct scope *s = ctx->typescope;
 	while (s) {
 		struct type *found = mapget(&s->map, name);
@@ -343,8 +364,8 @@ static struct type *lookup_type(struct context *ctx, const char *name) {
 
 // Get the matching type object specified by the `type_expr`.
 // This handles error report on its own.
-static struct type *resolve_type_expr(struct context *ctx,
-                                      struct ast_type_expr *type_expr) {
+static struct type *
+resolve_type_expr(struct context *ctx, struct ast_type_expr *type_expr) {
 	char buf[TOKLEN];
 	struct type *type = NULL;
 
@@ -392,7 +413,8 @@ static struct type *resolve_type_expr(struct context *ctx,
 
 // Check if type `from` can be assigned to type `to`.  Also does automatic type
 // promotion on `from`, e.g. from int to int64.
-static int type_compatible(struct type *to, struct type **from) {
+static int
+type_compatible(struct type *to, struct type **from) {
 	if (to->kind == TYPE_ARRAY || to->kind == TYPE_SLICE) {
 		if (to->kind != (*from)->kind) {
 			return 0;
@@ -409,8 +431,8 @@ static int type_compatible(struct type *to, struct type **from) {
 	return to == *from;
 }
 
-static const struct ast_node *lookup_struct_field(struct type *parent_type,
-                                                  const char *field_name) {
+static const struct ast_node *
+lookup_struct_field(struct type *parent_type, const char *field_name) {
 	const struct ast_node *field_match = NULL;
 
 	for (long i = 0; i < arrlen(parent_type->members); i++) {
@@ -424,7 +446,8 @@ static const struct ast_node *lookup_struct_field(struct type *parent_type,
 	return field_match;
 }
 
-static void check_expr(struct context *ctx, struct ast_node *n) {
+static void
+check_expr(struct context *ctx, struct ast_node *n) {
 	char buf[TOKLEN];
 	struct ast_node *decl = NULL;
 
@@ -572,8 +595,9 @@ static void check_expr(struct context *ctx, struct ast_node *n) {
 	assert(n->type);
 }
 
-static int check_assignment(struct context *ctx, struct ast_node *to,
-                            struct ast_node *from) {
+static int
+check_assignment(struct context *ctx, struct ast_node *to,
+                 struct ast_node *from) {
 	assert(to->type && from->type);
 
 	if (from->kind == NCALL &&
@@ -600,7 +624,8 @@ static int check_assignment(struct context *ctx, struct ast_node *to,
 	return 1;
 }
 
-static void check_decl(struct context *ctx, struct ast_node *n) {
+static void
+check_decl(struct context *ctx, struct ast_node *n) {
 	switch (n->kind) {
 	case NVARDECL:
 		// var decl has an init expression, ex. var i = 4
@@ -710,7 +735,8 @@ static void check_decl(struct context *ctx, struct ast_node *n) {
 	}
 }
 
-static void check_stmt(struct context *ctx, struct ast_node *n) {
+static void
+check_stmt(struct context *ctx, struct ast_node *n) {
 	switch (n->kind) {
 	case NEXPRSTMT:
 		check_expr(ctx, n->expr_stmt.expr);
@@ -742,7 +768,8 @@ static void check_stmt(struct context *ctx, struct ast_node *n) {
 	}
 }
 
-void check(struct context *ctx, struct ast_node *n) {
+void
+check(struct context *ctx, struct ast_node *n) {
 	switch (n->kind) {
 	case NFILE:
 		for (long i = 0; i < arrlen(n->file.body); i++) {

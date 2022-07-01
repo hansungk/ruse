@@ -18,7 +18,8 @@ struct token_map keywords[] = {
     {"any", TANY},       {"string", TSTRING_}, {NULL, 0},
 };
 
-static char *readfile(const char *filename, long *filesize) {
+static char *
+readfile(const char *filename, long *filesize) {
 	FILE *f = fopen(filename, "r");
 	if (!f) {
 		fprintf(stderr, "error: %s: %s\n", filename, strerror(errno));
@@ -39,7 +40,8 @@ static char *readfile(const char *filename, long *filesize) {
 	return s;
 }
 
-static void step(struct lexer *l) {
+static void
+step(struct lexer *l) {
 	if (l->rd_off < l->src.buflen) {
 		l->off = l->rd_off;
 		l->ch = l->src.buf[l->off];
@@ -53,20 +55,23 @@ static void step(struct lexer *l) {
 	}
 }
 
-static void consume(struct lexer *l, long n) {
+static void
+consume(struct lexer *l, long n) {
 	for (long i = 0; i < n; i++) {
 		step(l);
 	}
 }
 
-static char lookn(struct lexer *l, long n) {
+static char
+lookn(struct lexer *l, long n) {
 	if (l->off + n < l->src.buflen) {
 		return l->src.buf[l->off + n];
 	}
 	return '\0';
 }
 
-int lexer_from_file(struct lexer *l, const char *filename) {
+int
+lexer_from_file(struct lexer *l, const char *filename) {
 	memset(l, 0, sizeof(struct lexer));
 	strncpy(l->src.filename, filename, 255);
 	l->src.buf = readfile(filename, &l->src.buflen);
@@ -74,7 +79,8 @@ int lexer_from_file(struct lexer *l, const char *filename) {
 	return 1;
 }
 
-int lexer_from_buf(struct lexer *l, const char *buf, size_t len) {
+int
+lexer_from_buf(struct lexer *l, const char *buf, size_t len) {
 	memset(l, 0, sizeof(struct lexer));
 	strncpy(l->src.filename, "(null)", 255);
 	l->src.buflen = len;
@@ -84,20 +90,23 @@ int lexer_from_buf(struct lexer *l, const char *buf, size_t len) {
 	return 1;
 }
 
-void lexer_cleanup(struct lexer *l) {
+void
+lexer_cleanup(struct lexer *l) {
 	arrfree(l->src.line_offs);
 	free(l->src.buf);
 }
 
 // Make a new token and place it at 'l->tok'.
-static void maketoken(struct lexer *l, enum token_type type) {
+static void
+maketoken(struct lexer *l, enum token_type type) {
 	memset(&l->tok, 0, sizeof(struct token));
 	l->tok.type = type;
 	l->tok.range = (struct src_range){l->start, l->off};
 	l->tok.loc = locate(&l->src, l->start);
 }
 
-static void lex_ident_or_keyword(struct lexer *l) {
+static void
+lex_ident_or_keyword(struct lexer *l) {
 	// multi-char keywords
 	for (const struct token_map *m = &keywords[0]; m->text != NULL; m++) {
 		int i = 0;
@@ -127,7 +136,8 @@ static void lex_ident_or_keyword(struct lexer *l) {
 	l->tok.name[len] = '\0';
 }
 
-static void lex_symbol(struct lexer *l) {
+static void
+lex_symbol(struct lexer *l) {
 	// multi-char symbol
 	for (const struct token_map *m = &keywords[0]; m->text != NULL; m++) {
 		for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i); i++) {
@@ -145,12 +155,14 @@ static void lex_symbol(struct lexer *l) {
 	maketoken(l, ch);
 }
 
-static void skip_numbers(struct lexer *l) {
+static void
+skip_numbers(struct lexer *l) {
 	while (isdigit(l->ch))
 		step(l);
 }
 
-static void lex_number(struct lexer *l) {
+static void
+lex_number(struct lexer *l) {
 	skip_numbers(l);
 	if (l->ch == '.') {
 		step(l);
@@ -159,7 +171,8 @@ static void lex_number(struct lexer *l) {
 	maketoken(l, TNUM);
 }
 
-static void lex_string(struct lexer *l) {
+static void
+lex_string(struct lexer *l) {
 	step(l); // opening "
 	while (l->ch != '\0') {
 		switch (l->ch) {
@@ -181,7 +194,8 @@ strclose:
 
 // Lex the next token and place it at l->tok.
 // Return EOF if reached source EOF.
-int lex(struct lexer *l) {
+int
+lex(struct lexer *l) {
 	for (;;) {
 		l->start = l->off;
 
@@ -245,7 +259,8 @@ int lex(struct lexer *l) {
 
 // Search linearly for line and column number that corresponds to the byte
 // position `pos`.
-struct src_loc locate(struct source *src, size_t pos) {
+struct src_loc
+locate(struct source *src, size_t pos) {
 	// TODO: performance
 
 	// single-line
@@ -267,7 +282,8 @@ struct src_loc locate(struct source *src, size_t pos) {
 // Print 'tok' as string into buf.
 // Needs 'src' because it needs the source text.
 // FIXME: use tok.name rather than trying to copy from the whole source
-char *tokenstr(const char *src, struct token tok, char *buf, size_t buflen) {
+char *
+tokenstr(const char *src, struct token tok, char *buf, size_t buflen) {
 	size_t tlen = tok.range.end - tok.range.start;
 	size_t strlen = (buflen - 1) < tlen ? (buflen - 1) : tlen;
 	strncpy(buf, src + tok.range.start, strlen);
@@ -276,7 +292,8 @@ char *tokenstr(const char *src, struct token tok, char *buf, size_t buflen) {
 }
 
 // Compare the string content of the two tokens.
-int tokeneq(const char *src, struct token t1, struct token t2) {
+int
+tokeneq(const char *src, struct token t1, struct token t2) {
 	char buf1[TOKLEN], buf2[TOKLEN];
 	tokenstr(src, t1, buf1, sizeof(buf1));
 	tokenstr(src, t2, buf2, sizeof(buf2));
@@ -286,7 +303,8 @@ int tokeneq(const char *src, struct token t1, struct token t2) {
 // Return the descriptive name for a TokenType enum.
 // Different from tokenstr as it does not return the actual text for
 // the token, but the description for the type of the token.
-char *tokentypestr(enum token_type t, char *buf, size_t buflen) {
+char *
+tokentypestr(enum token_type t, char *buf, size_t buflen) {
 	if (t >= TASCII)
 		snprintf(buf, buflen, "%s", token_names[t]);
 	else if (t == '\n')
@@ -299,7 +317,8 @@ char *tokentypestr(enum token_type t, char *buf, size_t buflen) {
 	return buf;
 }
 
-void tokenprint(const char *src, const struct token tok) {
+void
+tokenprint(const char *src, const struct token tok) {
 	char buf[TOKLEN];
 
 	switch (tok.type) {

@@ -7,7 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void emit(struct context *ctx, char *c, ...) {
+static void
+emit(struct context *ctx, char *c, ...) {
 	va_list args;
 
 	va_start(args, c);
@@ -17,7 +18,8 @@ static void emit(struct context *ctx, char *c, ...) {
 
 // This *has* to be called at stack pusth time to ensure that it is safe to use
 // val->qbe_text afterwards.
-static char *qbe_val_name(struct qbe_val *val) {
+static char *
+qbe_val_name(struct qbe_val *val) {
 	int len = 0;
 
 	memset(val->text, 0, sizeof(val->text));
@@ -41,7 +43,8 @@ static char *qbe_val_name(struct qbe_val *val) {
 	return val->text;
 }
 
-static void stack_push_param(struct context *ctx, const char *name) {
+static void
+stack_push_param(struct context *ctx, const char *name) {
 	struct qbe_val v = {VAL_PARAM, .param_name = name,
 	                    .data_size = 4 /* FIXME */};
 	qbe_val_name(&v);
@@ -52,7 +55,8 @@ static void stack_push_param(struct context *ctx, const char *name) {
 // This is useful when a statement is generating a new value, but we don't want
 // to push it as we want to access the old stack values that are used as
 // operands that produce the new value.
-static struct qbe_val stack_make_temp(struct context *ctx) {
+static struct qbe_val
+stack_make_temp(struct context *ctx) {
 	struct qbe_val v = {VAL_TEMP, .temp_id = ctx->valstack.next_temp_id,
 	                    .data_size = 4 /* FIXME */};
 	ctx->valstack.next_temp_id++;
@@ -61,7 +65,8 @@ static struct qbe_val stack_make_temp(struct context *ctx) {
 	return v;
 }
 
-static struct qbe_val stack_make_addr(struct context *ctx, int addr_id) {
+static struct qbe_val
+stack_make_addr(struct context *ctx, int addr_id) {
 	struct qbe_val v = {VAL_ADDR, .addr_id = addr_id,
 	                    .data_size = pointer_size};
 	(void)ctx;
@@ -69,22 +74,25 @@ static struct qbe_val stack_make_addr(struct context *ctx, int addr_id) {
 	return v;
 }
 
-static void stack_push_temp(struct context *ctx, const struct qbe_val val) {
+static void
+stack_push_temp(struct context *ctx, const struct qbe_val val) {
 	arrput(ctx->valstack.data, val);
 }
 
-static void stack_push_addr(struct context *ctx, const struct qbe_val val) {
+static void
+stack_push_addr(struct context *ctx, const struct qbe_val val) {
 	arrput(ctx->valstack.data, val);
 }
 
-static struct qbe_val stack_pop(struct context *ctx) {
+static struct qbe_val
+stack_pop(struct context *ctx) {
 	assert(arrlen(ctx->valstack.data) > 0);
 	return arrpop(ctx->valstack.data);
 }
 
 // Generate a memory load directive.
-static void gen_load(struct context *ctx, struct qbe_val val_addr,
-                     size_t size) {
+static void
+gen_load(struct context *ctx, struct qbe_val val_addr, size_t size) {
 	struct qbe_val val = stack_make_temp(ctx);
 	if (size == 8) {
 		emit(ctx, "    %s =l loadl %s\n", val.text, val_addr.text);
@@ -96,7 +104,8 @@ static void gen_load(struct context *ctx, struct qbe_val val_addr,
 
 // Generate a memory store directive.
 // TODO: also generate operands in this
-static void gen_store(struct context *ctx, size_t size) {
+static void
+gen_store(struct context *ctx, size_t size) {
 	if (size == 8) {
 		emit(ctx, "    storel");
 	} else {
@@ -107,7 +116,8 @@ static void gen_store(struct context *ctx, size_t size) {
 static void gen_expr_value(struct context *ctx, struct ast_node *n);
 static void gen_expr_addr(struct context *ctx, struct ast_node *n);
 
-static int is_param(const struct ast_node *func, const struct ast_node *var) {
+static int
+is_param(const struct ast_node *func, const struct ast_node *var) {
 	for (long i = 0; i < arrlen(func->func.params); i++) {
 		const struct ast_node *arg = func->func.params[i];
 		if (strcmp(var->tok.name, arg->tok.name) == 0) {
@@ -119,8 +129,8 @@ static int is_param(const struct ast_node *func, const struct ast_node *var) {
 
 // Generate address where the "len" field of an array resides.
 // Note that this does not push the resulting value to the stack.
-static struct qbe_val array_gen_len(struct context *ctx,
-                                    struct qbe_val array_addr) {
+static struct qbe_val
+array_gen_len(struct context *ctx, struct qbe_val array_addr) {
 	struct qbe_val len_addr = stack_make_temp(ctx);
 	emit(ctx, "    %s =l add %s, %d\n", len_addr.text, array_addr.text, 0);
 	return len_addr;
@@ -128,8 +138,8 @@ static struct qbe_val array_gen_len(struct context *ctx,
 
 // Generate address where the "buf" field of an array or a slice resides.
 // Note that this does not push the resulting value to the stack.
-static struct qbe_val array_gen_buf(struct context *ctx,
-                                    struct qbe_val array_addr) {
+static struct qbe_val
+array_gen_buf(struct context *ctx, struct qbe_val array_addr) {
 	struct qbe_val buf_addr = stack_make_temp(ctx);
 	emit(ctx, "    %s =l add %s, %d\n", buf_addr.text, array_addr.text, 8);
 	return buf_addr;
@@ -138,9 +148,9 @@ static struct qbe_val array_gen_buf(struct context *ctx,
 // Generate address where the element at `index` of an array resides.
 // `n` is the declaration node of the array.
 // Note that this does not push the resulting value to the stack.
-static struct qbe_val array_gen_element(struct context *ctx, struct ast_node *n,
-                                        struct qbe_val array_addr,
-                                        struct qbe_val index) {
+static struct qbe_val
+array_gen_element(struct context *ctx, struct ast_node *n,
+                  struct qbe_val array_addr, struct qbe_val index) {
 	// Need to take indirect access to the 'buf' field of the array.
 	struct qbe_val buf_addr = array_gen_buf(ctx, array_addr);
 	gen_load(ctx, buf_addr, pointer_size);
@@ -157,7 +167,8 @@ static struct qbe_val array_gen_element(struct context *ctx, struct ast_node *n,
 // 'value' is whether gen_expr() has to generate the actual value of the
 // expression and put it on the valstack.  If its value is 0, only the address
 // of the expression (which has to be lvalue) will be put on the valstack.
-static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
+static void
+gen_expr(struct context *ctx, struct ast_node *n, int value) {
 	char buf[TOKLEN];
 	struct qbe_val val, val_lhs, val_rhs;
 
@@ -295,19 +306,22 @@ static void gen_expr(struct context *ctx, struct ast_node *n, int value) {
 	}
 }
 
-static void gen_expr_value(struct context *ctx, struct ast_node *n) {
+static void
+gen_expr_value(struct context *ctx, struct ast_node *n) {
 	gen_expr(ctx, n, 1);
 }
 
-static void gen_expr_addr(struct context *ctx, struct ast_node *n) {
+static void
+gen_expr_addr(struct context *ctx, struct ast_node *n) {
 	gen_expr(ctx, n, 0);
 }
 
 // This function cannot accept just the ast_nodes instead of qbe_val, because
 // it doesn't work for NVARDECL; NVARDECL does not have an LHS expression.
 // TODO: rewrite AST at check so that we can just handle NASSIGN.
-static void gen_assign(struct context *ctx, struct ast_node *lhs,
-                       struct qbe_val lhs_addr, struct qbe_val rhs_val) {
+static void
+gen_assign(struct context *ctx, struct ast_node *lhs, struct qbe_val lhs_addr,
+           struct qbe_val rhs_val) {
 	struct qbe_val target_addr = lhs_addr;
 	if (lhs->type->kind == TYPE_SLICE) {
 		assert(lhs_addr.kind == VAL_ADDR);
@@ -317,7 +331,8 @@ static void gen_assign(struct context *ctx, struct ast_node *lhs,
 	emit(ctx, " %s, %s\n", rhs_val.text, target_addr.text);
 }
 
-static void gen_decl(struct context *ctx, struct ast_node *n) {
+static void
+gen_decl(struct context *ctx, struct ast_node *n) {
 	char buf[TOKLEN];
 
 	assert(n->decl);
@@ -350,7 +365,8 @@ static void gen_decl(struct context *ctx, struct ast_node *n) {
 	}
 }
 
-static void gen_stmt(struct context *ctx, struct ast_node *n) {
+static void
+gen_stmt(struct context *ctx, struct ast_node *n) {
 	switch (n->kind) {
 	case NEXPRSTMT:
 		gen_expr_value(ctx, n->expr_stmt.expr);
@@ -372,7 +388,8 @@ static void gen_stmt(struct context *ctx, struct ast_node *n) {
 	}
 }
 
-void gen(struct context *ctx, struct ast_node *n) {
+void
+gen(struct context *ctx, struct ast_node *n) {
 	assert(n);
 
 	switch (n->kind) {

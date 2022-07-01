@@ -11,7 +11,8 @@ struct mapkey {
 };
 
 // djb2 (http://www.cse.yorku.ca/~oz/hash.html)
-static uint64_t strhash(const char *str) {
+static uint64_t
+strhash(const char *str) {
 	uint64_t hash = 5381;
 	int c;
 	while ((c = *str++)) {
@@ -21,7 +22,8 @@ static uint64_t strhash(const char *str) {
 }
 
 // ref: https://stackoverflow.com/a/12996028
-static uint64_t hash(const void *p) {
+static uint64_t
+hash(const void *p) {
 	uint64_t x = (uint64_t)p;
 	x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
 	x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
@@ -29,12 +31,14 @@ static uint64_t hash(const void *p) {
 	return x;
 }
 
-void makemap(struct map *m) {
+void
+makemap(struct map *m) {
 	m->bucketlen = 128; // TODO: test
 	m->buckets = calloc(m->bucketlen, sizeof(struct mapkey));
 }
 
-void freemap(struct map *map) {
+void
+freemap(struct map *map) {
 	for (size_t i = 0; i < map->bucketlen; i++)
 		if (map->buckets[i].str)
 			free(map->buckets[i].str);
@@ -42,7 +46,8 @@ void freemap(struct map *map) {
 }
 
 // Returns 0 if a same key is inserted again.
-int mapput(struct map *m, const char *str, void *data) {
+int
+mapput(struct map *m, const char *str, void *data) {
 	uint64_t hash = strhash(str);
 	size_t i = hash % m->bucketlen;
 	size_t i_orig = i;
@@ -66,7 +71,8 @@ int mapput(struct map *m, const char *str, void *data) {
 	return 1;
 }
 
-void *mapget(struct map *m, const char *str) {
+void *
+mapget(struct map *m, const char *str) {
 	uint64_t hash = strhash(str);
 	size_t i = hash % m->bucketlen;
 	size_t i_orig = i;

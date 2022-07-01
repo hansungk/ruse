@@ -10,8 +10,8 @@ static struct ast_node *parse_expr(struct parser *p);
 static struct ast_node *parse_stmt(struct parser *p);
 static struct ast_node *parse_typeexpr(struct parser *p);
 
-static struct ast_node *makenode(struct parser *p, enum node_kind k,
-                                 struct src_loc loc) {
+static struct ast_node *
+makenode(struct parser *p, enum node_kind k, struct src_loc loc) {
 	// TODO: store all nodes in a contiguous buffer for better locality?
 	// should be careful about node pointers going stale though
 	struct ast_node *node = calloc(1, sizeof(struct ast_node));
@@ -25,26 +25,30 @@ static struct ast_node *makenode(struct parser *p, enum node_kind k,
 	return node;
 }
 
-static struct ast_node *makefile(struct parser *p, struct ast_node **toplevel) {
+static struct ast_node *
+makefile(struct parser *p, struct ast_node **toplevel) {
 	struct ast_node *n = makenode(p, NFILE, p->tok.loc);
 	n->file.body = toplevel;
 	return n;
 }
 
-struct ast_node *makefunc(struct parser *p, struct token name) {
+struct ast_node *
+makefunc(struct parser *p, struct token name) {
 	struct ast_node *n = makenode(p, NFUNC, name.loc);
 	n->tok = name;
 	return n;
 }
 
-static struct ast_node *makestruct(struct parser *p, struct token name) {
+static struct ast_node *
+makestruct(struct parser *p, struct token name) {
 	struct ast_node *n = makenode(p, NSTRUCT, name.loc);
 	n->tok = name;
 	return n;
 }
 
-static struct ast_node *makebinexpr(struct parser *p, struct ast_node *lhs,
-                                    struct token op, struct ast_node *rhs) {
+static struct ast_node *
+makebinexpr(struct parser *p, struct ast_node *lhs, struct token op,
+            struct ast_node *rhs) {
 	struct ast_node *n = makenode(p, NBINEXPR, op.loc);
 	n->bin.lhs = lhs;
 	n->bin.rhs = rhs;
@@ -52,30 +56,31 @@ static struct ast_node *makebinexpr(struct parser *p, struct ast_node *lhs,
 	return n;
 }
 
-static struct ast_node *makederefexpr(struct parser *p, struct ast_node *target,
-                                      struct token star) {
+static struct ast_node *
+makederefexpr(struct parser *p, struct ast_node *target, struct token star) {
 	struct ast_node *n = makenode(p, NDEREFEXPR, star.loc);
 	n->deref.target = target;
 	return n;
 }
 
-static struct ast_node *makerefexpr(struct parser *p, struct ast_node *target,
-                                    struct token amp) {
+static struct ast_node *
+makerefexpr(struct parser *p, struct ast_node *target, struct token amp) {
 	struct ast_node *n = makenode(p, NREFEXPR, amp.loc);
 	n->ref.target = target;
 	return n;
 }
 
-static struct ast_node *makesubscript(struct parser *p, struct ast_node *array,
-                                      struct ast_node *index) {
+static struct ast_node *
+makesubscript(struct parser *p, struct ast_node *array,
+              struct ast_node *index) {
 	struct ast_node *n = makenode(p, NSUBSCRIPT, array->loc);
 	n->subscript.array = array;
 	n->subscript.index = index;
 	return n;
 }
 
-static struct ast_node *makecall(struct parser *p, struct ast_node *func,
-                                 struct ast_node **args) {
+static struct ast_node *
+makecall(struct parser *p, struct ast_node *func, struct ast_node **args) {
 	struct ast_node *n = makenode(p, NCALL, func->loc);
 	n->call.func = func;
 	assert(!n->call.args);
@@ -84,16 +89,16 @@ static struct ast_node *makecall(struct parser *p, struct ast_node *func,
 }
 
 // 'lhs' is the 'a.b()' part of 'a.b().c'.
-static struct ast_node *makemember(struct parser *p, struct token member,
-                                   struct ast_node *lhs) {
+static struct ast_node *
+makemember(struct parser *p, struct token member, struct ast_node *lhs) {
 	struct ast_node *n = makenode(p, NMEMBER, member.loc);
 	n->tok = member;
 	n->member.parent = lhs;
 	return n;
 }
 
-static struct ast_node *maketypeexpr(struct parser *p, enum type_kind kind,
-                                     struct token tok) {
+static struct ast_node *
+maketypeexpr(struct parser *p, enum type_kind kind, struct token tok) {
 	// TODO proper arena allocation
 	struct ast_node *n = makenode(p, NTYPEEXPR, tok.loc);
 	// struct ast_type_expr *texpr = calloc(1, sizeof(struct ast_type_expr));
@@ -107,9 +112,9 @@ static struct ast_node *maketypeexpr(struct parser *p, enum type_kind kind,
 	return n;
 }
 
-static struct ast_node *makevardecl(struct parser *p, struct token name,
-                                    struct ast_node *init_expr,
-                                    struct ast_node *type_expr) {
+static struct ast_node *
+makevardecl(struct parser *p, struct token name, struct ast_node *init_expr,
+            struct ast_node *type_expr) {
 	struct ast_node *n = makenode(p, NVARDECL, name.loc);
 	n->tok = name;
 	n->var_decl.init_expr = init_expr;
@@ -117,13 +122,14 @@ static struct ast_node *makevardecl(struct parser *p, struct token name,
 	return n;
 }
 
-struct ast_node *maketempdecl(struct parser *p) {
+struct ast_node *
+maketempdecl(struct parser *p) {
 	struct ast_node *n = makenode(p, NVARDECL, p->tok.loc /* Unused */);
 	return n;
 }
 
-static struct ast_node *makefielddecl(struct parser *p, struct token name,
-                                      struct ast_node *type_expr) {
+static struct ast_node *
+makefielddecl(struct parser *p, struct token name, struct ast_node *type_expr) {
 	// TODO proper arena allocation
 	struct ast_node *n = makenode(p, NFIELD, name.loc);
 	n->tok = name;
@@ -132,20 +138,22 @@ static struct ast_node *makefielddecl(struct parser *p, struct token name,
 	return n;
 }
 
-static struct ast_node *makereturn(struct parser *p, struct ast_node *rhs) {
+static struct ast_node *
+makereturn(struct parser *p, struct ast_node *rhs) {
 	struct ast_node *n = makenode(p, NRETURN, rhs->loc);
 	n->return_expr.expr = rhs;
 	return n;
 }
 
-static struct ast_node *makeexprstmt(struct parser *p, struct ast_node *rhs) {
+static struct ast_node *
+makeexprstmt(struct parser *p, struct ast_node *rhs) {
 	struct ast_node *n = makenode(p, NEXPRSTMT, rhs->loc);
 	n->expr_stmt.expr = rhs;
 	return n;
 }
 
-static struct ast_node *makeassign(struct parser *p, struct ast_node *lhs,
-                                   struct ast_node *rhs) {
+static struct ast_node *
+makeassign(struct parser *p, struct ast_node *lhs, struct ast_node *rhs) {
 	struct ast_node *n = makenode(p, NASSIGN, lhs->loc);
 	n->assign_expr.lhs = lhs;
 	n->assign_expr.init_expr = rhs;
@@ -153,7 +161,8 @@ static struct ast_node *makeassign(struct parser *p, struct ast_node *lhs,
 }
 
 // Initialize a parser that parses the given filename.
-void parser_from_file(struct parser *p, const char *filename) {
+void
+parser_from_file(struct parser *p, const char *filename) {
 	memset(p, 0, sizeof(struct parser));
 	lexer_from_file(&p->l, filename);
 	// start by putting something on p->tok
@@ -162,14 +171,16 @@ void parser_from_file(struct parser *p, const char *filename) {
 	p->tok = p->l.tok;
 }
 
-void parser_from_buf(struct parser *p, const char *buf, size_t len) {
+void
+parser_from_buf(struct parser *p, const char *buf, size_t len) {
 	memset(p, 0, sizeof(struct parser));
 	lexer_from_buf(&p->l, buf, len);
 	lex(&p->l);
 	p->tok = p->l.tok;
 }
 
-void parser_cleanup(struct parser *p) {
+void
+parser_cleanup(struct parser *p) {
 	for (int i = 0; i < arrlen(p->nodeptrbuf); i++) {
 		struct ast_node *n = p->nodeptrbuf[i];
 		if (n) {
@@ -183,7 +194,8 @@ void parser_cleanup(struct parser *p) {
 	arrfree(p->nodeptrbuf);
 }
 
-static void next(struct parser *p) {
+static void
+next(struct parser *p) {
 	if (p->l.tok.type == TEOF) {
 		return;
 	}
@@ -191,7 +203,8 @@ static void next(struct parser *p) {
 	p->tok = p->l.tok;
 }
 
-static void error(struct parser *p, const char *fmt, ...) {
+static void
+error(struct parser *p, const char *fmt, ...) {
 	struct error e;
 	va_list args;
 
@@ -207,32 +220,37 @@ static void error(struct parser *p, const char *fmt, ...) {
 	arrput(p->errors, e);
 }
 
-static void skip_while(struct parser *p, enum token_type type) {
+static void
+skip_while(struct parser *p, enum token_type type) {
 	while (p->tok.type != TEOF && p->tok.type == type) {
 		next(p);
 	}
 }
 
-static void skip_newlines(struct parser *p) {
+static void
+skip_newlines(struct parser *p) {
 	while (p->tok.type == '\n' || p->tok.type == TCOMMENT) {
 		skip_while(p, '\n');
 		skip_while(p, TCOMMENT);
 	}
 }
 
-static void skip_to(struct parser *p, enum token_type type) {
+static void
+skip_to(struct parser *p, enum token_type type) {
 	while (p->tok.type != TEOF && p->tok.type != type) {
 		next(p);
 	}
 }
 
-static void skip_to_end_of_line(struct parser *p) {
+static void
+skip_to_end_of_line(struct parser *p) {
 	while (p->tok.type != TEOF && p->tok.type != TNEWLINE) {
 		next(p);
 	}
 }
 
-static int expect(struct parser *p, enum token_type t) {
+static int
+expect(struct parser *p, enum token_type t) {
 	if (p->tok.type != t) {
 		char ebuf[TOKLEN], gbuf[TOKLEN];
 		tokentypestr(t, ebuf, sizeof(ebuf));
@@ -247,24 +265,28 @@ static int expect(struct parser *p, enum token_type t) {
 	return 1;
 }
 
-static int end_of_line(struct parser *p) {
+static int
+end_of_line(struct parser *p) {
 	return p->tok.type == TNEWLINE || p->tok.type == TCOMMENT;
 }
 
 // Expect end of line, skipping over any end-of-line comments.
-static int expect_end_of_line(struct parser *p) {
+static int
+expect_end_of_line(struct parser *p) {
 	skip_while(p, TCOMMENT);
 	return expect(p, TNEWLINE);
 }
 
 // TODO: remove
-static void tokentypeprint(enum token_type t) {
+static void
+tokentypeprint(enum token_type t) {
 	char buf[TOKLEN];
 	tokentypestr(t, buf, sizeof(buf));
 	printf("i saw %s\n", buf);
 }
 
-static struct ast_node *parse_vardecl(struct parser *p) {
+static struct ast_node *
+parse_vardecl(struct parser *p) {
 	assert(p->tok.type == TVAR || p->tok.type == TCONST);
 	next(p);
 
@@ -285,7 +307,8 @@ static struct ast_node *parse_vardecl(struct parser *p) {
 	return makevardecl(p, name, rhs, texpr);
 }
 
-static struct ast_node *parse_blockstmt(struct parser *p) {
+static struct ast_node *
+parse_blockstmt(struct parser *p) {
 	struct ast_node *n = makenode(p, NBLOCKSTMT, p->tok.loc);
 
 	expect(p, TLBRACE);
@@ -299,7 +322,8 @@ static struct ast_node *parse_blockstmt(struct parser *p) {
 	return n;
 }
 
-static struct ast_node *parse_return(struct parser *p) {
+static struct ast_node *
+parse_return(struct parser *p) {
 	expect(p, TRETURN);
 	struct ast_node *rhs = parse_expr(p);
 	return makereturn(p, rhs);
@@ -307,7 +331,8 @@ static struct ast_node *parse_return(struct parser *p) {
 
 // Assumes enclosing '(' is already consumed.
 // Does not consume ending ')'.
-static struct ast_node **parse_callargs(struct parser *p) {
+static struct ast_node **
+parse_callargs(struct parser *p) {
 	struct ast_node **list = NULL;
 	while (p->tok.type != TRPAREN) {
 		arrput(list, parse_expr(p));
@@ -319,7 +344,8 @@ static struct ast_node **parse_callargs(struct parser *p) {
 	return list;
 }
 
-static struct ast_node *parse_unaryexpr(struct parser *p) {
+static struct ast_node *
+parse_unaryexpr(struct parser *p) {
 	struct ast_node *e = NULL;
 	struct ast_node *rhs;
 	struct token tok;
@@ -387,7 +413,8 @@ static struct ast_node *parse_unaryexpr(struct parser *p) {
 	return e;
 }
 
-static int get_precedence(const struct token op) {
+static int
+get_precedence(const struct token op) {
 	switch (op.type) {
 	case TSTAR:
 	case TSLASH:
@@ -444,7 +471,8 @@ parse_binexpr_rhs(struct parser *p, struct ast_node *lhs, int precedence) {
 	return lhs;
 }
 
-static struct ast_node *parse_expr(struct parser *p) {
+static struct ast_node *
+parse_expr(struct parser *p) {
 	struct ast_node *e = parse_unaryexpr(p);
 	e = parse_binexpr_rhs(p, e, 0);
 	return e;
@@ -452,8 +480,8 @@ static struct ast_node *parse_expr(struct parser *p) {
 
 // Possibly parse the equal and RHS expression of an expression.
 // 'expr' is already consumed.
-static struct ast_node *parse_assign_or_exprstmt(struct parser *p,
-                                                 struct ast_node *expr) {
+static struct ast_node *
+parse_assign_or_exprstmt(struct parser *p, struct ast_node *expr) {
 	struct ast_node *stmt = NULL;
 
 	assert(expr);
@@ -469,7 +497,8 @@ static struct ast_node *parse_assign_or_exprstmt(struct parser *p,
 	return stmt;
 }
 
-static struct ast_node *parse_stmt(struct parser *p) {
+static struct ast_node *
+parse_stmt(struct parser *p) {
 	struct ast_node *stmt;
 
 	skip_newlines(p);
@@ -497,7 +526,8 @@ static struct ast_node *parse_stmt(struct parser *p) {
 	return stmt;
 }
 
-static struct ast_node *parse_typeexpr(struct parser *p) {
+static struct ast_node *
+parse_typeexpr(struct parser *p) {
 	struct token tok = p->tok;
 	struct ast_node *texpr;
 
@@ -536,7 +566,8 @@ static struct ast_node *parse_typeexpr(struct parser *p) {
 	return texpr;
 }
 
-static struct ast_node *parse_func(struct parser *p) {
+static struct ast_node *
+parse_func(struct parser *p) {
 	expect(p, TFUNC);
 
 	struct ast_node *f = makefunc(p, p->tok);
@@ -578,7 +609,8 @@ static struct ast_node *parse_func(struct parser *p) {
 	return f;
 }
 
-static struct ast_node *parse_struct(struct parser *p) {
+static struct ast_node *
+parse_struct(struct parser *p) {
 	expect(p, TSTRUCT);
 
 	struct ast_node *s = makestruct(p, p->tok);
@@ -600,7 +632,8 @@ static struct ast_node *parse_struct(struct parser *p) {
 	return s;
 }
 
-static struct ast_node *parse_toplevel(struct parser *p) {
+static struct ast_node *
+parse_toplevel(struct parser *p) {
 	skip_newlines(p);
 
 	switch (p->tok.type) {
@@ -614,7 +647,8 @@ static struct ast_node *parse_toplevel(struct parser *p) {
 	}
 }
 
-struct ast_node *parse(struct parser *p) {
+struct ast_node *
+parse(struct parser *p) {
 	struct ast_node **nodes = NULL;
 
 	while (p->tok.type != TEOF) {
