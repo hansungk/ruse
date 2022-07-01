@@ -8,9 +8,37 @@
 #include <string.h>
 
 static void
+emitln(struct context *ctx, char *c, ...) {
+	va_list args;
+
+	fprintf(ctx->outfile, "\n");
+	ctx->qbefmt.line_len = 0;
+	for (int i = 0; i < ctx->qbefmt.indent; i++) {
+		ctx->qbefmt.line_len += fprintf(ctx->outfile, "    ");
+	}
+	va_start(args, c);
+	ctx->qbefmt.line_len += vfprintf(ctx->outfile, c, args);
+	va_end(args);
+}
+
+static void
 emit(struct context *ctx, char *c, ...) {
 	va_list args;
 
+	va_start(args, c);
+	ctx->qbefmt.line_len += vfprintf(ctx->outfile, c, args);
+	va_end(args);
+}
+
+static void
+annotate(struct context *ctx, char *c, ...) {
+	va_list args;
+
+	// align start of comment
+	for (int i = ctx->qbefmt.line_len; i < 32; i++) {
+		fputc(' ', ctx->outfile);
+	}
+	fprintf(ctx->outfile, "# ");
 	va_start(args, c);
 	vfprintf(ctx->outfile, c, args);
 	va_end(args);
@@ -95,9 +123,9 @@ static void
 gen_load(struct context *ctx, struct qbe_val val_addr, size_t size) {
 	struct qbe_val val = stack_make_temp(ctx);
 	if (size == 8) {
-		emit(ctx, "    %s =l loadl %s\n", val.text, val_addr.text);
+		emitln(ctx, "%s =l loadl %s", val.text, val_addr.text);
 	} else {
-		emit(ctx, "    %s =w loadw %s\n", val.text, val_addr.text);
+		emitln(ctx, "%s =w loadw %s", val.text, val_addr.text);
 	}
 	stack_push_temp(ctx, val);
 }
@@ -107,9 +135,9 @@ gen_load(struct context *ctx, struct qbe_val val_addr, size_t size) {
 static void
 gen_store(struct context *ctx, size_t size) {
 	if (size == 8) {
-		emit(ctx, "    storel");
+		emitln(ctx, "storel");
 	} else {
-		emit(ctx, "    storew");
+		emitln(ctx, "storew");
 	}
 }
 
@@ -132,7 +160,7 @@ is_param(const struct ast_node *func, const struct ast_node *var) {
 static struct qbe_val
 array_gen_len(struct context *ctx, struct qbe_val array_addr) {
 	struct qbe_val len_addr = stack_make_temp(ctx);
-	emit(ctx, "    %s =l add %s, %d\n", len_addr.text, array_addr.text, 0);
+	emitln(ctx, "%s =l add %s, %d", len_addr.text, array_addr.text, 0);
 	return len_addr;
 }
 
@@ -141,7 +169,7 @@ array_gen_len(struct context *ctx, struct qbe_val array_addr) {
 static struct qbe_val
 array_gen_buf(struct context *ctx, struct qbe_val array_addr) {
 	struct qbe_val buf_addr = stack_make_temp(ctx);
-	emit(ctx, "    %s =l add %s, %d\n", buf_addr.text, array_addr.text, 8);
+	emitln(ctx, "%s =l add %s, %d", buf_addr.text, array_addr.text, 8);
 	return buf_addr;
 }
 
@@ -157,9 +185,9 @@ array_gen_element(struct context *ctx, struct ast_node *n,
 	struct qbe_val buf_ptr_val = stack_pop(ctx);
 
 	struct qbe_val elem_addr = stack_make_temp(ctx);
-	emit(ctx, "    %s =l mul %d, %s\n", elem_addr.text,
+	emitln(ctx, "%s =l mul %d, %s", elem_addr.text,
 	     n->type->base_type->size, index.text);
-	emit(ctx, "    %s =l add %s, %s\n", elem_addr.text, elem_addr.text,
+	emitln(ctx, "%s =l add %s, %s", elem_addr.text, elem_addr.text,
 	     buf_ptr_val.text);
 	return elem_addr;
 }
@@ -180,7 +208,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		char wl = (n->type->size == 8) ? 'l' : 'w';
 		// There seems to be no direct way to assign a number literal to a
 		// temporary in QBE, so use a bogus add 0.
-		emit(ctx, "    %s =%c add 0, %s\n", val.text, wl, buf);
+		emitln(ctx, "%s =%c add 0, %s", val.text, wl, buf);
 		stack_push_temp(ctx, val);
 		break;
 	}
@@ -209,7 +237,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		val = stack_make_temp(ctx);
 		// @copypaste from NLITERAL
 		char wl = (n->type->size == 8) ? 'l' : 'w';
-		emit(ctx, "    %s =%c add %s, %s\n", val.text, wl, val_lhs.text,
+		emitln(ctx, "%s =%c add %s, %s", val.text, wl, val_lhs.text,
 		     val_rhs.text);
 		stack_push_temp(ctx, val);
 		break;
@@ -240,7 +268,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 			element_addr = stack_pop(ctx);
 			val = stack_make_temp(ctx);
 			// TODO: use gen_load
-			emit(ctx, "    %s =w loadw %s\n", val.text, element_addr.text);
+			emitln(ctx, "%s =w loadw %s", val.text, element_addr.text);
 			stack_push_temp(ctx, val);
 		}
 		break;
@@ -260,12 +288,12 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 			gen_expr_value(ctx, n->call.args[0]);
 			struct qbe_val malloc_nmemb = stack_pop(ctx);
 			struct qbe_val malloc_bytesize = stack_make_temp(ctx);
-			emit(ctx, "    %s =l mul %d, %s\n", malloc_bytesize.text,
+			emitln(ctx, "%s =l mul %d, %s", malloc_bytesize.text,
 			     n->type->base_type->size, malloc_nmemb.text);
 			struct qbe_val val = stack_make_temp(ctx);
 			val.data_size = pointer_size; // FIXME arbitrary; can we extract
 			                              // this from the AST node?
-			emit(ctx, "    %s =l call $%s(l %s)\n", val.text, "malloc",
+			emitln(ctx, "%s =l call $%s(l %s)", val.text, "malloc",
 			     malloc_bytesize.text);
 			stack_push_temp(ctx, val);
 			break;
@@ -277,13 +305,13 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		}
 		val_lhs = stack_make_temp(ctx);
 		// FIXME: hardcoded type size
-		emit(ctx, "    %s =w ", val_lhs.text);
+		emitln(ctx, "%s =w ", val_lhs.text);
 		emit(ctx, "call $%s(", n->call.func->tok.name);
 		for (long i = 0; i < arrlen(n->call.args); i++) {
 			val_rhs = stack_pop(ctx);
 			emit(ctx, "w %s, ", val_rhs.text);
 		}
-		emit(ctx, ")\n");
+		emit(ctx, ")");
 		arrput(ctx->valstack.data, val_lhs);
 		ctx->valstack.next_temp_id++;
 		break;
@@ -292,7 +320,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		gen_expr_addr(ctx, n->member.parent);
 		struct qbe_val parent_addr = stack_pop(ctx);
 		struct qbe_val member_addr = stack_make_temp(ctx);
-		emit(ctx, "    %s =l add %s, %d\n", member_addr.text, parent_addr.text,
+		emitln(ctx, "%s =l add %s, %d", member_addr.text, parent_addr.text,
 		     n->member.offset);
 		stack_push_temp(ctx, member_addr);
 		if (value) {
@@ -328,7 +356,8 @@ gen_assign(struct context *ctx, struct ast_node *lhs, struct qbe_val lhs_addr,
 		target_addr = array_gen_buf(ctx, lhs_addr);
 	}
 	gen_store(ctx, rhs_val.data_size);
-	emit(ctx, " %s, %s\n", rhs_val.text, target_addr.text);
+	emit(ctx, " %s, %s", rhs_val.text, target_addr.text);
+	annotate(ctx, "assign");
 }
 
 static void
@@ -343,7 +372,7 @@ gen_decl(struct context *ctx, struct ast_node *n) {
 		// FIXME: is it better to assign decl_id here or in check?
 		n->local_id = ctx->curr_decl_id++;
 		// TODO: proper alignment
-		emit(ctx, "    %%A%d =l alloc4 %ld\n", n->local_id, n->type->size);
+		emitln(ctx, "%%A%d =l alloc4 %ld", n->local_id, n->type->size);
 		struct qbe_val val_lhs = stack_make_addr(ctx, n->local_id);
 		if (n->var_decl.init_expr) {
 			gen(ctx, n->var_decl.init_expr);
@@ -381,7 +410,7 @@ gen_stmt(struct context *ctx, struct ast_node *n) {
 	}
 	case NRETURN:
 		gen(ctx, n->return_expr.expr);
-		emit(ctx, "    ret %s\n", stack_pop(ctx).text);
+		emitln(ctx, "ret %s", stack_pop(ctx).text);
 		break;
 	default:
 		assert(!"unknown stmt kind");
@@ -399,7 +428,7 @@ gen(struct context *ctx, struct ast_node *n) {
 		}
 		break;
 	case NFUNC:
-		emit(ctx, "export function w $%s(", n->tok.name);
+		emitln(ctx, "export function w $%s(", n->tok.name);
 		for (int i = 0; i < arrlen(n->func.params); i++) {
 			if (i > 0) {
 				emit(ctx, ", ");
@@ -407,9 +436,10 @@ gen(struct context *ctx, struct ast_node *n) {
 			const struct ast_node *arg = n->func.params[i];
 			emit(ctx, "w %%%s", arg->tok.name);
 		}
-		emit(ctx, ") {\n");
-		emit(ctx, "@start\n");
+		emit(ctx, ") {");
+		emitln(ctx, "@start");
 
+		ctx->qbefmt.indent++;
 		assert(n->scope);
 		scope_open_with(ctx, n->scope);
 		// generate stores of args to stack
@@ -422,10 +452,11 @@ gen(struct context *ctx, struct ast_node *n) {
 			gen(ctx, n->func.stmts[i]);
 		}
 		scope_close(ctx);
+		ctx->qbefmt.indent--;
 		// TODO: free scope here?
 
-		emit(ctx, "}\n");
-		emit(ctx, "\n");
+		emitln(ctx, "}");
+		emitln(ctx, "");
 		break;
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {

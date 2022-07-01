@@ -320,6 +320,10 @@ struct context {
 		} * data;
 		int next_temp_id; // next id to be pushed to valstack
 	} valstack;
+	struct qbe_format {
+		int line_len;
+		int indent;
+	} qbefmt;
 };
 
 void scope_open(struct context *ctx);
