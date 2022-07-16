@@ -479,6 +479,10 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
              array_struct_buf_offset);
       annotate("{}: buf ptr of array {}", rhs->loc.line, lhs->name->text);
       stack.push_address();
+      lhs_address = stack.pop();
+      emitnl("storel {}, {}", rhs_value.format(), lhs_address.format());
+    } else {
+      assert(!"this assignment to array is not handled");
     }
   }
   // For structs, copy every field one by one.
