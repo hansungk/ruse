@@ -62,12 +62,14 @@ struct NameTable {
 };
 
 enum class TypeKind {
-  atom, // built-in, struct
+  atom, // built-in and struct types
   pointer,
   array,
 };
 
-constexpr size_t array_struct_size = 16;
+constexpr size_t array_struct_size = 16u;
+constexpr size_t array_struct_len_offset = 0u;
+constexpr size_t array_struct_buf_offset = 8u;
 
 // 'Type' represents a type, whether it be a built-in type, a user-defined
 // struct, or a reference to another of those.  Similar to Names, Types are

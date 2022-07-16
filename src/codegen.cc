@@ -461,6 +461,7 @@ void QbeGen::codegen_decl(Decl *d) {
 // f(S {.a=...})
 void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
   assert(lhs);
+  // 'lhs' is already pushed to the stack
   codegen_expr_value(rhs);
 
   // NOTE: rhs_value might not actually have ValueKind::value, e.g. for
@@ -471,20 +472,23 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
   // LHS is a value of "p".
   // assert(lhs_address.kind == QbeValue::address);
 
+  if (lhs->type->kind == TypeKind::array) {
+    if (rhs->kind == Expr::call &&
+        rhs->as<CallExpr>()->func_decl == sema.context.fn_alloc) {
+      emitnl("%a{} =l add {}, {}", stack.next_id, lhs_address.format(),
+             array_struct_buf_offset);
+      annotate("{}: buf ptr of array {}", rhs->loc.line, lhs->name->text);
+      stack.push_address();
+    }
+  }
   // For structs, copy every field one by one.
   // XXX: This assumes that any LHS type that is larger than an eightbyte is
   // a struct.
-  auto lhs_type = lhs->type;
-  if (lhs_type->kind == TypeKind::array) {
-    if (rhs->kind == Expr::call &&
-        rhs->as<CallExpr>()->func_decl == sema.context.fn_alloc) {
-      assert(false);
-    }
-  } else if (lhs_type->size > 8) {
-    assert(lhs_type->kind == TypeKind::atom);
-    assert(!lhs_type->builtin);
-    assert(lhs_type->origin_decl->kind == Decl::struct_);
-    auto struct_decl = lhs_type->origin_decl->as<StructDecl>();
+  else if (lhs->type->size > 8) {
+    assert(lhs->type->kind == TypeKind::atom);
+    assert(!lhs->type->builtin);
+    assert(lhs->type->origin_decl->kind == Decl::struct_);
+    auto struct_decl = lhs->type->origin_decl->as<StructDecl>();
 
     for (auto field : struct_decl->fields) {
       auto rhs_text = fmt::format("{}.{}", rhs->text(sema), field->name->text);
@@ -529,9 +533,9 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
     }
   }
   // For non-struct types, a simple store is enough.
-  else if (lhs_type->size == 8) {
+  else if (lhs->type->size == 8) {
     emitnl("storel {}, {}", rhs_value.format(), lhs_address.format());
-  } else if (lhs_type->size == 4) {
+  } else if (lhs->type->size == 4) {
     emitnl("storew {}, {}", rhs_value.format(), lhs_address.format());
   } else {
     assert(!"unknown type size");
