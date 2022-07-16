@@ -199,8 +199,13 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     annotate("{}: offset for {}[]", se->loc.line,
              se->array_expr->decl->name->text);
     stack.push_temp();
-    emitnl("%_{} =l add {}, {}", stack.next_id, stack.pop().format(),
-           stack.pop().format());
+    auto val_offset = stack.pop();
+    auto val_array = stack.pop();
+    emitnl("%_{} =l add {}, {}", stack.next_id, val_array.format(),
+           array_struct_buf_offset);
+    // FIXME: use a make_temp
+    emitnl("%_{} =l add %_{}, {}", stack.next_id, stack.next_id,
+           val_offset.format());
     annotate("{}: base address for {}[]", se->loc.line,
              se->array_expr->decl->name->text);
     stack.push_temp();
