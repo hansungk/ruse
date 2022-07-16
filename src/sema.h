@@ -149,6 +149,7 @@ bool declare(Sema &sema, Decl *decl);
 Type *get_derived_type(Sema &sema, TypeKind kind, Type *base_type);
 bool check(Sema &sema, AstNode *n);
 
+// Intended to be passed by value.
 struct QbeValue {
   enum Kind {
     temp,
@@ -181,12 +182,26 @@ struct Valstack {
   std::vector<QbeValue> buf;
   int next_id = 0;
 
+  QbeValue make_temp() {
+    auto id = next_id;
+    next_id++;
+    return QbeValue{.kind = QbeValue::temp, .id = id};
+  }
+  QbeValue make_addr() {
+    auto id = next_id;
+    next_id++;
+    return QbeValue{.kind = QbeValue::address, .id = id};
+  }
+
   // Push a value as a temporary variable in QBE.  This will show up as "%_0"
   // in the IL. This function does not take any argument because the actual
   // value is emitted to the code.
   void push_temp() {
     buf.push_back(QbeValue{.kind = QbeValue::temp, .id = next_id});
     next_id++;
+  }
+  void push_temp(QbeValue val) {
+    buf.push_back(val);
   }
 
   // Push a value in the form of its memory address.  Larger sized types such
@@ -196,6 +211,9 @@ struct Valstack {
   void push_address() {
     buf.push_back(QbeValue{.kind = QbeValue::address, .id = next_id});
     next_id++;
+  }
+  void push_address(QbeValue addr) {
+    buf.push_back(addr);
   }
 
   // Push a global value that is defined in the data {} section.
@@ -270,7 +288,7 @@ struct QbeGen {
   };
 
   void emit_assignment(const Decl *lhs, Expr *rhs);
-  long emit_stack_alloc(const Type *type, size_t line, std::string_view text);
+  QbeValue emit_stack_alloc(const Type *type, size_t line, std::string_view text);
 
   void codegen(AstNode *n);
   void codegen_decl(Decl *d);

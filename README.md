@@ -21,6 +21,7 @@ $ ./check.py
 
 ## todo
 
+* make_temp for QbeVal
 * built-in functions
 * arrays
 * strings
