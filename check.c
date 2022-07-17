@@ -432,12 +432,12 @@ type_compatible(struct type *to, struct type **from) {
 	return to == *from;
 }
 
-static const struct ast_node *
+static struct ast_node *
 lookup_struct_field(struct type *parent_type, const char *field_name) {
-	const struct ast_node *field_match = NULL;
+	struct ast_node *field_match = NULL;
 
 	for (long i = 0; i < arrlen(parent_type->members); i++) {
-		const struct ast_node *f = parent_type->members[i];
+		struct ast_node *f = parent_type->members[i];
 		if (strcmp(f->tok.name, field_name) == 0) {
 			field_match = f;
 			break;
@@ -578,9 +578,9 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		if (!arrlen(n->member.parent->type->members)) {
 			return error(ctx, n->loc, "member access to a non-struct");
 		}
-		const struct ast_node *field_match;
-		if (!(field_match =
-		          lookup_struct_field(n->member.parent->type, n->tok.name))) {
+		struct ast_node *field_match =
+		    lookup_struct_field(n->member.parent->type, n->tok.name);
+		if (!field_match) {
 			return error(ctx, n->loc, "'%s' is not a member of type '%s'",
 			             n->tok.name, n->member.parent->type->tok.name);
 		}

@@ -188,11 +188,11 @@ gen_array_element(struct context *ctx, struct ast_node *n,
 	struct qbe_val buf_ptr_val = stack_pop(ctx);
 
 	struct qbe_val elem_addr = stack_make_temp(ctx);
-	emitln(ctx, "%s =l mul %d, %s", elem_addr.text,
-	     n->type->base_type->size, index.text);
+	emitln(ctx, "%s =l mul %d, %s", elem_addr.text, n->type->base_type->size,
+	       index.text);
 	annotate(ctx, "stride of array index");
 	emitln(ctx, "%s =l add %s, %s", elem_addr.text, elem_addr.text,
-	     buf_ptr_val.text);
+	       buf_ptr_val.text);
 	annotate(ctx, "offset to array '%s'", n->tok.name);
 	return elem_addr;
 }
@@ -245,7 +245,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		// @copypaste from NLITERAL
 		char wl = (n->type->size == 8) ? 'l' : 'w';
 		emitln(ctx, "%s =%c add %s, %s", val.text, wl, val_lhs.text,
-		     val_rhs.text);
+		       val_rhs.text);
 		stack_push_temp(ctx, val);
 		break;
 	}
@@ -332,7 +332,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		struct qbe_val parent_addr = stack_pop(ctx);
 		struct qbe_val member_addr = stack_make_temp(ctx);
 		emitln(ctx, "%s =l add %s, %d", member_addr.text, parent_addr.text,
-		     n->member.offset);
+		       n->member.offset);
 		annotate(ctx, "offset for member '%s'", n->tok.name);
 		stack_push_temp(ctx, member_addr);
 		if (value) {
