@@ -97,7 +97,7 @@ makemember(struct parser *p, struct token member, struct ast_node *lhs) {
 	return n;
 }
 
-static struct ast_node *
+struct ast_node *
 maketypeexpr(struct parser *p, enum type_kind kind, struct token tok) {
 	// TODO proper arena allocation
 	struct ast_node *n = makenode(p, NTYPEEXPR, tok.loc);
@@ -128,7 +128,7 @@ maketempdecl(struct parser *p) {
 	return n;
 }
 
-static struct ast_node *
+struct ast_node *
 makefielddecl(struct parser *p, struct token name, struct ast_node *type_expr) {
 	// TODO proper arena allocation
 	struct ast_node *n = makenode(p, NFIELD, name.loc);
@@ -254,7 +254,7 @@ expect(struct parser *p, enum token_type t) {
 	if (p->tok.type != t) {
 		char ebuf[TOKLEN], gbuf[TOKLEN];
 		tokentypestr(t, ebuf, sizeof(ebuf));
-		tokenstr(p->l.src.buf, p->tok, gbuf, sizeof(gbuf));
+		tokenstr(p->l.src.text, p->tok, gbuf, sizeof(gbuf));
 		if (strcmp(gbuf, "\n") == 0)
 			strcpy(gbuf, "\\n");
 		error(p, "expected '%s', got '%s'", ebuf, gbuf);

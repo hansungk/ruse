@@ -14,7 +14,7 @@ void fatal(const char *fmt, ...);
 struct source {
 	char filename[256]; // source filename
 	size_t *line_offs;  // byte offsets of '\n's
-	char *buf;          // source text
+	char *text;         // source text
 	long buflen;        // length of src excluding \0
 };
 
@@ -253,7 +253,11 @@ struct parser {
 };
 
 struct ast_node *makefunc(struct parser *p, struct token name);
+struct ast_node *maketypeexpr(struct parser *p, enum type_kind kind,
+                              struct token tok);
 struct ast_node *maketempdecl(struct parser *p);
+struct ast_node *makefielddecl(struct parser *p, struct token name,
+                               struct ast_node *type_expr);
 void parser_from_file(struct parser *p, const char *filename);
 void parser_from_buf(struct parser *p, const char *buf, size_t len);
 void parser_cleanup(struct parser *p);

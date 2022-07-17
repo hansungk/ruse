@@ -44,7 +44,7 @@ static void
 step(struct lexer *l) {
 	if (l->rd_off < l->src.buflen) {
 		l->off = l->rd_off;
-		l->ch = l->src.buf[l->off];
+		l->ch = l->src.text[l->off];
 		if (l->ch == '\n') {
 			arrput(l->src.line_offs, l->off);
 		}
@@ -65,7 +65,7 @@ consume(struct lexer *l, long n) {
 static char
 lookn(struct lexer *l, long n) {
 	if (l->off + n < l->src.buflen) {
-		return l->src.buf[l->off + n];
+		return l->src.text[l->off + n];
 	}
 	return '\0';
 }
@@ -74,7 +74,7 @@ int
 lexer_from_file(struct lexer *l, const char *filename) {
 	memset(l, 0, sizeof(struct lexer));
 	strncpy(l->src.filename, filename, 255);
-	l->src.buf = readfile(filename, &l->src.buflen);
+	l->src.text = readfile(filename, &l->src.buflen);
 	step(l);
 	return 1;
 }
@@ -84,8 +84,8 @@ lexer_from_buf(struct lexer *l, const char *buf, size_t len) {
 	memset(l, 0, sizeof(struct lexer));
 	strncpy(l->src.filename, "(null)", 255);
 	l->src.buflen = len;
-	l->src.buf = calloc(len + 1, 1);
-	strncpy(l->src.buf, buf, len);
+	l->src.text = calloc(len + 1, 1);
+	strncpy(l->src.text, buf, len);
 	step(l);
 	return 1;
 }
@@ -93,7 +93,7 @@ lexer_from_buf(struct lexer *l, const char *buf, size_t len) {
 void
 lexer_cleanup(struct lexer *l) {
 	arrfree(l->src.line_offs);
-	free(l->src.buf);
+	free(l->src.text);
 }
 
 // Make a new token and place it at 'l->tok'.
@@ -132,7 +132,7 @@ lex_ident_or_keyword(struct lexer *l) {
 	maketoken(l, TIDENT);
 	long len = l->off - l->start;
 	l->tok.name = calloc(len + 1, sizeof(char));
-	strncpy(l->tok.name, l->src.buf + l->start, len);
+	strncpy(l->tok.name, l->src.text + l->start, len);
 	l->tok.name[len] = '\0';
 }
 

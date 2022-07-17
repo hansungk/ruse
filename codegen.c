@@ -208,7 +208,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 	assert(n);
 	switch (n->kind) {
 	case NLITERAL: {
-		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
+		tokenstr(ctx->src->text, n->tok, buf, sizeof(buf));
 		val = stack_make_temp(ctx);
 		char wl = (n->type->size == 8) ? 'l' : 'w';
 		// There seems to be no direct way to assign a number literal to a
@@ -386,7 +386,7 @@ gen_decl(struct context *ctx, struct ast_node *n) {
 	char buf[TOKLEN];
 
 	assert(n->decl);
-	tokenstr(ctx->src->buf, n->decl->tok, buf, sizeof(buf));
+	tokenstr(ctx->src->text, n->decl->tok, buf, sizeof(buf));
 
 	switch (n->kind) {
 	case NVARDECL: {

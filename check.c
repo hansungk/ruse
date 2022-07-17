@@ -13,6 +13,7 @@ static struct type *ty_string;
 struct ast_node *fn_alloc = NULL;
 static struct ast_node *declare(struct context *ctx, struct ast_node *n);
 static struct type *push_type(struct context *ctx, struct type *ty);
+static void check_decl(struct context *ctx, struct ast_node *n);
 
 void
 fatal(const char *fmt, ...) {
@@ -42,7 +43,7 @@ maketype(enum type_kind kind, struct token tok) {
 }
 
 // FIXME: remove 'tok'
-struct type *
+static struct type *
 makearraytype(struct type *elem_type, struct token tok) {
 	struct type *t = maketype(TYPE_ARRAY, tok);
 	t->base_type = elem_type;
@@ -51,16 +52,39 @@ makearraytype(struct type *elem_type, struct token tok) {
 }
 
 // FIXME: remove 'tok'
-struct type *
-makeslicetype(struct type *elem_type, struct token tok) {
+static struct type *
+makeslicetype(struct context *ctx, struct type *elem_type, struct token tok) {
 	struct type *t = maketype(TYPE_SLICE, tok);
 	t->base_type = elem_type;
 	t->size = array_struct_size; // FIXME: should be different for slices?
+
+	struct ast_node *te_int = maketypeexpr(
+	    ctx->parser, TYPE_ATOM, (struct token){.type = TINT, .name = "int"});
+	struct ast_node *te_intp =
+	    maketypeexpr(ctx->parser, TYPE_POINTER,
+	                 (struct token){.type = TINT, .name = "int"} /*bogus*/);
+	te_intp->type_expr.base_type = te_int;
+	struct ast_node *field_decl = NULL;
+
+	scope_open(ctx);
+
+	struct token tok_len = (struct token){.type = TIDENT, .name = "len"};
+	field_decl = makefielddecl(ctx->parser, tok_len, te_int);
+	check_decl(ctx, field_decl);
+	assert(field_decl->decl);
+
+	struct token tok_buf = (struct token){.type = TIDENT, .name = "buf"};
+	field_decl = makefielddecl(ctx->parser, tok_buf, te_intp);
+	check_decl(ctx, field_decl);
+	assert(field_decl->decl);
+
+	scope_close(ctx);
+
 	return t;
 }
 
 // FIXME: remove 'tok'
-struct type *
+static struct type *
 makepointertype(struct type *target, struct token tok) {
 	struct type *t = maketype(TYPE_POINTER, tok);
 	t->base_type = target;
@@ -232,7 +256,8 @@ setup_builtin_funcs(struct context *ctx) {
 		return;
 	}
 	fn_alloc->type = maketype(TYPE_FUNC, fn_alloc->tok);
-	fn_alloc->type->return_type = makeslicetype(ty_undef, fn_alloc->tok);
+	fn_alloc->type->return_type =
+	    makeslicetype(ctx, ty_undef, fn_alloc->tok /*arbitrary*/);
 	arrput(fn_alloc->type->params, ty_int64);
 }
 
@@ -295,7 +320,7 @@ static struct ast_node *
 declare(struct context *ctx, struct ast_node *n) {
 	if (!mapput(&ctx->scope->map, n->tok.name, n)) {
 		char buf[TOKLEN];
-		tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
+		tokenstr(ctx->src->text, n->tok, buf, sizeof(buf));
 		// FIXME: should this be done in the caller?
 		error(ctx, n->loc, "'%s' is already declared", buf);
 		return NULL;
@@ -390,7 +415,7 @@ resolve_type_expr(struct context *ctx, struct ast_type_expr *type_expr) {
 		if (!base_type) {
 			return NULL;
 		}
-		return makeslicetype(base_type, type_expr->base_type->tok);
+		return makeslicetype(ctx, base_type, type_expr->base_type->tok);
 	} else if (type_expr->typekind == TYPE_POINTER) {
 		assert(type_expr->base_type);
 		struct type *base_type =
@@ -453,7 +478,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 	struct ast_node *decl = NULL;
 
 	assert(n);
-	tokenstr(ctx->src->buf, n->tok, buf, sizeof(buf));
+	tokenstr(ctx->src->text, n->tok, buf, sizeof(buf));
 
 	switch (n->kind) {
 	case NLITERAL:
@@ -532,7 +557,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 			return;
 		}
 		if (n->call.func->type->kind != TYPE_FUNC) {
-			tokenstr(ctx->src->buf, n->call.func->tok, buf, sizeof(buf));
+			tokenstr(ctx->src->text, n->call.func->tok, buf, sizeof(buf));
 			return error(ctx, n->call.func->loc, "'%s' is not a function", buf);
 		}
 		if (arrlen(n->call.func->type->params) != arrlen(n->call.args)) {
@@ -698,35 +723,34 @@ check_decl(struct context *ctx, struct ast_node *n) {
 	case NSTRUCT:
 		n->type = maketype(TYPE_ATOM, n->tok);
 		push_type(ctx, n->type);
-		// fields
-		// Clear the field offset accumulation at struct entry.  This shouldn't
-		// be done for inner structs (TODO).
-		ctx->accum_field_offset = 0;
+
+		// Instantiate struct fields.
+		//
 		scope_open(ctx);
+		// Clear the field offset accumulation at struct entry.
+		// This shouldn't be done for inner structs (TODO).
+		ctx->accum_field_offset = 0;
 		n->type->size = 0;
 		for (long i = 0; i < arrlen(n->struct_.fields); i++) {
-			struct ast_node *child = n->struct_.fields[i];
-			check_decl(ctx, child);
-			assert(child->decl);
-			arrput(n->type->members, child);
+			struct ast_node *field_decl = n->struct_.fields[i];
+			check_decl(ctx, field_decl);
+			assert(field_decl->decl);
+			arrput(n->type->members, field_decl);
 			// FIXME: respect alignment when calculating byte size
-			n->type->size += child->decl->type->size;
+			n->type->size += field_decl->decl->type->size;
 		}
 		scope_close(ctx);
-		if (!(n->decl = declare(ctx, n))) {
+
+		if (!(n->decl = declare(ctx, n)))
 			return;
-		}
 		assert(n->type);
 		break;
 	case NFIELD:
 		assert(n->field.type_expr);
-		if (!(n->type =
-		          resolve_type_expr(ctx, &n->field.type_expr->type_expr))) {
+		if (!(n->type = resolve_type_expr(ctx, &n->field.type_expr->type_expr)))
 			return;
-		}
-		if (!(n->decl = declare(ctx, n))) {
+		if (!(n->decl = declare(ctx, n)))
 			return;
-		}
 		n->field.offset = ctx->accum_field_offset;
 		ctx->accum_field_offset += 4; // FIXME
 		break;
