@@ -291,7 +291,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 			gen_load(ctx, len_addr, val_rhs.data_size);
 			break;
 		} else if (strcmp(n->call.func->tok.name, "alloc") == 0) {
-			assert(n->type->kind == TYPE_SLICE);
+			assert(n->type->kind == TYPE_POINTER);
 			gen_expr_value(ctx, n->call.args[0]);
 			struct qbe_val array_len = stack_pop(ctx);
 			// Push value of 'len' back so that we can assign it to the 'len'
@@ -368,7 +368,6 @@ gen_assign(struct context *ctx, struct ast_node *lhs, struct ast_node *rhs,
 	if (lhs->type->kind == TYPE_SLICE) {
 		if (rhs->kind == NCALL &&
 		    strcmp(rhs->call.func->tok.name, "alloc") == 0) {
-			assert(!"assign to 'len' field of array");
 			gen_store(ctx, rhs_val.data_size);
 			emit(ctx, " %s, %s", rhs_val.text, target_addr.text);
 			return;

@@ -58,8 +58,9 @@ makeslicetype(struct context *ctx, struct type *elem_type, struct token tok) {
 	t->base_type = elem_type;
 	t->size = array_struct_size; // FIXME: should be different for slices?
 
-	struct ast_node *te_int = maketypeexpr(
-	    ctx->parser, TYPE_ATOM, (struct token){.type = TINT, .name = "int"});
+	struct ast_node *te_int =
+	    maketypeexpr(ctx->parser, TYPE_ATOM,
+	                 (struct token){.type = TINT, .name = strdup("int")});
 	struct ast_node *te_intp =
 	    maketypeexpr(ctx->parser, TYPE_POINTER,
 	                 (struct token){.type = TINT, .name = "int"} /*bogus*/);
@@ -68,15 +69,20 @@ makeslicetype(struct context *ctx, struct type *elem_type, struct token tok) {
 
 	scope_open(ctx);
 
-	struct token tok_len = (struct token){.type = TIDENT, .name = "len"};
+	// TODO: this is almost copy-paste from NSTRUCT:
+	struct token tok_len =
+	    (struct token){.type = TIDENT, .name = strdup("len")};
 	field_decl = makefielddecl(ctx->parser, tok_len, te_int);
 	check_decl(ctx, field_decl);
 	assert(field_decl->decl);
+	arrput(t->members, field_decl);
 
-	struct token tok_buf = (struct token){.type = TIDENT, .name = "buf"};
+	struct token tok_buf =
+	    (struct token){.type = TIDENT, .name = strdup("buf")};
 	field_decl = makefielddecl(ctx->parser, tok_buf, te_intp);
 	check_decl(ctx, field_decl);
 	assert(field_decl->decl);
+	arrput(t->members, field_decl);
 
 	scope_close(ctx);
 
@@ -626,13 +632,18 @@ check_assignment(struct context *ctx, struct ast_node *to,
                  struct ast_node *from) {
 	assert(to->type && from->type);
 
+	if (to->type->kind == TYPE_SLICE) {
+		struct ast_node *buf_field = lookup_struct_field(to->type, "buf");
+		return check_assignment(ctx, buf_field, from);
+	}
 	if (from->kind == NCALL &&
 	    strcmp(from->call.func->tok.name, "alloc") == 0) {
-		if (to->type->kind != TYPE_SLICE) {
-			error(ctx, to->loc, "alloc() can be only used for slices");
+		if (to->type->kind != TYPE_POINTER) {
+			error(ctx, to->loc,
+			      "alloc() can be only used for slices or pointers");
 			return 0;
 		}
-		from->type->base_type = to->type->base_type;
+		from->type = to->type;
 		return 1;
 	}
 	if (!type_compatible(to->type, &from->type)) {
