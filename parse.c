@@ -156,7 +156,7 @@ static struct ast_node *
 makeassign(struct parser *p, struct ast_node *lhs, struct ast_node *rhs) {
 	struct ast_node *n = makenode(p, NASSIGN, lhs->loc);
 	n->assign_expr.lhs = lhs;
-	n->assign_expr.init_expr = rhs;
+	n->assign_expr.rhs = rhs;
 	return n;
 }
 

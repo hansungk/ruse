@@ -12,7 +12,6 @@ $ ./ruse
 ## todo
 
 * fix gen_store
-* annotate generated qbe code
 * array type
 * merge unaryexpr and typeexpr parsing
   * for something like `alloc([]int, 42)`, you don't know if the arguments are

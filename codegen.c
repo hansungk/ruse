@@ -214,7 +214,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		// There seems to be no direct way to assign a number literal to a
 		// temporary in QBE, so use a bogus add 0.
 		emitln(ctx, "%s =%c add 0, %s", val.text, wl, buf);
-		annotate(ctx, "integer constant");
+		annotate(ctx, "constant");
 		stack_push_temp(ctx, val);
 		break;
 	}
@@ -293,15 +293,19 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		} else if (strcmp(n->call.func->tok.name, "alloc") == 0) {
 			assert(n->type->kind == TYPE_SLICE);
 			gen_expr_value(ctx, n->call.args[0]);
-			struct qbe_val malloc_nmemb = stack_pop(ctx);
+			struct qbe_val array_len = stack_pop(ctx);
+			// Push value of 'len' back so that we can assign it to the 'len'
+			// field of the RHS arrray in gen_assign.
+			stack_push_temp(ctx, array_len);
+
 			struct qbe_val malloc_bytesize = stack_make_temp(ctx);
 			emitln(ctx, "%s =l mul %d, %s", malloc_bytesize.text,
-			     n->type->base_type->size, malloc_nmemb.text);
+			       n->type->base_type->size, array_len.text);
 			struct qbe_val val = stack_make_temp(ctx);
 			val.data_size = pointer_size; // FIXME arbitrary; can we extract
 			                              // this from the AST node?
 			emitln(ctx, "%s =l call $%s(l %s)", val.text, "malloc",
-			     malloc_bytesize.text);
+			       malloc_bytesize.text);
 			stack_push_temp(ctx, val);
 			break;
 		}
@@ -357,10 +361,18 @@ gen_expr_addr(struct context *ctx, struct ast_node *n) {
 // it doesn't work for NVARDECL; NVARDECL does not have an LHS expression.
 // TODO: rewrite AST at check so that we can just handle NASSIGN.
 static void
-gen_assign(struct context *ctx, struct ast_node *lhs, struct qbe_val lhs_addr,
-           struct qbe_val rhs_val) {
+gen_assign(struct context *ctx, struct ast_node *lhs, struct ast_node *rhs,
+           struct qbe_val lhs_addr, struct qbe_val rhs_val) {
 	struct qbe_val target_addr = lhs_addr;
+
 	if (lhs->type->kind == TYPE_SLICE) {
+		if (rhs->kind == NCALL &&
+		    strcmp(rhs->call.func->tok.name, "alloc") == 0) {
+			assert(!"assign to 'len' field of array");
+			gen_store(ctx, rhs_val.data_size);
+			emit(ctx, " %s, %s", rhs_val.text, target_addr.text);
+			return;
+		}
 		assert(lhs_addr.kind == VAL_ADDR);
 		target_addr = gen_array_buf(ctx, lhs_addr);
 	}
@@ -387,7 +399,7 @@ gen_decl(struct context *ctx, struct ast_node *n) {
 		if (n->var_decl.init_expr) {
 			gen(ctx, n->var_decl.init_expr);
 			struct qbe_val val_rhs = stack_pop(ctx);
-			gen_assign(ctx, n, val_lhs, val_rhs);
+			gen_assign(ctx, n, n->var_decl.init_expr, val_lhs, val_rhs);
 		}
 		break;
 	}
@@ -411,11 +423,12 @@ gen_stmt(struct context *ctx, struct ast_node *n) {
 		gen_expr_value(ctx, n->expr_stmt.expr);
 		break;
 	case NASSIGN: {
-		gen_expr_value(ctx, n->assign_expr.init_expr);
+		gen_expr_value(ctx, n->assign_expr.rhs);
 		gen_expr_addr(ctx, n->assign_expr.lhs);
 		struct qbe_val val_lhs = stack_pop(ctx);
 		struct qbe_val val_rhs = stack_pop(ctx);
-		gen_assign(ctx, n->assign_expr.lhs, val_lhs, val_rhs);
+		gen_assign(ctx, n->assign_expr.lhs, n->assign_expr.rhs, val_lhs,
+		           val_rhs);
 		break;
 	}
 	case NRETURN:

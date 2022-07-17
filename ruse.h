@@ -202,7 +202,7 @@ struct ast_node {
 		} subscript;
 		struct ast_assign_expr {
 			struct ast_node *lhs;
-			struct ast_node *init_expr;
+			struct ast_node *rhs;
 		} assign_expr;
 		struct ast_return_expr {
 			struct ast_node *expr;
@@ -325,6 +325,8 @@ struct context {
 		int line_len; // used to align annotation comments
 	} qbefmt;
 };
+
+extern struct ast_node *fn_alloc;
 
 void scope_open(struct context *ctx);
 void scope_open_with(struct context *ctx, struct scope *scope);

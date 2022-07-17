@@ -10,6 +10,7 @@ static struct type *ty_undef;
 static struct type *ty_int;
 static struct type *ty_int64;
 static struct type *ty_string;
+struct ast_node *fn_alloc = NULL;
 static struct ast_node *declare(struct context *ctx, struct ast_node *n);
 static struct type *push_type(struct context *ctx, struct type *ty);
 
@@ -226,13 +227,13 @@ setup_builtin_funcs(struct context *ctx) {
 
 	str = strdup("alloc");
 	struct token alloc_tok = {.type = TIDENT, .name = str};
-	n = makefunc(ctx->parser, alloc_tok);
-	if (!declare(ctx, n)) {
+	fn_alloc = makefunc(ctx->parser, alloc_tok);
+	if (!declare(ctx, fn_alloc)) {
 		return;
 	}
-	n->type = maketype(TYPE_FUNC, n->tok);
-	n->type->return_type = makeslicetype(ty_undef, n->tok);
-	arrput(n->type->params, ty_int64);
+	fn_alloc->type = maketype(TYPE_FUNC, fn_alloc->tok);
+	fn_alloc->type->return_type = makeslicetype(ty_undef, fn_alloc->tok);
+	arrput(fn_alloc->type->params, ty_int64);
 }
 
 // NOTE: This *has* to be called after parse(), as it copies over the error
@@ -541,18 +542,18 @@ check_expr(struct context *ctx, struct ast_node *n) {
 			             arrlen(n->call.args));
 		}
 		for (long i = 0; i < arrlen(n->call.args); i++) {
-			check_expr(ctx, n->call.args[i]);
-			if (!n->call.args[i]->type)
+			struct ast_node *argp = n->call.args[i];
+			check_expr(ctx, argp);
+			if (!argp->type)
 				break;
 			assert(n->call.func->type->params[i]);
-			if (!type_compatible(n->call.func->type->params[i],
-			                     &n->call.args[i]->type)) {
+			if (!type_compatible(n->call.func->type->params[i], &argp->type)) {
 				char expect_buf[TOKLEN];
 				char got_buf[TOKLEN];
 				typename(n->call.func->type->params[i], expect_buf,
 				         sizeof(expect_buf));
-				typename(n->call.args[i]->type, got_buf, sizeof(got_buf));
-				return error(ctx, n->call.args[i]->loc,
+				typename(argp->type, got_buf, sizeof(got_buf));
+				return error(ctx, argp->loc,
 				             "wrong type of argument: expected %s, got %s",
 				             expect_buf, got_buf);
 			}
@@ -743,11 +744,11 @@ check_stmt(struct context *ctx, struct ast_node *n) {
 		break;
 	case NASSIGN: {
 		struct ast_assign_expr assign = n->assign_expr;
-		check_expr(ctx, assign.init_expr);
+		check_expr(ctx, assign.rhs);
 		check_expr(ctx, assign.lhs);
-		if (!assign.lhs->type || !assign.init_expr->type)
+		if (!assign.lhs->type || !assign.rhs->type)
 			return;
-		if (!check_assignment(ctx, assign.lhs, assign.init_expr))
+		if (!check_assignment(ctx, assign.lhs, assign.rhs))
 			return;
 		break;
 	}
