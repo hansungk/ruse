@@ -74,7 +74,7 @@ qbe_val_name(struct qbeval *val) {
 static void
 stack_push_param(struct context *ctx, const char *name) {
 	struct qbeval v = {VAL_PARAM, .param_name = name,
-	                    .data_size = 4 /* FIXME */};
+	                   .data_size = 4 /* FIXME */};
 	qbe_val_name(&v);
 	arrput(ctx->valstack.data, v);
 }
@@ -86,7 +86,7 @@ stack_push_param(struct context *ctx, const char *name) {
 static struct qbeval
 stack_make_temp(struct context *ctx) {
 	struct qbeval v = {VAL_TEMP, .temp_id = ctx->valstack.next_temp_id,
-	                    .data_size = 4 /* FIXME */};
+	                   .data_size = 4 /* FIXME */};
 	ctx->valstack.next_temp_id++;
 	qbe_val_name(&v);
 	// We don't increment next_temp_id here, we only do that at the push time.
@@ -95,8 +95,7 @@ stack_make_temp(struct context *ctx) {
 
 static struct qbeval
 stack_make_addr(struct context *ctx, int addr_id) {
-	struct qbeval v = {VAL_ADDR, .addr_id = addr_id,
-	                    .data_size = pointer_size};
+	struct qbeval v = {VAL_ADDR, .addr_id = addr_id, .data_size = pointer_size};
 	(void)ctx;
 	qbe_val_name(&v);
 	return v;
@@ -366,22 +365,37 @@ gen_expr_addr(struct context *ctx, struct ast_node *n) {
 static void
 gen_assign(struct context *ctx, struct ast_node *to, struct ast_node *from,
            struct qbeval to_addr, struct qbeval from_val) {
+	struct qbeval target = to_addr;
 
-	struct qbeval target_addr = to_addr;
 	if (to->type->kind == TYPE_SLICE) {
-		if (from->kind == NCALL &&
-		    strcmp(from->call.func->tok.name, "alloc") == 0) {
+		if (from->kind == NCALL) {
+			// TODO array usages:
+			// arr = alloc()
+			// arr = arr2 (tentative)
+			// *alloc()
+			// struct ast_node *n = makemember(
+			//     ctx->parser,
+			//     (struct token){.type = TIDENT,
+			//                    .name =
+			//                        strdup("buf")} /* TODO: make as singleton */,
+			//     to);
+			// gen_expr_addr(ctx, n);
+			// target = stack_pop(ctx);
+			assert(!"TODO: rewrite slice to buf pointer");
+
+			// old
 			gen_store(ctx, from_val.data_size);
-			emit(ctx, " %s, %s", from_val.text, target_addr.text);
+			emit(ctx, " %s, %s", from_val.text, target.text);
 			return;
 		} else {
-			assert(!"TODO: only array = alloc() assignment handled");
+			// TODO: array to array copy
+			assert(!"TODO: only array = func() form of assignment handled");
 		}
-		target_addr = gen_array_buf(ctx, to_addr);
+		target = gen_array_buf(ctx, to_addr);
 	}
 
 	gen_store(ctx, from_val.data_size);
-	emit(ctx, " %s, %s", from_val.text, target_addr.text);
+	emit(ctx, " %s, %s", from_val.text, target.text);
 	annotate(ctx, "assign");
 }
 

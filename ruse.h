@@ -253,6 +253,8 @@ struct parser {
 };
 
 struct ast_node *makefunc(struct parser *p, struct token name);
+struct ast_node *makemember(struct parser *p, struct token member,
+                            struct ast_node *parent);
 struct ast_node *maketypeexpr(struct parser *p, enum type_kind kind,
                               struct token tok);
 struct ast_node *maketempdecl(struct parser *p);
