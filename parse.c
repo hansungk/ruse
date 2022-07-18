@@ -89,11 +89,11 @@ makecall(struct parser *p, struct ast_node *func, struct ast_node **args) {
 }
 
 // 'lhs' is the 'a.b()' part of 'a.b().c'.
-static struct ast_node *
-makemember(struct parser *p, struct token member, struct ast_node *lhs) {
+struct ast_node *
+makemember(struct parser *p, struct token member, struct ast_node *parent) {
 	struct ast_node *n = makenode(p, NMEMBER, member.loc);
 	n->tok = member;
-	n->member.parent = lhs;
+	n->member.parent = parent;
 	return n;
 }
 

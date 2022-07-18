@@ -287,26 +287,29 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		if (strcmp(n->call.func->tok.name, "len") == 0) {
 			assert(value && "taking address of len()?");
 			gen_expr_addr(ctx, n->call.args[0]);
-			struct qbeval len_addr = gen_array_len(ctx, stack_pop(ctx));
-			gen_load(ctx, len_addr, val_rhs.data_size);
+			struct qbeval lenaddr = gen_array_len(ctx, stack_pop(ctx));
+			gen_load(ctx, lenaddr, val_rhs.data_size);
+			// TODO: len(a) + len(b)
+			// struct ast_node *n = makemember(ctx->parser, ..., n)
 			break;
 		} else if (strcmp(n->call.func->tok.name, "alloc") == 0) {
-			assert(n->type->kind == TYPE_SLICE);
+			// Generate malloc(bytesize) which will be assigned to the 'buf'
+			// field of the LHS array.
 			gen_expr_value(ctx, n->call.args[0]);
-			struct qbeval array_len = stack_pop(ctx);
-			struct qbeval malloc_bytesize = stack_make_temp(ctx);
-			emitln(ctx, "%s =l mul %d, %s", malloc_bytesize.text,
-			       n->type->base_type->size, array_len.text);
-			struct qbeval val = stack_make_temp(ctx);
-			val.data_size = pointer_size; // FIXME arbitrary; can we extract
-			                              // this from the AST node?
-			emitln(ctx, "%s =l call $%s(l %s)", val.text, "malloc",
-			       malloc_bytesize.text);
+			struct qbeval arrlen = stack_pop(ctx);
+			struct qbeval bytes = stack_make_temp(ctx);
+			emitln(ctx, "%s =l mul %d, %s", bytes.text,
+			       n->type->base_type->size, arrlen.text);
+			struct qbeval heapptr = stack_make_temp(ctx);
+			heapptr.data_size = pointer_size; // FIXME arbitrary; can we extract
+			                                  // this from the AST node?
+			emitln(ctx, "%s =l call $%s(l %s)", heapptr.text, "malloc",
+			       bytes.text);
 
 			// Push value of 'len' back so that we can assign it to the 'len'
 			// field of the RHS array in gen_assign.
-			stack_push_temp(ctx, array_len);
-			stack_push_temp(ctx, val);
+			stack_push_temp(ctx, arrlen);
+			stack_push_temp(ctx, heapptr);
 			break;
 		}
 		// Push parameters in reverse order so that they are in correct order
@@ -371,8 +374,9 @@ gen_assign(struct context *ctx, struct ast_node *to, struct ast_node *from,
 			gen_store(ctx, from_val.data_size);
 			emit(ctx, " %s, %s", from_val.text, target_addr.text);
 			return;
+		} else {
+			assert(!"TODO: only array = alloc() assignment handled");
 		}
-		assert(to_addr.kind == VAL_ADDR);
 		target_addr = gen_array_buf(ctx, to_addr);
 	}
 
