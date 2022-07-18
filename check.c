@@ -628,28 +628,10 @@ check_expr(struct context *ctx, struct ast_node *n) {
 }
 
 static int
-check_assignment(struct context *ctx, struct ast_node *to,
+check_assign(struct context *ctx, struct ast_node *to,
                  struct ast_node *from) {
 	assert(to->type && from->type);
 
-	if (to->type->kind == TYPE_SLICE) {
-		struct ast_node *buf_field = lookup_struct_field(to->type, "buf");
-		return check_assignment(ctx, buf_field, from);
-	}
-	if (from->kind == NCALL &&
-	    strcmp(from->call.func->tok.name, "alloc") == 0) {
-		if (to->type->kind != TYPE_POINTER) {
-			error(ctx, to->loc,
-			      "alloc() can be only used for slices or pointers");
-			return 0;
-		}
-		from->type = to->type;
-		return 1;
-	}
-	if (!type_compatible(to->type, &from->type)) {
-		error(ctx, to->loc, "cannot assign to an incompatible type");
-		return 0;
-	}
 	// TODO: maketempdecl() currently simply creates an empty decl with no name
 	// or location info.  This is no different than using a simple boolean flag
 	// to mark the expression as lvalue.  It would be nice to keep more metadata
@@ -658,6 +640,21 @@ check_assignment(struct context *ctx, struct ast_node *to,
 		error(ctx, to->loc, "cannot assign to a non-lvalue");
 		return 0;
 	}
+
+	if (from->kind == NCALL &&
+	    strcmp(from->call.func->tok.name, "alloc") == 0) {
+		if (to->type->kind != TYPE_SLICE) {
+			error(ctx, to->loc,
+			      "alloc() can be only used for slices");
+			return 0;
+		}
+		from->type = to->type;
+	}
+	if (!type_compatible(to->type, &from->type)) {
+		error(ctx, to->loc, "cannot assign to an incompatible type");
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -688,7 +685,7 @@ check_decl(struct context *ctx, struct ast_node *n) {
 		}
 		if (n->var_decl.type_expr && n->var_decl.init_expr) {
 			// if both type and init expr is specified, check assignability
-			if (!check_assignment(ctx, n, n->var_decl.init_expr)) {
+			if (!check_assign(ctx, n, n->var_decl.init_expr)) {
 				return;
 			}
 		}
@@ -783,7 +780,7 @@ check_stmt(struct context *ctx, struct ast_node *n) {
 		check_expr(ctx, assign.lhs);
 		if (!assign.lhs->type || !assign.rhs->type)
 			return;
-		if (!check_assignment(ctx, assign.lhs, assign.rhs))
+		if (!check_assign(ctx, assign.lhs, assign.rhs))
 			return;
 		break;
 	}

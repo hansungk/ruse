@@ -13,10 +13,6 @@ fn main() int {
     arr2[0] = arr2 // error
     arr2[0] = 3
 
-    var notype = alloc(3)
-    notype[0] = arr2 // error
-    notype[0] = arr2[0]
-
     var slice []int
     len(slice)
 }

@@ -308,8 +308,8 @@ struct context {
 	struct qbe_valstack {
 		// qbeval is used as a handle for referring to the temporary QBE values
 		// that are so far generated.
-		struct qbe_val {
-			enum val_kind {
+		struct qbeval {
+			enum qbevalkind {
 				VAL_PARAM,
 				VAL_TEMP,
 				VAL_ADDR,
