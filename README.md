@@ -12,8 +12,8 @@ $ ./ruse
 ## todo
 
 * rewrite AST for array len/buf
+  * put next/prev pointer in AST node to enable in-place rewriting
   * rewrite vardecl = initexpr
-  * need next/prev pointer in AST node?
   * remove gen_array_buf
 * merge unaryexpr and typeexpr parsing
   * for something like `alloc([]int, 42)`, you don't know if the arguments are

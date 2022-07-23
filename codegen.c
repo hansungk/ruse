@@ -145,11 +145,11 @@ static void gen_expr_addr(struct context *ctx, struct ast_node *n);
 
 static int
 is_param(const struct ast_node *func, const struct ast_node *var) {
-	for (long i = 0; i < arrlen(func->func.params); i++) {
-		const struct ast_node *arg = func->func.params[i];
-		if (strcmp(var->tok.name, arg->tok.name) == 0) {
+	struct ast_node *p = func->func.params;
+	while (p) {
+		if (strcmp(var->tok.name, p->tok.name) == 0)
 			return 1;
-		}
+		p = p->next;
 	}
 	return 0;
 }
@@ -285,7 +285,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		}
 		if (strcmp(n->call.func->tok.name, "len") == 0) {
 			assert(value && "taking address of len()?");
-			gen_expr_addr(ctx, n->call.args[0]);
+			gen_expr_addr(ctx, n->call.args /*first*/);
 			struct qbeval lenaddr = gen_array_len(ctx, stack_pop(ctx));
 			gen_load(ctx, lenaddr, val_rhs.data_size);
 			// TODO: len(a) + len(b)
@@ -294,7 +294,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		} else if (strcmp(n->call.func->tok.name, "alloc") == 0) {
 			// Generate malloc(bytesize) which will be assigned to the 'buf'
 			// field of the LHS array.
-			gen_expr_value(ctx, n->call.args[0]);
+			gen_expr_value(ctx, n->call.args /*first*/);
 			struct qbeval arrlen = stack_pop(ctx);
 			struct qbeval bytes = stack_make_temp(ctx);
 			emitln(ctx, "%s =l mul %d, %s", bytes.text,
@@ -313,14 +313,14 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		}
 		// Push parameters in reverse order so that they are in correct order
 		// when popped.
-		for (long i = arrlen(n->call.args) - 1; i >= 0; i--) {
-			gen_expr_value(ctx, n->call.args[i]);
+		for (struct ast_node *arg = n->call.args; arg; arg = arg->next) {
+			gen_expr_value(ctx, arg);
 		}
 		val_lhs = stack_make_temp(ctx);
 		// FIXME: hardcoded type size
 		emitln(ctx, "%s =w ", val_lhs.text);
 		emit(ctx, "call $%s(", n->call.func->tok.name);
-		for (long i = 0; i < arrlen(n->call.args); i++) {
+		for (long i = 0; i < nodelistlen(n->call.args); i++) {
 			val_rhs = stack_pop(ctx);
 			emit(ctx, "w %s, ", val_rhs.text);
 		}
@@ -421,11 +421,14 @@ gen_decl(struct context *ctx, struct ast_node *n) {
 		}
 		break;
 	}
-	case NSTRUCT:
-		for (long i = 0; i < arrlen(n->struct_.fields); i++) {
-			gen_decl(ctx, n->struct_.fields[i]);
+	case NSTRUCT: {
+		struct ast_node *f = n->struct_.fields;
+		while (f) {
+			gen_decl(ctx, f);
+			f = f->next;
 		}
 		break;
+	}
 	case NFIELD:
 		// no codegen
 		break;
@@ -463,19 +466,24 @@ gen(struct context *ctx, struct ast_node *n) {
 	assert(n);
 
 	switch (n->kind) {
-	case NFILE:
-		for (int i = 0; i < arrlen(n->file.body); i++) {
-			gen(ctx, n->file.body[i]);
+	case NFILE: {
+		struct ast_node *b = n->file.body;
+		while (b) {
+			gen(ctx, b);
+			b = b->next;
 		}
 		break;
-	case NFUNC:
+	}
+	case NFUNC: {
 		emitln(ctx, "export function w $%s(", n->tok.name);
-		for (int i = 0; i < arrlen(n->func.params); i++) {
-			if (i > 0) {
+
+		struct ast_node *p = n->func.params;
+		while (p) {
+			if (p != n->func.params) {
 				emit(ctx, ", ");
 			}
-			const struct ast_node *arg = n->func.params[i];
-			emit(ctx, "w %%%s", arg->tok.name);
+			emit(ctx, "w %%%s", p->tok.name);
+			p = p->next;
 		}
 		emit(ctx, ") {");
 		emitln(ctx, "@start");
@@ -484,13 +492,16 @@ gen(struct context *ctx, struct ast_node *n) {
 		assert(n->scope);
 		scope_open_with(ctx, n->scope);
 		// generate stores of args to stack
-		for (int i = 0; i < arrlen(n->func.params); i++) {
-			const struct ast_node *arg = n->func.params[i];
-			stack_push_param(ctx, arg->tok.name);
+		p = n->func.params;
+		while (p) {
+			stack_push_param(ctx, p->tok.name);
+			p = p->next;
 		}
 		// body
-		for (int i = 0; i < arrlen(n->func.stmts); i++) {
-			gen(ctx, n->func.stmts[i]);
+		struct ast_node *s = n->func.stmts;
+		while (s) {
+			gen(ctx, s);
+			s = s->next;
 		}
 		scope_close(ctx);
 		ctx->qbefmt.indent--;
@@ -499,6 +510,7 @@ gen(struct context *ctx, struct ast_node *n) {
 		emitln(ctx, "}");
 		emitln(ctx, "");
 		break;
+	}
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {
 			gen_expr_value(ctx, n);

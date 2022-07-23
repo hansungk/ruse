@@ -26,9 +26,9 @@ makenode(struct parser *p, enum node_kind k, struct src_loc loc) {
 }
 
 static struct ast_node *
-makefile(struct parser *p, struct ast_node **toplevel) {
+makefile(struct parser *p, struct ast_node *body) {
 	struct ast_node *n = makenode(p, NFILE, p->tok.loc);
-	n->file.body = toplevel;
+	n->file.body = body;
 	return n;
 }
 
@@ -80,7 +80,7 @@ makesubscript(struct parser *p, struct ast_node *array,
 }
 
 static struct ast_node *
-makecall(struct parser *p, struct ast_node *func, struct ast_node **args) {
+makecall(struct parser *p, struct ast_node *func, struct ast_node *args) {
 	struct ast_node *n = makenode(p, NCALL, func->loc);
 	n->call.func = func;
 	assert(!n->call.args);
@@ -158,6 +158,31 @@ makeassign(struct parser *p, struct ast_node *lhs, struct ast_node *rhs) {
 	n->assign_expr.lhs = lhs;
 	n->assign_expr.rhs = rhs;
 	return n;
+}
+
+// Add 'next' node after 'n' in the linked list of nodes.  Used for list of
+// statement nodes, parameters, etc.
+void
+addnode(struct ast_node **np, struct ast_node *next) {
+	if (!*np) {
+		*np = next;
+		return;
+	}
+
+	struct ast_node *n = *np;
+	// TODO: add in the middle of the list
+	assert(n->next == NULL);
+	n->next = next;
+}
+
+long
+nodelistlen(struct ast_node *n) {
+	long len = 0;
+	while (n) {
+		len++;
+		n = n->next;
+	}
+	return len;
 }
 
 // Initialize a parser that parses the given filename.
@@ -314,7 +339,7 @@ parse_blockstmt(struct parser *p) {
 	expect(p, TLBRACE);
 	while (p->tok.type != TRBRACE) {
 		struct ast_node *s = parse_stmt(p);
-		arrput(n->block.stmts, s);
+		addnode(&n->block.stmts, s);
 		skip_newlines(p);
 	}
 	expect(p, TRBRACE);
@@ -331,16 +356,24 @@ parse_return(struct parser *p) {
 
 // Assumes enclosing '(' is already consumed.
 // Does not consume ending ')'.
-static struct ast_node **
+static struct ast_node *
 parse_callargs(struct parser *p) {
-	struct ast_node **list = NULL;
+	struct ast_node *list = NULL;
+	struct ast_node *last = list;
+
 	while (p->tok.type != TRPAREN) {
-		arrput(list, parse_expr(p));
-		if (p->tok.type == TCOMMA)
-			next(p);
-		else
+		struct ast_node *e = parse_expr(p);
+
+		addnode(&last, e);
+		last = e;
+		if (!list)
+			list = e;
+
+		if (p->tok.type != TCOMMA)
 			break;
+		next(p);
 	}
+
 	return list;
 }
 
@@ -402,7 +435,7 @@ parse_unaryexpr(struct parser *p) {
 		} else if (p->tok.type == TLPAREN) {
 			expect(p, TLPAREN);
 			// swap parent with child
-			struct ast_node **args = parse_callargs(p);
+			struct ast_node *args = parse_callargs(p);
 			e = makecall(p, e, args);
 			expect(p, TRPAREN);
 		} else {
@@ -576,17 +609,26 @@ parse_func(struct parser *p) {
 	// argument list
 	// NOTE: similar code to parse_struct()
 	expect(p, TLPAREN);
+
+	struct ast_node *last = f->func.params;
 	while (p->tok.type != TRPAREN) {
 		struct token tok = p->tok;
 		expect(p, TIDENT);
 		struct ast_node *texpr = parse_typeexpr(p);
-		arrput(f->func.params, makevardecl(p, tok, NULL, texpr));
+
+		struct ast_node *v = makevardecl(p, tok, NULL, texpr);
+		addnode(&last, v);
+		last = v;
+		if (!f->func.params)
+			f->func.params = v;
+
 		if (p->tok.type != TRPAREN) {
 			if (!expect(p, TCOMMA))
 				// recover error
 				skip_to(p, TRPAREN);
 		}
 	}
+
 	expect(p, TRPAREN);
 
 	// return type
@@ -597,10 +639,18 @@ parse_func(struct parser *p) {
 	// body
 	expect(p, TLBRACE);
 	skip_newlines(p);
+
+	last = f->func.stmts;
 	while (p->tok.type != TRBRACE) {
-		struct ast_node *stmt = parse_stmt(p);
-		if (stmt)
-			arrput(f->func.stmts, stmt);
+		struct ast_node *s = parse_stmt(p);
+		if (s) {
+			addnode(&last, s);
+			if (!f->func.stmts)
+				f->func.stmts = s;
+
+			// keep last pointer to be able to append at the end
+			last = s;
+		}
 
 		skip_newlines(p);
 	}
@@ -619,12 +669,18 @@ parse_struct(struct parser *p) {
 	expect(p, TLBRACE);
 	skip_newlines(p);
 	// NOTE: similar code to parse_callargs()
+	struct ast_node *last = s->struct_.fields;
 	while (p->tok.type != TRBRACE) {
 		struct token tok = p->tok;
 		expect(p, TIDENT);
 		struct ast_node *texpr = parse_typeexpr(p);
 		struct ast_node *field = makefielddecl(p, tok, texpr);
-		arrput(s->struct_.fields, field);
+
+		addnode(&last, field);
+		last = field;
+		if (!s->struct_.fields)
+			s->struct_.fields = field;
+
 		skip_newlines(p);
 	}
 	expect(p, TRBRACE);
@@ -649,13 +705,19 @@ parse_toplevel(struct parser *p) {
 
 struct ast_node *
 parse(struct parser *p) {
-	struct ast_node **nodes = NULL;
+	struct ast_node *n = NULL;
+	struct ast_node *last = n;
 
 	while (p->tok.type != TEOF) {
-		struct ast_node *func = parse_toplevel(p);
-		arrput(nodes, func);
+		struct ast_node *top = parse_toplevel(p);
+
+		addnode(&last, top);
+		last = top;
+		if (!n)
+			n = top;
+
 		skip_newlines(p);
 	}
 
-	return makefile(p, nodes);
+	return makefile(p, n);
 }

@@ -150,7 +150,7 @@ struct type {
 	enum type_kind kind;
 	struct token tok; // name of the type (for value types)
 	                  // TODO: swap this out with a char *n
-	struct type **params;
+	struct type **params; // FIXME: should this be a linked list as well?
 	struct ast_node **members;
 	struct type *base_type; // referred type
 	struct type *return_type;
@@ -170,21 +170,21 @@ struct ast_node {
 	union {
 		struct ast_call_expr {
 			struct ast_node *func;
-			struct ast_node **args;
+			struct ast_node *args;
 		} call;
 		struct ast_file {
-			struct ast_node **body;
+			struct ast_node *body;
 		} file;
 		struct block_stmt {
-			struct ast_node **stmts;
+			struct ast_node *stmts;
 		} block;
 		struct ast_function {
-			struct ast_node **params;
-			struct ast_node **stmts;
+			struct ast_node *params;
+			struct ast_node *stmts;
 			struct ast_node *ret_type_expr;
 		} func;
 		struct ast_struct {
-			struct ast_node **fields;
+			struct ast_node *fields;
 		} struct_;
 		struct ast_bin_expr {
 			struct ast_node *lhs;
@@ -235,7 +235,11 @@ struct ast_node {
 	// Type of this node.  If this is NULL that means the typecheck on this
 	// node have failed.
 	struct type *type;
+	struct ast_node *next;
 };
+
+void addnode(struct ast_node **np, struct ast_node *next);
+long nodelistlen(struct ast_node *n);
 
 struct error {
 	struct src_loc loc;

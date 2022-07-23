@@ -566,35 +566,37 @@ check_expr(struct context *ctx, struct ast_node *n) {
 			tokenstr(ctx->src->text, n->call.func->tok, buf, sizeof(buf));
 			return error(ctx, n->call.func->loc, "'%s' is not a function", buf);
 		}
-		if (arrlen(n->call.func->type->params) != arrlen(n->call.args)) {
+		// FIXME: can't use arrlen on args
+		if (arrlen(n->call.func->type->params) != nodelistlen(n->call.args)) {
 			return error(ctx, n->call.func->loc,
 			             "wrong number of arguments: expected %ld, got %ld",
 			             arrlen(n->call.func->type->params),
-			             arrlen(n->call.args));
+			             nodelistlen(n->call.args));
 		}
-		for (long i = 0; i < arrlen(n->call.args); i++) {
-			struct ast_node *argp = n->call.args[i];
-			check_expr(ctx, argp);
-			if (!argp->type)
+		int i = 0;
+		for (struct ast_node *arg = n->call.args; arg; arg = arg->next, i++) {
+			check_expr(ctx, arg);
+			if (!arg->type)
 				break;
 			assert(n->call.func->type->params[i]);
-			if (!type_compatible(n->call.func->type->params[i], &argp->type)) {
+			if (!type_compatible(n->call.func->type->params[i], &arg->type)) {
 				char expect_buf[TOKLEN];
 				char got_buf[TOKLEN];
 				typename(n->call.func->type->params[i], expect_buf,
 				         sizeof(expect_buf));
-				typename(argp->type, got_buf, sizeof(got_buf));
-				return error(ctx, argp->loc,
+				typename(arg->type, got_buf, sizeof(got_buf));
+				return error(ctx, arg->loc,
 				             "wrong type of argument: expected %s, got %s",
 				             expect_buf, got_buf);
 			}
 		}
 		// TODO: turn this into check_builtin_func()
 		if (strcmp(n->call.func->tok.name, "len") == 0) {
-			assert(arrlen(n->call.args) == 1);
-			if (n->call.args[0]->type->kind != TYPE_ARRAY &&
-			    n->call.args[0]->type->kind != TYPE_SLICE) {
-				return error(ctx, n->call.args[0]->loc,
+			assert(nodelistlen(n->call.args) == 1);
+			// first arg
+			if (n->call.args->type->kind != TYPE_ARRAY &&
+			    n->call.args->type->kind != TYPE_SLICE) {
+				return error(ctx, n->call.args->loc,
 				             "len() can be used only for arrays and slices");
 			}
 			// TODO: TYPE_SLICE
@@ -691,7 +693,7 @@ check_decl(struct context *ctx, struct ast_node *n) {
 		}
 		assert(n->type);
 		break;
-	case NFUNC:
+	case NFUNC: {
 		if (!declare(ctx, n)) {
 			return;
 		}
@@ -711,24 +713,29 @@ check_decl(struct context *ctx, struct ast_node *n) {
 		n->scope = ctx->scope;
 		ctx->scope->decl = n;
 		// declare parameters
-		for (long i = 0; i < arrlen(n->func.params); i++) {
-			assert(n->func.params[i]->kind == NVARDECL);
-			check(ctx, n->func.params[i]);
-			if (n->func.params[i]->type) {
-				arrput(n->type->params, n->func.params[i]->type);
+		struct ast_node *p = n->func.params;
+		while (p) {
+			assert(p->kind == NVARDECL);
+			check(ctx, p);
+			if (p->type) {
+				arrput(n->type->params, p->type);
 			} else {
 				assert(!"FIXME: what now?");
 			}
+			p = p->next;
 		}
 		// check body
-		for (long i = 0; i < arrlen(n->func.stmts); i++) {
-			check(ctx, n->func.stmts[i]);
+		struct ast_node *s = n->func.stmts;
+		while (s) {
+			check(ctx, s);
+			s = s->next;
 		}
 		scope_close(ctx);
 
 		// TODO: check return stmts
 		break;
-	case NSTRUCT:
+	}
+	case NSTRUCT: {
 		n->type = maketype(TYPE_ATOM, n->tok);
 		push_type(ctx, n->type);
 
@@ -739,13 +746,14 @@ check_decl(struct context *ctx, struct ast_node *n) {
 		// This shouldn't be done for inner structs (TODO).
 		ctx->accum_field_offset = 0;
 		n->type->size = 0;
-		for (long i = 0; i < arrlen(n->struct_.fields); i++) {
-			struct ast_node *field_decl = n->struct_.fields[i];
-			check_decl(ctx, field_decl);
-			assert(field_decl->decl);
-			arrput(n->type->members, field_decl);
+		struct ast_node *f = n->struct_.fields;
+		while (f) {
+			check_decl(ctx, f);
+			assert(f->decl);
+			arrput(n->type->members, f);
 			// FIXME: respect alignment when calculating byte size
-			n->type->size += field_decl->decl->type->size;
+			n->type->size += f->decl->type->size;
+			f = f->next;
 		}
 		scope_close(ctx);
 
@@ -753,6 +761,7 @@ check_decl(struct context *ctx, struct ast_node *n) {
 			return;
 		assert(n->type);
 		break;
+	}
 	case NFIELD:
 		assert(n->field.type_expr);
 		if (!(n->type = resolve_type_expr(ctx, &n->field.type_expr->type_expr)))
@@ -784,13 +793,16 @@ check_stmt(struct context *ctx, struct ast_node *n) {
 			return;
 		break;
 	}
-	case NBLOCKSTMT:
+	case NBLOCKSTMT: {
 		scope_open(ctx);
-		for (long i = 0; i < arrlen(n->block.stmts); i++) {
-			check(ctx, n->block.stmts[i]);
+		struct ast_node *s = n->block.stmts;
+		while (s) {
+			check(ctx, s);
+			s = s->next;
 		}
 		scope_close(ctx);
 		break;
+	}
 	case NRETURN:
 		check_expr(ctx, n->return_expr.expr);
 		if (!n->return_expr.expr->type)
@@ -804,11 +816,14 @@ check_stmt(struct context *ctx, struct ast_node *n) {
 void
 check(struct context *ctx, struct ast_node *n) {
 	switch (n->kind) {
-	case NFILE:
-		for (long i = 0; i < arrlen(n->file.body); i++) {
-			check(ctx, n->file.body[i]);
+	case NFILE: {
+		struct ast_node *b = n->file.body;
+		while (b) {
+			check(ctx, b);
+			b = b->next;
 		}
 		break;
+	}
 	default:
 		if (NEXPR <= n->kind && n->kind < NDECL) {
 			check_expr(ctx, n);
