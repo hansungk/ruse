@@ -337,11 +337,17 @@ parse_blockstmt(struct parser *p) {
 	struct ast_node *n = makenode(p, NBLOCKSTMT, p->tok.loc);
 
 	expect(p, TLBRACE);
+
+	struct ast_node *last = n->block.stmts;
 	while (p->tok.type != TRBRACE) {
 		struct ast_node *s = parse_stmt(p);
-		addnode(&n->block.stmts, s);
+		addnode(&last, s);
+		last = s;
+		if (!n->block.stmts)
+			n->block.stmts = s;
 		skip_newlines(p);
 	}
+
 	expect(p, TRBRACE);
 
 	return n;
@@ -645,11 +651,10 @@ parse_func(struct parser *p) {
 		struct ast_node *s = parse_stmt(p);
 		if (s) {
 			addnode(&last, s);
-			if (!f->func.stmts)
-				f->func.stmts = s;
-
 			// keep last pointer to be able to append at the end
 			last = s;
+			if (!f->func.stmts)
+				f->func.stmts = s;
 		}
 
 		skip_newlines(p);
