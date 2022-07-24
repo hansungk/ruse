@@ -148,8 +148,8 @@ enum type_kind {
 
 struct type {
 	enum type_kind kind;
-	struct token tok; // name of the type (for value types)
-	                  // TODO: swap this out with a char *n
+	struct token tok;     // name of the type (for value types)
+	                      // TODO: swap this out with a char *n
 	struct type **params; // FIXME: should this be a linked list as well?
 	struct ast_node **members;
 	struct type *base_type; // referred type

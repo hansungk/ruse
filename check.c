@@ -630,8 +630,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 }
 
 static int
-check_assign(struct context *ctx, struct ast_node *to,
-                 struct ast_node *from) {
+check_assign(struct context *ctx, struct ast_node *to, struct ast_node *from) {
 	assert(to->type && from->type);
 
 	// TODO: maketempdecl() currently simply creates an empty decl with no name
@@ -646,8 +645,7 @@ check_assign(struct context *ctx, struct ast_node *to,
 	if (from->kind == NCALL &&
 	    strcmp(from->call.func->tok.name, "alloc") == 0) {
 		if (to->type->kind != TYPE_SLICE) {
-			error(ctx, to->loc,
-			      "alloc() can be only used for slices");
+			error(ctx, to->loc, "alloc() can be only used for slices");
 			return 0;
 		}
 		from->type = to->type;
@@ -689,7 +687,8 @@ check_decl(struct context *ctx, struct ast_node *n) {
 			id->tok = n->tok;
 			check_expr(ctx, id);
 			assert(id->type); // should succeed as `id` is already declared
-			struct ast_node *assign = makeassign(ctx->parser, id, n->var_decl.init_expr);
+			struct ast_node *assign =
+			    makeassign(ctx->parser, id, n->var_decl.init_expr);
 			addnode(&n, assign);
 			// no need to call check_assign() here; assignment will be checked
 			// when `assign` is visited

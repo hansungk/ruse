@@ -377,7 +377,8 @@ gen_assign(struct context *ctx, struct ast_node *to, struct ast_node *from,
 			//     ctx->parser,
 			//     (struct token){.type = TIDENT,
 			//                    .name =
-			//                        strdup("buf")} /* TODO: make as singleton */,
+			//                        strdup("buf")} /* TODO: make as singleton
+			//                        */,
 			//     to);
 			// gen_expr_addr(ctx, n);
 			// target = stack_pop(ctx);
