@@ -10,7 +10,7 @@ static struct ast_node *parse_expr(struct parser *p);
 static struct ast_node *parse_stmt(struct parser *p);
 static struct ast_node *parse_typeexpr(struct parser *p);
 
-static struct ast_node *
+struct ast_node *
 makenode(struct parser *p, enum node_kind k, struct src_loc loc) {
 	// TODO: store all nodes in a contiguous buffer for better locality?
 	// should be careful about node pointers going stale though
@@ -152,7 +152,7 @@ makeexprstmt(struct parser *p, struct ast_node *rhs) {
 	return n;
 }
 
-static struct ast_node *
+struct ast_node *
 makeassign(struct parser *p, struct ast_node *lhs, struct ast_node *rhs) {
 	struct ast_node *n = makenode(p, NASSIGN, lhs->loc);
 	n->assign_expr.lhs = lhs;
@@ -163,16 +163,17 @@ makeassign(struct parser *p, struct ast_node *lhs, struct ast_node *rhs) {
 // Add 'next' node after 'n' in the linked list of nodes.  Used for list of
 // statement nodes, parameters, etc.
 void
-addnode(struct ast_node **np, struct ast_node *next) {
-	if (!*np) {
-		*np = next;
+addnode(struct ast_node **np, struct ast_node *new) {
+	assert(new);
+
+	struct ast_node *n = *np;
+	if (!n) {
+		*np = new;
 		return;
 	}
 
-	struct ast_node *n = *np;
-	// TODO: add in the middle of the list
-	assert(n->next == NULL);
-	n->next = next;
+	new->next = n->next;
+	n->next = new;
 }
 
 long

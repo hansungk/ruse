@@ -667,17 +667,15 @@ check_decl(struct context *ctx, struct ast_node *n) {
 		// var decl has an init expression, ex. var i = 4
 		if (n->var_decl.init_expr) {
 			check_expr(ctx, n->var_decl.init_expr);
-			if (!n->var_decl.init_expr->type) {
+			if (!n->var_decl.init_expr->type)
 				return;
-			}
 			n->type = n->var_decl.init_expr->type;
 		}
 		// var decl has a type specifier, ex. var i: int
 		if (n->var_decl.type_expr) {
 			n->type = resolve_type_expr(ctx, &n->var_decl.type_expr->type_expr);
-			if (!n->type) {
+			if (!n->type)
 				return;
-			}
 		}
 		// FIXME: This is a little awkward because original declarations would
 		// have 'n == n->decl'.  Or is this a good thing?  Maybe make a
@@ -686,10 +684,15 @@ check_decl(struct context *ctx, struct ast_node *n) {
 			return;
 		}
 		if (n->var_decl.type_expr && n->var_decl.init_expr) {
-			// if both type and init expr is specified, check assignability
-			if (!check_assign(ctx, n, n->var_decl.init_expr)) {
-				return;
-			}
+			// rewrite into vardecl + assign expr
+			struct ast_node *id = makenode(ctx->parser, NIDEXPR, n->tok.loc);
+			id->tok = n->tok;
+			check_expr(ctx, id);
+			assert(id->type); // should succeed as `id` is already declared
+			struct ast_node *assign = makeassign(ctx->parser, id, n->var_decl.init_expr);
+			addnode(&n, assign);
+			// no need to call check_assign() here; assignment will be checked
+			// when `assign` is visited
 		}
 		assert(n->type);
 		break;

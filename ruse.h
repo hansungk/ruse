@@ -256,6 +256,8 @@ struct parser {
 	struct ast_node **nodeptrbuf; // pointers to the allocated nodes
 };
 
+struct ast_node *makenode(struct parser *p, enum node_kind k,
+                          struct src_loc loc);
 struct ast_node *makefunc(struct parser *p, struct token name);
 struct ast_node *makemember(struct parser *p, struct token member,
                             struct ast_node *parent);
@@ -264,6 +266,8 @@ struct ast_node *maketypeexpr(struct parser *p, enum type_kind kind,
 struct ast_node *maketempdecl(struct parser *p);
 struct ast_node *makefielddecl(struct parser *p, struct token name,
                                struct ast_node *type_expr);
+struct ast_node *makeassign(struct parser *p, struct ast_node *lhs,
+                            struct ast_node *rhs);
 void parser_from_file(struct parser *p, const char *filename);
 void parser_from_buf(struct parser *p, const char *buf, size_t len);
 void parser_cleanup(struct parser *p);
