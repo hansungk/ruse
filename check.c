@@ -658,6 +658,13 @@ check_assign(struct context *ctx, struct ast_node *to, struct ast_node *from) {
 	return 1;
 }
 
+static struct token
+tokdup(const struct token tok) {
+	struct token t = tok;
+	t.name = strdup(tok.name);
+	return t;
+}
+
 static void
 check_decl(struct context *ctx, struct ast_node *n) {
 	switch (n->kind) {
@@ -681,17 +688,18 @@ check_decl(struct context *ctx, struct ast_node *n) {
 		if (!(n->decl = declare(ctx, n))) {
 			return;
 		}
-		if (n->var_decl.type_expr && n->var_decl.init_expr) {
+		if (n->var_decl.init_expr) {
 			// rewrite into vardecl + assign expr
+			// This way, there's no need to explicitly call check_assign()
+			// inside NVARDECL because that will be handled when the newly added
+			// assignment node is visited.
 			struct ast_node *id = makenode(ctx->parser, NIDEXPR, n->tok.loc);
-			id->tok = n->tok;
+			id->tok = tokdup(n->tok);
 			check_expr(ctx, id);
 			assert(id->type); // should succeed as `id` is already declared
 			struct ast_node *assign =
 			    makeassign(ctx->parser, id, n->var_decl.init_expr);
 			addnode(&n, assign);
-			// no need to call check_assign() here; assignment will be checked
-			// when `assign` is visited
 		}
 		assert(n->type);
 		break;
