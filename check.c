@@ -447,10 +447,10 @@ resolve_type_expr(struct context *ctx, struct ast_type_expr *type_expr) {
 // promotion on `from`, e.g. from int to int64.
 static int
 type_compatible(struct type *to, struct type **from) {
-	if (to->kind == TYPE_ARRAY || to->kind == TYPE_SLICE) {
-		if (to->kind != (*from)->kind) {
+	if (to->kind == TYPE_ARRAY || to->kind == TYPE_SLICE ||
+	    to->kind == TYPE_POINTER) {
+		if (to->kind != (*from)->kind)
 			return 0;
-		}
 		return type_compatible(to->base_type, &(*from)->base_type);
 	}
 	if (to == ty_undef) {
