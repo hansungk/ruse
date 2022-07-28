@@ -155,7 +155,7 @@ is_param(const struct ast_node *func, const struct ast_node *var) {
 }
 
 // Generate address where the "len" field of an array resides.
-// Note that this does not push the resulting value to the stack.
+// Note that this does not push the value to the stack but returns it.
 static struct qbeval
 gen_array_len(struct context *ctx, struct qbeval array_addr) {
 	struct qbeval len_addr = stack_make_temp(ctx);
@@ -165,34 +165,39 @@ gen_array_len(struct context *ctx, struct qbeval array_addr) {
 }
 
 // Generate address where the "buf" field of an array or a slice resides.
-// Note that this does not push the resulting value to the stack.
+// Note that this does not push the value to the stack but returns it.
 static struct qbeval
-gen_array_buf(struct context *ctx, struct qbeval array_addr) {
-	struct qbeval buf_addr = stack_make_temp(ctx);
-	emitln(ctx, "%s =l add %s, %d", buf_addr.text, array_addr.text, 8);
+gen_array_buf(struct context *ctx, struct ast_node *array_decl,
+              struct qbeval array_addr) {
+	struct qbeval addr = stack_make_temp(ctx);
+	struct ast_node *f = lookup_struct_field(array_decl->type, "buf");
+	assert(f);
+	assert(f->kind == NFIELD);
+	emitln(ctx, "%s =l add %s, %d", addr.text, array_addr.text,
+	       f->field.offset);
 	annotate(ctx, "'buf' of array");
-	return buf_addr;
+	return addr;
 }
 
-// Generate address where the element at `index` of an array resides.
-// `n` is the declaration node of the array.
-// Note that this does not push the resulting value to the stack.
+// Generate address where the element at `index` of the array `array_decl`
+// resides.
+// Note that this does not push the value to the stack but returns it.
 static struct qbeval
-gen_array_element(struct context *ctx, struct ast_node *n,
+gen_array_element(struct context *ctx, struct ast_node *array_decl,
                   struct qbeval array_addr, struct qbeval index) {
 	// Need to take indirect access to the 'buf' field of the array.
-	struct qbeval buf_addr = gen_array_buf(ctx, array_addr);
+	struct qbeval buf_addr = gen_array_buf(ctx, array_decl, array_addr);
 	gen_load(ctx, buf_addr, pointer_size);
-	annotate(ctx, "load '%s'", n->tok.name);
+	annotate(ctx, "load '%s'", array_decl->tok.name);
 	struct qbeval buf_ptr_val = stack_pop(ctx);
 
 	struct qbeval elem_addr = stack_make_temp(ctx);
-	emitln(ctx, "%s =l mul %d, %s", elem_addr.text, n->type->base_type->size,
-	       index.text);
+	emitln(ctx, "%s =l mul %d, %s", elem_addr.text,
+	       array_decl->type->base_type->size, index.text);
 	annotate(ctx, "stride of array index");
 	emitln(ctx, "%s =l add %s, %s", elem_addr.text, elem_addr.text,
 	       buf_ptr_val.text);
-	annotate(ctx, "offset to array '%s'", n->tok.name);
+	annotate(ctx, "offset to array '%s'", array_decl->tok.name);
 	return elem_addr;
 }
 
@@ -379,7 +384,6 @@ gen_assign(struct context *ctx, struct ast_node *to, struct ast_node *from,
 			// TODO: array to array copy
 			assert(!"TODO: only array = func() form of assignment handled");
 		}
-		target = gen_array_buf(ctx, to_addr);
 	}
 
 	gen_store(ctx, from_val.data_size);

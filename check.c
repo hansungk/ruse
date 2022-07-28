@@ -463,7 +463,7 @@ type_compatible(struct type *to, struct type **from) {
 	return to == *from;
 }
 
-static struct ast_node *
+struct ast_node *
 lookup_struct_field(struct type *parent_type, const char *field_name) {
 	struct ast_node *field_match = NULL;
 
@@ -805,11 +805,10 @@ check_stmt(struct context *ctx, struct ast_node *n) {
 
 		if (assign->lhs->type->kind == TYPE_SLICE) {
 			if (assign->rhs->kind == NCALL) {
-				// TODO array usages:
+				// Array usages:
 				//	 arr = alloc()
 				// 	 arr = arr2 (tentative)
 				// 	 *alloc()
-				//
 				struct ast_node *memb = makemember(
 				    ctx->parser,
 				    (struct token){.type = TIDENT, .name = strdup("buf")}
@@ -817,9 +816,10 @@ check_stmt(struct context *ctx, struct ast_node *n) {
 				    ,
 				    assign->lhs);
 				check_expr(ctx, memb);
+				assert(memb->type);
+				assert(memb->decl);
+
 				assign->lhs = memb;
-				assert(assign->lhs->type);
-				assert(assign->lhs->decl);
 			}
 		}
 		break;

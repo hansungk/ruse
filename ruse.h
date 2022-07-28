@@ -349,6 +349,8 @@ struct type *maketype(enum type_kind kind, struct token tok);
 void context_init(struct context *ctx, struct parser *p);
 void context_free(struct context *ctx);
 struct ast_node *lookup(struct context *ctx, const struct ast_node *n);
+struct ast_node *lookup_struct_field(struct type *parent_type,
+                                     const char *field_name);
 void check(struct context *ctx, struct ast_node *n);
 int do_errors(const struct error *errors);
 
