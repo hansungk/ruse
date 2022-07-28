@@ -12,9 +12,8 @@ $ ./ruse
 ## todo
 
 * rewrite AST for array len/buf
-  * put next/prev pointer in AST node to enable in-place rewriting
-  * rewrite vardecl = initexpr
   * remove gen_array_buf
+  * prev pointer in AST?
 * merge unaryexpr and typeexpr parsing
   * for something like `alloc([]int, 42)`, you don't know if the arguments are
     expression or a type until the semantic phase.  So in the parsing stage

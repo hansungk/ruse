@@ -369,20 +369,7 @@ gen_assign(struct context *ctx, struct ast_node *to, struct ast_node *from,
 
 	if (to->type->kind == TYPE_SLICE) {
 		if (from->kind == NCALL) {
-			// TODO array usages:
-			// arr = alloc()
-			// arr = arr2 (tentative)
-			// *alloc()
-			// struct ast_node *n = makemember(
-			//     ctx->parser,
-			//     (struct token){.type = TIDENT,
-			//                    .name =
-			//                        strdup("buf")} /* TODO: make as singleton
-			//                        */,
-			//     to);
-			// gen_expr_addr(ctx, n);
-			// target = stack_pop(ctx);
-			assert(!"TODO: rewrite slice to buf pointer");
+			assert(!"this shouldn't happen after 'buf' rewrite in check");
 
 			// old
 			gen_store(ctx, from_val.data_size);
@@ -415,11 +402,7 @@ gen_decl(struct context *ctx, struct ast_node *n) {
 		struct qbeval val_lhs = stack_make_addr(ctx, n->local_id);
 		emitln(ctx, "%s =l alloc4 %ld", val_lhs.text, n->type->size);
 		annotate(ctx, "stack variable '%s'", n->tok.name);
-		if (n->var_decl.init_expr) {
-			gen(ctx, n->var_decl.init_expr);
-			struct qbeval val_rhs = stack_pop(ctx);
-			gen_assign(ctx, n, n->var_decl.init_expr, val_lhs, val_rhs);
-		}
+		// no need to generate init_expr; AST is rewritten in check
 		break;
 	}
 	case NSTRUCT: {

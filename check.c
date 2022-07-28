@@ -624,6 +624,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		break;
 	}
 	default:
+		printf("n->kind=%d\n", n->kind);
 		assert(!"unknown expr kind");
 	}
 	assert(n->type);
@@ -685,9 +686,9 @@ check_decl(struct context *ctx, struct ast_node *n) {
 		// FIXME: This is a little awkward because original declarations would
 		// have 'n == n->decl'.  Or is this a good thing?  Maybe make a
 		// separate Decl struct?
-		if (!(n->decl = declare(ctx, n))) {
+		if (!(n->decl = declare(ctx, n)))
 			return;
-		}
+
 		if (n->var_decl.init_expr) {
 			// rewrite into vardecl + assign expr
 			// This way, there's no need to explicitly call check_assign()
@@ -794,13 +795,33 @@ check_stmt(struct context *ctx, struct ast_node *n) {
 		check_expr(ctx, n->expr_stmt.expr);
 		break;
 	case NASSIGN: {
-		struct ast_assign_expr assign = n->assign_expr;
-		check_expr(ctx, assign.rhs);
-		check_expr(ctx, assign.lhs);
-		if (!assign.lhs->type || !assign.rhs->type)
+		struct ast_assign_expr *assign = &n->assign_expr;
+		check_expr(ctx, assign->rhs);
+		check_expr(ctx, assign->lhs);
+		if (!assign->lhs->type || !assign->rhs->type)
 			return;
-		if (!check_assign(ctx, assign.lhs, assign.rhs))
+		if (!check_assign(ctx, assign->lhs, assign->rhs))
 			return;
+
+		if (assign->lhs->type->kind == TYPE_SLICE) {
+			if (assign->rhs->kind == NCALL) {
+				// TODO array usages:
+				//	 arr = alloc()
+				// 	 arr = arr2 (tentative)
+				// 	 *alloc()
+				//
+				struct ast_node *memb = makemember(
+				    ctx->parser,
+				    (struct token){.type = TIDENT, .name = strdup("buf")}
+				    /* TODO: make as singleton */
+				    ,
+				    assign->lhs);
+				check_expr(ctx, memb);
+				assign->lhs = memb;
+				assert(assign->lhs->type);
+				assert(assign->lhs->decl);
+			}
+		}
 		break;
 	}
 	case NBLOCKSTMT: {
