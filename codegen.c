@@ -171,8 +171,7 @@ gen_array_buf(struct context *ctx, struct ast_node *array_decl,
               struct qbeval array_addr) {
 	struct qbeval addr = stack_make_temp(ctx);
 	struct ast_node *f = lookup_struct_field(array_decl->type, "buf");
-	assert(f);
-	assert(f->kind == NFIELD);
+	assert(f && f->kind == NFIELD);
 	emitln(ctx, "%s =l add %s, %d", addr.text, array_addr.text,
 	       f->field.offset);
 	annotate(ctx, "'buf' of array");
@@ -185,8 +184,8 @@ gen_array_buf(struct context *ctx, struct ast_node *array_decl,
 static struct qbeval
 gen_array_element(struct context *ctx, struct ast_node *array_decl,
                   struct qbeval array_addr, struct qbeval index) {
-	// Need to take indirect access to the 'buf' field of the array.
 	struct qbeval buf_addr = gen_array_buf(ctx, array_decl, array_addr);
+	// load where the buffer heap memory is actually allocated at
 	gen_load(ctx, buf_addr, pointer_size);
 	annotate(ctx, "load '%s'", array_decl->tok.name);
 	struct qbeval buf_ptr_val = stack_pop(ctx);

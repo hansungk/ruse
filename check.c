@@ -590,18 +590,26 @@ check_expr(struct context *ctx, struct ast_node *n) {
 				             expect_buf, got_buf);
 			}
 		}
+		n->type = n->call.func->type->return_type;
+
 		// TODO: turn this into check_builtin_func()
 		if (strcmp(n->call.func->tok.name, "len") == 0) {
 			assert(nodelistlen(n->call.args) == 1);
+			struct ast_node *firstarg = n->call.args;
 			// first arg
-			if (n->call.args->type->kind != TYPE_ARRAY &&
-			    n->call.args->type->kind != TYPE_SLICE) {
-				return error(ctx, n->call.args->loc,
+			if (firstarg->type->kind != TYPE_ARRAY &&
+			    firstarg->type->kind != TYPE_SLICE) {
+				return error(ctx, firstarg->loc,
 				             "len() can be used only for arrays and slices");
 			}
-			// TODO: TYPE_SLICE
+			// FIXME: dirty in-place rewrite
+			n->kind = NMEMBER;
+			n->tok = (struct token){.type = TIDENT, .name = strdup("len")};
+			n->member.parent = firstarg;
+			n->type = NULL;
+			check_expr(ctx, n);
+			assert(n->type);
 		}
-		n->type = n->call.func->type->return_type;
 		break;
 	case NMEMBER: {
 		check_expr(ctx, n->member.parent);

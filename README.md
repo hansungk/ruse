@@ -12,7 +12,8 @@ $ ./ruse
 ## todo
 
 * rewrite AST for array len/buf
-  * remove gen_array_buf
+  * rewrite arr[i] to arr.buf[i]?
+    * support `ptr[i]` form only at the codegen AST level, not the language
   * prev pointer in AST?
 * merge unaryexpr and typeexpr parsing
   * for something like `alloc([]int, 42)`, you don't know if the arguments are
