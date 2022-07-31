@@ -504,9 +504,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		n->type = decl->type;
 		break;
 	case NBINEXPR:
-		check_expr(ctx, n->bin.lhs);
-		check_expr(ctx, n->bin.rhs);
-		if (!n->bin.lhs->type || !n->bin.rhs->type)
+		if (!check_expr(ctx, n->bin.lhs) || !check_expr(ctx, n->bin.rhs))
 			return 0;
 		// a + b: if a's type is assignable to b's type, *or* the other way
 		// around, a binary operator typechecks.
@@ -518,8 +516,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		n->type = n->bin.lhs->type;
 		break;
 	case NDEREFEXPR:
-		check_expr(ctx, n->deref.target);
-		if (!n->deref.target->type)
+		if (!check_expr(ctx, n->deref.target))
 			return 0;
 		// FIXME: This way every (*c) will generate a new decl.
 		// Declare itself.  Don't put this in the symbol map as we don't need
@@ -530,22 +527,20 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		n->type = n->deref.target->type->base_type;
 		break;
 	case NREFEXPR:
-		check_expr(ctx, n->ref.target);
-		if (!n->ref.target->type)
+		if (!check_expr(ctx, n->ref.target))
 			return 0;
 		// lvalue check
 		if (!n->ref.target->decl)
 			return error(ctx, n->loc, "cannot take reference of a non-lvalue");
 		n->type = makepointertype(n->ref.target->type, n->tok);
 		break;
-	case NSUBSCRIPT:
-		check_expr(ctx, n->subscript.array);
-		if (!n->subscript.array->type)
+	case NSUBSCRIPT: {
+		if (!check_expr(ctx, n->subscript.array))
 			return 0;
 		ctx->prefer_long = 1;
-		check_expr(ctx, n->subscript.index);
+		int ret = check_expr(ctx, n->subscript.index);
 		ctx->prefer_long = 0;
-		if (!n->subscript.index->type)
+		if (!ret)
 			return 0;
 		type_compatible(ty_int64, &n->subscript.index->type);
 		// if (n->subscript.index->type == ty_int) {
@@ -557,12 +552,11 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		n->decl = maketempdecl(ctx->parser);
 		n->type = n->subscript.array->type->base_type;
 		break;
+	}
 	case NCALL:
 		// callee name is a node (n->call.func), not a token!
-		check_expr(ctx, n->call.func);
-		if (!n->call.func->type) {
-			return 0 ;
-		}
+		if (!check_expr(ctx, n->call.func))
+			return 0;
 		if (n->call.func->type->kind != TYPE_FUNC) {
 			tokenstr(ctx->src->text, n->call.func->tok, buf, sizeof(buf));
 			return error(ctx, n->call.func->loc, "'%s' is not a function", buf);
@@ -576,8 +570,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		}
 		int i = 0;
 		for (struct ast_node *arg = n->call.args; arg; arg = arg->next, i++) {
-			check_expr(ctx, arg);
-			if (!arg->type)
+			if (!check_expr(ctx, arg))
 				break;
 			assert(n->call.func->type->params[i]);
 			if (!type_compatible(n->call.func->type->params[i], &arg->type)) {
@@ -612,13 +605,10 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		}
 		break;
 	case NMEMBER: {
-		check_expr(ctx, n->member.parent);
-		if (!n->member.parent->type) {
+		if (!check_expr(ctx, n->member.parent))
 			return 0;
-		}
-		if (!arrlen(n->member.parent->type->members)) {
+		if (!arrlen(n->member.parent->type->members))
 			return error(ctx, n->loc, "member access to a non-struct");
-		}
 		struct ast_node *field_match =
 		    lookup_struct_field(n->member.parent->type, n->tok.name);
 		if (!field_match) {
@@ -682,8 +672,7 @@ check_decl(struct context *ctx, struct ast_node *n) {
 	case NVARDECL:
 		// var decl has an init expression, ex. var i = 4
 		if (n->var_decl.init_expr) {
-			check_expr(ctx, n->var_decl.init_expr);
-			if (!n->var_decl.init_expr->type)
+			if (!check_expr(ctx, n->var_decl.init_expr))
 				return;
 			n->type = n->var_decl.init_expr->type;
 		}
@@ -706,8 +695,8 @@ check_decl(struct context *ctx, struct ast_node *n) {
 			// assignment node is visited.
 			struct ast_node *id = makenode(ctx->parser, NIDEXPR, n->tok.loc);
 			id->tok = tokdup(n->tok);
-			check_expr(ctx, id);
-			assert(id->type); // should succeed as `id` is already declared
+			if (!check_expr(ctx, id))
+				assert(!"should succeed as `id` is already declared");
 			struct ast_node *assign =
 			    makeassign(ctx->parser, id, n->var_decl.init_expr);
 			addnode(&n, assign);
@@ -807,9 +796,7 @@ check_stmt(struct context *ctx, struct ast_node *n) {
 		break;
 	case NASSIGN: {
 		struct ast_assign_expr *assign = &n->assign_expr;
-		check_expr(ctx, assign->rhs);
-		check_expr(ctx, assign->lhs);
-		if (!assign->lhs->type || !assign->rhs->type)
+		if (!check_expr(ctx, assign->rhs) || !check_expr(ctx, assign->lhs))
 			return;
 		if (!check_assign(ctx, assign->lhs, assign->rhs))
 			return;
@@ -826,10 +813,8 @@ check_stmt(struct context *ctx, struct ast_node *n) {
 				    /* TODO: make as singleton */
 				    ,
 				    assign->lhs);
-				check_expr(ctx, memb);
-				assert(memb->type);
-				assert(memb->decl);
-
+				if (!check_expr(ctx, memb))
+					assert(!"cannot fail");
 				assign->lhs = memb;
 			}
 		}
@@ -846,8 +831,7 @@ check_stmt(struct context *ctx, struct ast_node *n) {
 		break;
 	}
 	case NRETURN:
-		check_expr(ctx, n->return_expr.expr);
-		if (!n->return_expr.expr->type)
+		if (!check_expr(ctx, n->return_expr.expr))
 			return;
 		break;
 	default:
