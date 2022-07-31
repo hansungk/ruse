@@ -154,16 +154,6 @@ is_param(const struct ast_node *func, const struct ast_node *var) {
 	return 0;
 }
 
-// Generate address where the "len" field of an array resides.
-// Note that this does not push the value to the stack but returns it.
-static struct qbeval
-gen_array_len(struct context *ctx, struct qbeval array_addr) {
-	struct qbeval len_addr = stack_make_temp(ctx);
-	emitln(ctx, "%s =l add %s, %d", len_addr.text, array_addr.text, 0);
-	annotate(ctx, "'len' of array");
-	return len_addr;
-}
-
 // Generate address where the "buf" field of an array or a slice resides.
 // Note that this does not push the value to the stack but returns it.
 static struct qbeval
@@ -284,16 +274,10 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		break;
 	}
 	case NCALL: {
-		if (!n->call.func->type->return_type) {
+		if (!n->call.func->type->return_type)
 			assert(!"func without return value not implemented");
-		}
 		if (strcmp(n->call.func->tok.name, "len") == 0) {
-			assert(value && "taking address of len()?");
-			gen_expr_addr(ctx, n->call.args /*first*/);
-			struct qbeval lenaddr = gen_array_len(ctx, stack_pop(ctx));
-			gen_load(ctx, lenaddr, val_rhs.data_size);
-			// TODO: len(a) + len(b)
-			// struct ast_node *n = makemember(ctx->parser, ..., n)
+			assert(!"should not happen as this is rewritten in check");
 			break;
 		} else if (strcmp(n->call.func->tok.name, "alloc") == 0) {
 			// Generate malloc(bytesize) which will be assigned to the 'buf'

@@ -713,9 +713,8 @@ check_decl(struct context *ctx, struct ast_node *n) {
 			n->type->return_type =
 			    resolve_type_expr(ctx, &n->func.ret_type_expr->type_expr);
 			if (!n->type->return_type) {
-				error(ctx, n->func.ret_type_expr->loc,
-				             "unknown type '%s'",
-				             n->func.ret_type_expr->tok.name);
+				error(ctx, n->func.ret_type_expr->loc, "unknown type '%s'",
+				      n->func.ret_type_expr->tok.name);
 				return;
 			}
 		}
