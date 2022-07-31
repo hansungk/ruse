@@ -172,7 +172,7 @@ type_expr_name(const struct ast_type_expr *type_expr, char *buf,
 }
 
 // TODO: merge this with the one in parse.c?
-static void
+static int
 error(struct context *ctx, struct src_loc loc, const char *fmt, ...) {
 	struct error e;
 	va_list args;
@@ -185,6 +185,7 @@ error(struct context *ctx, struct src_loc loc, const char *fmt, ...) {
 		fatal("%s(): vsnprintf error", __func__);
 
 	arrput(ctx->errors, e);
+	return 0; // false
 }
 
 int
@@ -478,7 +479,7 @@ lookup_struct_field(struct type *parent_type, const char *field_name) {
 	return field_match;
 }
 
-static void
+static int
 check_expr(struct context *ctx, struct ast_node *n) {
 	char buf[TOKLEN];
 	struct ast_node *decl = NULL;
@@ -506,7 +507,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		check_expr(ctx, n->bin.lhs);
 		check_expr(ctx, n->bin.rhs);
 		if (!n->bin.lhs->type || !n->bin.rhs->type)
-			return;
+			return 0;
 		// a + b: if a's type is assignable to b's type, *or* the other way
 		// around, a binary operator typechecks.
 		if (!type_compatible(n->bin.lhs->type, &n->bin.rhs->type) &&
@@ -519,7 +520,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 	case NDEREFEXPR:
 		check_expr(ctx, n->deref.target);
 		if (!n->deref.target->type)
-			return;
+			return 0;
 		// FIXME: This way every (*c) will generate a new decl.
 		// Declare itself.  Don't put this in the symbol map as we don't need
 		// these temporary decls to be referrable by any specific name.
@@ -531,7 +532,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 	case NREFEXPR:
 		check_expr(ctx, n->ref.target);
 		if (!n->ref.target->type)
-			return;
+			return 0;
 		// lvalue check
 		if (!n->ref.target->decl)
 			return error(ctx, n->loc, "cannot take reference of a non-lvalue");
@@ -540,12 +541,12 @@ check_expr(struct context *ctx, struct ast_node *n) {
 	case NSUBSCRIPT:
 		check_expr(ctx, n->subscript.array);
 		if (!n->subscript.array->type)
-			return;
+			return 0;
 		ctx->prefer_long = 1;
 		check_expr(ctx, n->subscript.index);
 		ctx->prefer_long = 0;
 		if (!n->subscript.index->type)
-			return;
+			return 0;
 		type_compatible(ty_int64, &n->subscript.index->type);
 		// if (n->subscript.index->type == ty_int) {
 		// 	// Promote to int64 so that it can be used for address calculation
@@ -560,7 +561,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		// callee name is a node (n->call.func), not a token!
 		check_expr(ctx, n->call.func);
 		if (!n->call.func->type) {
-			return;
+			return 0 ;
 		}
 		if (n->call.func->type->kind != TYPE_FUNC) {
 			tokenstr(ctx->src->text, n->call.func->tok, buf, sizeof(buf));
@@ -606,15 +607,14 @@ check_expr(struct context *ctx, struct ast_node *n) {
 			n->kind = NMEMBER;
 			n->tok = (struct token){.type = TIDENT, .name = strdup("len")};
 			n->member.parent = firstarg;
-			n->type = NULL;
-			check_expr(ctx, n);
-			assert(n->type);
+			if (!check_expr(ctx, n))
+				assert(!"cannot fail");
 		}
 		break;
 	case NMEMBER: {
 		check_expr(ctx, n->member.parent);
 		if (!n->member.parent->type) {
-			return;
+			return 0;
 		}
 		if (!arrlen(n->member.parent->type->members)) {
 			return error(ctx, n->loc, "member access to a non-struct");
@@ -635,7 +635,9 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		printf("n->kind=%d\n", n->kind);
 		assert(!"unknown expr kind");
 	}
+
 	assert(n->type);
+	return 1;
 }
 
 static int
@@ -722,9 +724,10 @@ check_decl(struct context *ctx, struct ast_node *n) {
 			n->type->return_type =
 			    resolve_type_expr(ctx, &n->func.ret_type_expr->type_expr);
 			if (!n->type->return_type) {
-				return error(ctx, n->func.ret_type_expr->loc,
+				error(ctx, n->func.ret_type_expr->loc,
 				             "unknown type '%s'",
 				             n->func.ret_type_expr->tok.name);
+				return;
 			}
 		}
 
