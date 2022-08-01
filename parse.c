@@ -49,7 +49,7 @@ makestruct(struct parser *p, struct token name) {
 static struct ast_node *
 makebinexpr(struct parser *p, struct ast_node *lhs, struct token op,
             struct ast_node *rhs) {
-	struct ast_node *n = makenode(p, NBINEXPR, op.loc);
+	struct ast_node *n = makenode(p, NBINEXPR, lhs->loc);
 	n->bin.lhs = lhs;
 	n->bin.rhs = rhs;
 	n->tok = op;
