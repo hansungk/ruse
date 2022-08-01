@@ -274,11 +274,11 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 		break;
 	}
 	case NCALL: {
-		if (!n->call.func->type->return_type)
+		if (!n->call.func->type->return_type) {
 			assert(!"func without return value not implemented");
+		}
 		if (strcmp(n->call.func->tok.name, "len") == 0) {
 			assert(!"should not happen as this is rewritten in check");
-			break;
 		} else if (strcmp(n->call.func->tok.name, "alloc") == 0) {
 			// Generate malloc(bytesize) which will be assigned to the 'buf'
 			// field of the LHS array.
@@ -351,22 +351,24 @@ gen_expr_addr(struct context *ctx, struct ast_node *n) {
 // it doesn't work for NVARDECL; NVARDECL does not have an LHS expression.
 // TODO: rewrite AST at check so that we can just handle NASSIGN.
 static void
-gen_assign(struct context *ctx, struct ast_node *to, struct ast_node *from,
-           struct qbeval to_addr, struct qbeval from_val) {
+gen_assign(struct context *ctx, struct ast_node *to, struct ast_node *from) {
+	struct qbeval to_addr = stack_pop(ctx);
+	struct qbeval from_val = stack_pop(ctx);
 	struct qbeval target = to_addr;
 
 	if (to->type->kind == TYPE_SLICE) {
-		if (from->kind == NCALL) {
-			assert(!"this shouldn't happen after 'buf' rewrite in check");
+		assert(!"this shouldn't happen after rewrite in check");
+	}
+	if (from->kind == NCALL &&
+	    strcmp(from->call.func->tok.name, "alloc") == 0) {
+		assert(to->kind == NMEMBER);
+		struct qbeval arrlen = stack_pop(ctx);
 
-			// old
-			gen_store(ctx, from_val.data_size);
-			emit(ctx, " %s, %s", from_val.text, target.text);
-			return;
-		} else {
-			// TODO: array to array copy
-			assert(!"TODO: only array = func() form of assignment handled");
-		}
+		assert(!"TODO: also assign `arrlen`");
+		// old
+		gen_store(ctx, from_val.data_size);
+		emit(ctx, " %s, %s", from_val.text, target.text);
+		return;
 	}
 
 	gen_store(ctx, from_val.data_size);
@@ -417,10 +419,7 @@ gen_stmt(struct context *ctx, struct ast_node *n) {
 	case NASSIGN: {
 		gen_expr_value(ctx, n->assign_expr.rhs);
 		gen_expr_addr(ctx, n->assign_expr.lhs);
-		struct qbeval val_lhs = stack_pop(ctx);
-		struct qbeval val_rhs = stack_pop(ctx);
-		gen_assign(ctx, n->assign_expr.lhs, n->assign_expr.rhs, val_lhs,
-		           val_rhs);
+		gen_assign(ctx, n->assign_expr.lhs, n->assign_expr.rhs);
 		break;
 	}
 	case NRETURN:

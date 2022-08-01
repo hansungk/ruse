@@ -802,10 +802,7 @@ check_stmt(struct context *ctx, struct ast_node *n) {
 
 		if (assign->lhs->type->kind == TYPE_SLICE) {
 			if (assign->rhs->kind == NCALL) {
-				// Array usages:
-				//	 arr = alloc()
-				// 	 arr = arr2 (tentative)
-				// 	 *alloc()
+				// Rewrite to `array.buf = malloc(); array.len = len`.
 				struct ast_node *memb = makemember(
 				    ctx->parser,
 				    (struct token){.type = TIDENT, .name = strdup("buf")}
