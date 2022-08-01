@@ -6,14 +6,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-static struct type *ty_undef;
-static struct type *ty_int;
-static struct type *ty_int64;
-static struct type *ty_string;
+struct type *ty_undef;
+struct type *ty_int;
+struct type *ty_int64;
+struct type *ty_string;
 struct ast_node *fn_alloc = NULL;
+
 static struct ast_node *declare(struct context *ctx, struct ast_node *n);
 static struct type *push_type(struct context *ctx, struct type *ty);
 static void check_decl(struct context *ctx, struct ast_node *n);
+static void check_stmt(struct context *ctx, struct ast_node *n);
 
 void
 fatal(const char *fmt, ...) {
@@ -60,7 +62,7 @@ makeslicetype(struct context *ctx, struct type *elem_type, struct token tok) {
 
 	struct ast_node *te_int =
 	    maketypeexpr(ctx->parser, TYPE_ATOM,
-	                 (struct token){.type = TINT, .name = strdup("int")});
+	                 (struct token){.type = TINT, .name = strdup("int64")});
 	struct ast_node *te_intp =
 	    maketypeexpr(ctx->parser, TYPE_POINTER,
 	                 (struct token){.type = TINT, .name = "int"} /*bogus*/);
@@ -492,7 +494,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		// TODO: non-int literals
 		// TODO: treat as ty_long for indices in subscript exprs
 		n->type = ty_int;
-		if (ctx->prefer_long) {
+		if (ctx->propagate_long) {
 			n->type = ty_int64;
 		}
 		break;
@@ -537,9 +539,9 @@ check_expr(struct context *ctx, struct ast_node *n) {
 	case NSUBSCRIPT: {
 		if (!check_expr(ctx, n->subscript.array))
 			return 0;
-		ctx->prefer_long = 1;
+		ctx->propagate_long = 1;
 		int ret = check_expr(ctx, n->subscript.index);
-		ctx->prefer_long = 0;
+		ctx->propagate_long = 0;
 		if (!ret)
 			return 0;
 		type_compatible(ty_int64, &n->subscript.index->type);
@@ -570,6 +572,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		}
 		int i = 0;
 		for (struct ast_node *arg = n->call.args; arg; arg = arg->next, i++) {
+			// FIXME: dirty
 			if (!check_expr(ctx, arg))
 				break;
 			assert(n->call.func->type->params[i]);
@@ -583,6 +586,9 @@ check_expr(struct context *ctx, struct ast_node *n) {
 				             "wrong type of argument: expected %s, got %s",
 				             expect_buf, got_buf);
 			}
+			if (n->call.func->type->params[i] == ty_int64) {
+				assert(arg->type == ty_int64);
+			}
 		}
 		n->type = n->call.func->type->return_type;
 
@@ -590,7 +596,7 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		if (strcmp(n->call.func->tok.name, "len") == 0) {
 			assert(nodelistlen(n->call.args) == 1);
 			struct ast_node *firstarg = n->call.args;
-			// first arg
+
 			if (firstarg->type->kind != TYPE_ARRAY &&
 			    firstarg->type->kind != TYPE_SLICE) {
 				return error(ctx, firstarg->loc,
@@ -693,6 +699,8 @@ check_decl(struct context *ctx, struct ast_node *n) {
 			// This way, there's no need to explicitly call check_assign()
 			// inside NVARDECL because that will be handled when the newly added
 			// assignment node is visited.
+			// FIXME: this ends up calling check_expr() twice on init_expr after
+			// the top one
 			struct ast_node *id = makenode(ctx->parser, NIDEXPR, n->tok.loc);
 			id->tok = tokdup(n->tok);
 			if (!check_expr(ctx, id))
@@ -787,6 +795,35 @@ check_decl(struct context *ctx, struct ast_node *n) {
 	}
 }
 
+// Rewrite `array = alloc()` to `array.buf = malloc(); array.len = len`.
+static void
+rewrite_array_assign(struct context *ctx, struct ast_node *n) {
+	struct ast_assign_expr *assign = &n->assign_expr;
+	struct ast_node *array = assign->lhs;
+
+	struct ast_node *memb_buf =
+	    makemember(ctx->parser,
+	               (struct token){.type = TIDENT, .name = strdup("buf")}
+	               /* TODO: make as singleton */
+	               ,
+	               array);
+	if (!check_expr(ctx, memb_buf))
+		assert(!"cannot fail");
+	assign->lhs = memb_buf;
+
+	assert(assign->rhs->kind == NCALL);
+	struct ast_node *len_expr = assign->rhs->call.args; // first arg
+	assert(len_expr->type == ty_int64);
+	struct ast_node *memb_len =
+	    makemember(ctx->parser,
+	               (struct token){.type = TIDENT, .name = strdup("len")}
+	               /* TODO: make as singleton */
+	               ,
+	               array);
+	struct ast_node *next = makeassign(ctx->parser, memb_len, len_expr);
+	addnode(&n, next);
+}
+
 static void
 check_stmt(struct context *ctx, struct ast_node *n) {
 	switch (n->kind) {
@@ -802,16 +839,7 @@ check_stmt(struct context *ctx, struct ast_node *n) {
 
 		if (assign->lhs->type->kind == TYPE_SLICE) {
 			if (assign->rhs->kind == NCALL) {
-				// Rewrite to `array.buf = malloc(); array.len = len`.
-				struct ast_node *memb = makemember(
-				    ctx->parser,
-				    (struct token){.type = TIDENT, .name = strdup("buf")}
-				    /* TODO: make as singleton */
-				    ,
-				    assign->lhs);
-				if (!check_expr(ctx, memb))
-					assert(!"cannot fail");
-				assign->lhs = memb;
+				rewrite_array_assign(ctx, n);
 			}
 		}
 		break;

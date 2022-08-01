@@ -311,7 +311,7 @@ struct context {
 	// A temporary flag that is set when checking the index part of a subscript
 	// expression to signal that the type of the index expression should be
 	// promoted to the int64 type.
-	int prefer_long;
+	int propagate_long;
 	// Increments at every parsing of a field decl to compute the offset of the
 	// field.
 	int accum_field_offset;
@@ -340,6 +340,10 @@ struct context {
 	} qbefmt;
 };
 
+extern struct type *ty_undef;
+extern struct type *ty_int;
+extern struct type *ty_int64;
+extern struct type *ty_string;
 extern struct ast_node *fn_alloc;
 
 void scope_open(struct context *ctx);

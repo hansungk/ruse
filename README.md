@@ -12,6 +12,7 @@ $ ./ruse
 ## todo
 
 * rewrite AST for array len/buf
+  * rewrite `arr = alloc()` to `arr.buf = ...` and `arr.len = ...`
   * rewrite arr[i] to arr.buf[i]?
     * support `ptr[i]` form only at the codegen AST level, not the language
     * this will remove the need for `gen_array_buf` in codegen

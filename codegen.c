@@ -198,12 +198,20 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 	char buf[TOKLEN];
 	struct qbeval val, val_lhs, val_rhs;
 
+	// TODO: ++/-- instead of 1 or 0
+	if (n->type == ty_int64) {
+		ctx->propagate_long = 1;
+	}
+
 	assert(n);
 	switch (n->kind) {
 	case NLITERAL: {
 		tokenstr(ctx->src->text, n->tok, buf, sizeof(buf));
 		val = stack_make_temp(ctx);
-		char wl = (n->type->size == 8) ? 'l' : 'w';
+		char wl = 'w';
+		if (ctx->propagate_long || n->type->size == 8) {
+			wl = 'l';
+		}
 		// There seems to be no direct way to assign a number literal to a
 		// temporary in QBE, so use a bogus add 0.
 		emitln(ctx, "%s =%c add 0, %s", val.text, wl, buf);
@@ -284,6 +292,7 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 			// field of the LHS array.
 			gen_expr_value(ctx, n->call.args /*first*/);
 			struct qbeval arrlen = stack_pop(ctx);
+			// assert(arrlen.data_size == 8);
 			struct qbeval bytes = stack_make_temp(ctx);
 			emitln(ctx, "%s =l mul %d, %s", bytes.text,
 			       n->type->base_type->size, arrlen.text);
@@ -335,6 +344,11 @@ gen_expr(struct context *ctx, struct ast_node *n, int value) {
 	default:
 		assert(!"unknown expr kind");
 	}
+
+	// TODO: ++/-- instead of 1 or 0
+	if (n->type == ty_int64) {
+		ctx->propagate_long = 0;
+	}
 }
 
 static void
@@ -362,13 +376,12 @@ gen_assign(struct context *ctx, struct ast_node *to, struct ast_node *from) {
 	if (from->kind == NCALL &&
 	    strcmp(from->call.func->tok.name, "alloc") == 0) {
 		assert(to->kind == NMEMBER);
-		struct qbeval arrlen = stack_pop(ctx);
 
-		assert(!"TODO: also assign `arrlen`");
-		// old
-		gen_store(ctx, from_val.data_size);
-		emit(ctx, " %s, %s", from_val.text, target.text);
-		return;
+		// assert(!"TODO: also assign `arrlen`");
+		// // old
+		// gen_store(ctx, from_val.data_size);
+		// emit(ctx, " %s, %s", from_val.text, target.text);
+		// return;
 	}
 
 	gen_store(ctx, from_val.data_size);
