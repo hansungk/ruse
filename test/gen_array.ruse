@@ -1,8 +1,8 @@
-// run 10
+// run 44
 
 fn main() int {
     var arr2 []int = alloc(10 + 12)
     arr2[9] = 69
     // return arr2[9]
-    return len(arr2)
+    return len(arr2) + len(arr2)
 }

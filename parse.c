@@ -165,13 +165,11 @@ makeassign(struct parser *p, struct ast_node *lhs, struct ast_node *rhs) {
 void
 addnode(struct ast_node **np, struct ast_node *new) {
 	assert(new);
-
 	struct ast_node *n = *np;
 	if (!n) {
 		*np = new;
 		return;
 	}
-
 	new->next = n->next;
 	n->next = new;
 }
