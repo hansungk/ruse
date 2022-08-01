@@ -494,9 +494,6 @@ check_expr(struct context *ctx, struct ast_node *n) {
 		// TODO: non-int literals
 		// TODO: treat as ty_long for indices in subscript exprs
 		n->type = ty_int;
-		if (ctx->propagate_long) {
-			n->type = ty_int64;
-		}
 		break;
 	case NIDEXPR:
 		if (!(decl = lookup(ctx, n))) {
@@ -539,17 +536,10 @@ check_expr(struct context *ctx, struct ast_node *n) {
 	case NSUBSCRIPT: {
 		if (!check_expr(ctx, n->subscript.array))
 			return 0;
-		ctx->propagate_long = 1;
-		int ret = check_expr(ctx, n->subscript.index);
-		ctx->propagate_long = 0;
-		if (!ret)
+		if (!check_expr(ctx, n->subscript.index))
 			return 0;
+		// promote to int64
 		type_compatible(ty_int64, &n->subscript.index->type);
-		// if (n->subscript.index->type == ty_int) {
-		// 	// Promote to int64 so that it can be used for address calculation
-		// 	// without a hassle.
-		// 	n->subscript.index->type = ty_int64;
-		// }
 		assert(n->subscript.array->decl);
 		n->decl = maketempdecl(ctx->parser);
 		n->type = n->subscript.array->type->base_type;
