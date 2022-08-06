@@ -24,8 +24,7 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
   case Expr::integer_literal: {
     char cl = (e->type == sema.context.ty_int64) ? 'l' : 'w';
     auto v = stack.make_temp();
-    emitnl("{} ={} add 0, {}", v.format(), cl,
-           e->as<IntegerLiteral>()->value);
+    emitnl("{} ={} add 0, {}", v.format(), cl, e->as<IntegerLiteral>()->value);
     annotate("{}: literal", e->loc.line);
     stack.push_temp(v);
     break;
@@ -139,7 +138,8 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     auto sde = e->as<StructDefExpr>();
 
     // TODO: document why we alloc here
-    auto alloc_addr = emit_stack_alloc(sde->type, sde->loc.line, sde->text(sema));
+    auto alloc_addr =
+        emit_stack_alloc(sde->type, sde->loc.line, sde->text(sema));
 
     // Don't assume anything and just emit all the value copying of each
     // members here.  This might sound expensive, especially in cases where
@@ -375,7 +375,8 @@ void QbeGen::codegen_decl(Decl *d) {
     // generation. This is because there are other cases that allocate on
     // the stack (such as returning a large struct by-value) that are not
     // emitted by a vardecl.
-    v->frame_local_id = emit_stack_alloc(v->type, v->loc.line, v->name->text).id;
+    v->frame_local_id =
+        emit_stack_alloc(v->type, v->loc.line, v->name->text).id;
 
     if (v->assign_expr) {
       stack.push_address_explicit(v->frame_local_id);
