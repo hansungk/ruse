@@ -15,6 +15,10 @@ std::string Type::qbe_type_string() const {
   return s;
 }
 
+void QbeGen::emitLoad(QbeValue value, QbeValue addr) {
+  emitnl("{} =l loadl {}", value.format(), addr.format());
+}
+
 // Codegen for expressions.  'value' denotes whether the caller that contains
 // the use of this expression requires the actual value of it, or just the
 // address (for lvalues).  If 'value' is true, a handle ID for the generated
@@ -69,7 +73,7 @@ void QbeGen::codegenExprExplicit(Expr *e, bool emit_value) {
           assert(dre->type->origin_decl->kind == Decl::struct_);
         } else if (dre->type->size == 8) {
           auto v = stack.make_temp();
-          emitnl("{} =l loadl {}", v.format(), stack.pop().format());
+          emitLoad(v, stack.pop());
           annotate("{}: load {}", dre->loc.line, dre->text(sema));
           stack.push_temp(v);
         } else if (dre->type->size == 4) {
@@ -216,7 +220,7 @@ void QbeGen::codegenExprExplicit(Expr *e, bool emit_value) {
            array_struct_buf_offset);
     annotate("{}: buf ptr of array '{}'", se->loc.line,
              se->array_expr->decl->name->text);
-    emitnl("{} =l loadl {}", heap_base.format(), buf_field.format());
+    emitLoad(heap_base, buf_field);
     annotate("{}: load buf heap address of array '{}'", se->loc.line,
              se->array_expr->decl->name->text);
 
@@ -536,8 +540,7 @@ void QbeGen::emitAssignment(const Decl *lhs, Expr *rhs) {
       // load value of the field of RHS
       auto field_being_copied = stack.make_temp();
       if (struct_decl->alignment == 8) {
-        emitnl("{} =l loadl {}", field_being_copied.format(),
-               rhs_field_addr.format());
+        emitLoad(field_being_copied, rhs_field_addr);
       } else if (struct_decl->alignment == 4) {
         emitnl("{} =w loadw {}", field_being_copied.format(),
                rhs_field_addr.format());

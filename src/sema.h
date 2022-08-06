@@ -287,6 +287,7 @@ struct QbeGen {
     ~IndentBlock() { c.indent -= 4; }
   };
 
+  void emitLoad(QbeValue value, QbeValue addr);
   void emitAssignment(const Decl *lhs, Expr *rhs);
   QbeValue emitStackAlloc(const Type *type, size_t line, std::string_view text);
 
