@@ -21,9 +21,9 @@ $ ./check.py
 
 ## todo
 
-* make_temp for QbeVal
-* built-in functions
 * arrays
+  * load buf pointer
+* built-in functions
 * strings
   * compiler-internal structs to store ptr/len
 * interop with C

@@ -210,15 +210,20 @@ void QbeGen::codegen_expr_explicit(Expr *e, bool value) {
     annotate("{}: compute offset from '{}'", se->loc.line,
              se->array_expr->decl->name->text);
 
-    auto v_element = stack.make_temp();
-    emitnl("{} =l add {}, {}", v_element.format(), v_array.format(),
+    auto v_buf_field = stack.make_temp();
+    auto v_heap_base = stack.make_temp();
+    emitnl("{} =l add {}, {}", v_buf_field.format(), v_array.format(),
            array_struct_buf_offset);
     annotate("{}: buf ptr of array '{}'", se->loc.line,
              se->array_expr->decl->name->text);
+    emitnl("{} =l loadl {}", v_heap_base.format(), v_buf_field.format());
+    annotate("{}: load buf heap address of array '{}'", se->loc.line,
+             se->array_expr->decl->name->text);
 
-    emitnl("{} =l add {}, {}", v_element.format(), v_element.format(),
+    auto v_element = stack.make_temp();
+    emitnl("{} =l add {}, {}", v_element.format(), v_heap_base.format(),
            v_offset.format());
-    annotate("{}: offset address in '{}'", se->loc.line,
+    annotate("{}: element address in '{}'", se->loc.line,
              se->array_expr->decl->name->text);
     stack.push_temp(v_element);
 
