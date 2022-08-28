@@ -113,6 +113,7 @@ void QbeGen::codegenExprExplicit(Expr *e, bool emit_value) {
       auto v = stack.make_temp();
       emitnl("{} =l call $malloc(w {}", v.format(), generated_args[0].format());
       emit(")");
+      annotate("{}: heap alloc", c->loc.line);
       stack.push_temp(v);
     } else if (func_decl->ret_type) {
       auto v = stack.make_temp();
