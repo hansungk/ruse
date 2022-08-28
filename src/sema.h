@@ -288,16 +288,16 @@ struct QbeGen {
   };
 
   void emitLoad(QbeValue value, QbeValue addr);
-  void emitAssignment(const Decl *lhs, Expr *rhs);
-  QbeValue emitStackAlloc(const Type *type, size_t line, std::string_view text);
+  void emit_assignment(const Decl *lhs, Expr *rhs);
+  QbeValue emit_stack_alloc(const Type *type, size_t line, std::string_view text);
 
   void codegen(AstNode *n);
-  void codegenDecl(Decl *d);
-  void codegenExprValue(Expr *e);
-  void codegenExprAddr(Expr *e);
-  void codegenExprExplicit(Expr *e, bool emit_value);
-  void codegenStmt(Stmt *s);
-  void codegenDataSection();
+  void codegen_decl(Decl *d);
+  void codegen_expr_value(Expr *e);
+  void codegen_expr_address(Expr *e);
+  void codegen_expr_explicit(Expr *e, bool value);
+  void codegen_stmt(Stmt *s);
+  void codegen_data_section();
 };
 
 } // namespace cmp
