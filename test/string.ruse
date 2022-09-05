@@ -1,3 +1,4 @@
 fn main() int {
     var s = "hello string"
+    s[0]
 }

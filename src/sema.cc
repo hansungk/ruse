@@ -44,6 +44,17 @@ Type *make_array_type(Sema &sema, Name *name, Type *base_type) {
   return t;
 }
 
+static Type *make_string_type(Sema &sema) {
+  auto str = std::string{"string"};
+  Name *name = sema.name_table.pushlen(str.data(), str.length());
+  Type *t = new Type{TypeKind::array, name};
+  // FIXME: size of a string should be something like pointer + length
+  t->size = 4;
+  t->base_type = sema.context.ty_char;
+  sema.type_pool.push_back(t);
+  return t;
+}
+
 Type *make_builtin_type(Sema &sema, Name *n) {
   Type *t = new Type(TypeKind::atom, n);
   t->builtin = true;
@@ -71,9 +82,8 @@ void setup_builtin(Sema &sema) {
   sema.context.ty_int64->size = 8;
   sema.context.ty_char = make_builtin_type_from_name(sema, "char");
   sema.context.ty_char->size = 1;
-  sema.context.ty_string = make_builtin_type_from_name(sema, "string");
-  // FIXME: size of a string should be something like pointer + length
-  sema.context.ty_string->size = 4;
+  sema.context.ty_string = make_string_type(sema);
+  // assert(!"TODO: string is struct type but has no origin_decl");
   sema.context.ty_incomplete = make_builtin_type_from_name(sema, "incomplete");
   sema.context.ty_incomplete->size = 0;
 

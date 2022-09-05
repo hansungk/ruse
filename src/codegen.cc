@@ -517,7 +517,7 @@ void QbeGen::emit_assignment(const Decl *lhs, Expr *rhs) {
       // TODO: clean this up by using recursive call to emit_assignment()
       emitnl("storel {}, {}", rhs_value.format(), lhs_addr.format());
     } else {
-      assert(!"this assignment to array is not handled");
+      assert(!"this type of assignment to array is not handled");
     }
   }
   // For structs, copy every field one by one.

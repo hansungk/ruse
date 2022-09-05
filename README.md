@@ -21,10 +21,9 @@ $ ./check.py
 
 ## todo
 
-* arrays
-  * load buf pointer
 * built-in functions
 * strings
+  * subscript: hide base_type
   * compiler-internal structs to store ptr/len
 * interop with C
 * methods
